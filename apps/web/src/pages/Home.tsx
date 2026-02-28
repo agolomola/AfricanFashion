@@ -45,6 +45,8 @@ const featuredDesigns = [
     designer: 'Amma Designs',
     price: 299,
     image: '/images/design-1.jpg',
+    country: 'Ghana',
+    flag: '🇬🇭',
   },
   {
     id: '2',
@@ -52,6 +54,8 @@ const featuredDesigns = [
     designer: 'Lagos Luxe',
     price: 189,
     image: '/images/design-2.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: '3',
@@ -59,6 +63,8 @@ const featuredDesigns = [
     designer: 'Nairobi Styles',
     price: 159,
     image: '/images/design-3.jpg',
+    country: 'Kenya',
+    flag: '🇰🇪',
   },
   {
     id: '4',
@@ -66,6 +72,8 @@ const featuredDesigns = [
     designer: 'Dakar Elegance',
     price: 349,
     image: '/images/design-4.jpg',
+    country: 'Senegal',
+    flag: '🇸🇳',
   },
   {
     id: '5',
@@ -73,6 +81,8 @@ const featuredDesigns = [
     designer: 'Accra Heritage',
     price: 219,
     image: '/images/design-5.jpg',
+    country: 'Ghana',
+    flag: '🇬🇭',
   },
   {
     id: '6',
@@ -80,6 +90,8 @@ const featuredDesigns = [
     designer: 'Modern Africa',
     price: 399,
     image: '/images/design-6.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
 ];
 
@@ -91,6 +103,8 @@ const featuredReadyToWear = [
     designer: 'Lagos Luxe',
     price: 149,
     image: '/images/rtw-1.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: 'rtw2',
@@ -98,6 +112,8 @@ const featuredReadyToWear = [
     designer: 'Accra Styles',
     price: 89,
     image: '/images/rtw-2.jpg',
+    country: 'Ghana',
+    flag: '🇬🇭',
   },
   {
     id: 'rtw3',
@@ -105,6 +121,8 @@ const featuredReadyToWear = [
     designer: 'Nairobi Chic',
     price: 119,
     image: '/images/rtw-3.jpg',
+    country: 'Kenya',
+    flag: '🇰🇪',
   },
   {
     id: 'rtw4',
@@ -112,6 +130,8 @@ const featuredReadyToWear = [
     designer: 'Dakar Fashion',
     price: 79,
     image: '/images/rtw-4.jpg',
+    country: 'Senegal',
+    flag: '🇸🇳',
   },
   {
     id: 'rtw5',
@@ -119,6 +139,8 @@ const featuredReadyToWear = [
     designer: 'Ghana Gold',
     price: 129,
     image: '/images/rtw-5.jpg',
+    country: 'Ghana',
+    flag: '🇬🇭',
   },
   {
     id: 'rtw6',
@@ -126,6 +148,8 @@ const featuredReadyToWear = [
     designer: 'Abuja Styles',
     price: 179,
     image: '/images/rtw-6.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: 'rtw7',
@@ -133,6 +157,8 @@ const featuredReadyToWear = [
     designer: 'Lagos Luxe',
     price: 99,
     image: '/images/rtw-7.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: 'rtw8',
@@ -140,6 +166,8 @@ const featuredReadyToWear = [
     designer: 'Nairobi Chic',
     price: 159,
     image: '/images/rtw-8.jpg',
+    country: 'Kenya',
+    flag: '🇰🇪',
   },
   {
     id: 'rtw9',
@@ -147,6 +175,8 @@ const featuredReadyToWear = [
     designer: 'Casablanca',
     price: 139,
     image: '/images/rtw-9.jpg',
+    country: 'Morocco',
+    flag: '🇲🇦',
   },
   {
     id: 'rtw10',
@@ -154,6 +184,8 @@ const featuredReadyToWear = [
     designer: 'Lagos Luxe',
     price: 189,
     image: '/images/rtw-10.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: 'rtw11',
@@ -161,6 +193,8 @@ const featuredReadyToWear = [
     designer: 'Dakar Elegance',
     price: 249,
     image: '/images/rtw-11.jpg',
+    country: 'Senegal',
+    flag: '🇸🇳',
   },
   {
     id: 'rtw12',
@@ -168,6 +202,8 @@ const featuredReadyToWear = [
     designer: 'Addis Ababa',
     price: 169,
     image: '/images/rtw-12.jpg',
+    country: 'Ethiopia',
+    flag: '🇪🇹',
   },
 ];
 
@@ -179,6 +215,8 @@ const featuredFabrics = [
     material: 'Cotton Blend',
     price: 45,
     image: '/images/fabric-1.jpg',
+    country: 'Ghana',
+    flag: '🇬🇭',
   },
   {
     id: '2',
@@ -186,6 +224,8 @@ const featuredFabrics = [
     material: '100% Cotton',
     price: 25,
     image: '/images/fabric-2.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: '3',
@@ -193,6 +233,8 @@ const featuredFabrics = [
     material: 'Handwoven Cotton',
     price: 65,
     image: '/images/fabric-3.jpg',
+    country: 'Ethiopia',
+    flag: '🇪🇹',
   },
   {
     id: '4',
@@ -200,6 +242,8 @@ const featuredFabrics = [
     material: 'Pure Silk',
     price: 89,
     image: '/images/fabric-4.jpg',
+    country: 'Morocco',
+    flag: '🇲🇦',
   },
   {
     id: '5',
@@ -207,6 +251,8 @@ const featuredFabrics = [
     material: 'Stamped Cotton',
     price: 55,
     image: '/images/fabric-5.jpg',
+    country: 'Ghana',
+    flag: '🇬🇭',
   },
   {
     id: '6',
@@ -214,6 +260,8 @@ const featuredFabrics = [
     material: 'Handwoven',
     price: 75,
     image: '/images/fabric-6.jpg',
+    country: 'Nigeria',
+    flag: '🇳🇬',
   },
   {
     id: '7',
@@ -221,6 +269,8 @@ const featuredFabrics = [
     material: 'Cotton Stripes',
     price: 35,
     image: '/images/fabric-7.jpg',
+    country: 'Kenya',
+    flag: '🇰🇪',
   },
   {
     id: '8',
@@ -228,6 +278,8 @@ const featuredFabrics = [
     material: 'Embroidered',
     price: 95,
     image: '/images/fabric-8.jpg',
+    country: 'Senegal',
+    flag: '🇸🇳',
   },
 ];
 
@@ -490,6 +542,10 @@ export default function Home() {
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
+                    {/* Country flag overlay - top left */}
+                    <div className="absolute top-3 left-3 w-10 h-10 bg-white/90 flex items-center justify-center shadow-sm">
+                      <span className="text-xl">{design.flag}</span>
+                    </div>
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
@@ -533,6 +589,10 @@ export default function Home() {
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
+                    {/* Country flag overlay - top left */}
+                    <div className="absolute top-3 left-3 w-10 h-10 bg-white/90 flex items-center justify-center shadow-sm">
+                      <span className="text-xl">{item.flag}</span>
+                    </div>
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
@@ -576,6 +636,10 @@ export default function Home() {
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
+                    {/* Country flag overlay - top left */}
+                    <div className="absolute top-3 left-3 w-10 h-10 bg-white/90 flex items-center justify-center shadow-sm">
+                      <span className="text-xl">{fabric.flag}</span>
+                    </div>
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
