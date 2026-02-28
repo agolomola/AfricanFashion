@@ -658,6 +658,55 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Designer Spotlight */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left - Designer Image */}
+            <div className="relative">
+              <img
+                src="/images/designer-spotlight.jpg"
+                alt="Designer in studio"
+                className="w-full h-[500px] object-cover shadow-lg"
+              />
+            </div>
+
+            {/* Right - Designer Info */}
+            <div className="lg:pl-8">
+              <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-4 block">
+                Designer Spotlight
+              </span>
+              <h2 className="font-display text-4xl lg:text-5xl text-navy-600 font-bold mb-2">
+                Meet Amara Okafor
+              </h2>
+              <p className="text-coral-500 font-medium text-lg mb-8">
+                Contemporary Ankara Specialist
+              </p>
+
+              {/* Quote */}
+              <div className="relative mb-8">
+                <span className="absolute -top-4 -left-2 text-6xl text-coral-200 font-serif">"</span>
+                <p className="text-gray-600 text-lg italic pl-8">
+                  Every piece I create tells a story of heritage meeting modern elegance. I believe African fashion should be accessible to everyone, everywhere.
+                </p>
+              </div>
+
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Based in Lagos, Nigeria, Amara has been transforming traditional Ankara prints into contemporary masterpieces for over a decade. Her designs have graced runways from Paris to New York, bringing African elegance to the global stage.
+              </p>
+
+              <Link
+                to="/designers"
+                className="inline-flex items-center px-8 py-4 bg-coral-500 text-white font-semibold hover:bg-coral-600 transition-colors"
+              >
+                Meet All Designers
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* How It Works */}
       <section className="py-20 bg-navy-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
