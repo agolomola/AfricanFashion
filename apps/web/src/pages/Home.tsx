@@ -1,21 +1,21 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock } from 'lucide-react';
-import { productsApi } from '../services/api';
+import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Sparkles, MapPin, Heart } from 'lucide-react';
 
+// Hero slides with reliable Unsplash images
 const heroSlides = [
   {
-    image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=1920&q=80',
+    image: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=1920&q=80',
     title: 'Wear the Story',
     subtitle: 'Discover authentic African fashion — from heritage prints to modern silhouettes',
   },
   {
-    image: 'https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=1920&q=80',
+    image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80',
     title: 'Fresh Drops',
     subtitle: 'New arrivals from the most talented designers across the continent',
   },
   {
-    image: 'https://images.unsplash.com/photo-1532453288672-3a27e9be9efd?w=1920&q=80',
+    image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=1920&q=80',
     title: 'Trending Now',
     subtitle: 'The pieces everyone is talking about this season',
   },
@@ -36,9 +36,97 @@ const countries = [
   { name: 'Morocco', flag: '🇲🇦', fabrics: ['Caftan', 'Silk'] },
 ];
 
+// Featured designs with placeholder images
+const featuredDesigns = [
+  {
+    id: '1',
+    name: 'Royal Kente Gown',
+    designer: 'Amma Designs',
+    price: 299,
+    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&q=80',
+  },
+  {
+    id: '2',
+    name: 'Ankara Maxi Dress',
+    designer: 'Lagos Luxe',
+    price: 189,
+    image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=600&q=80',
+  },
+  {
+    id: '3',
+    name: 'Kitenge Two-Piece',
+    designer: 'Nairobi Styles',
+    price: 159,
+    image: 'https://images.unsplash.com/photo-1585487000160-6ebcfceb0d03?w=600&q=80',
+  },
+  {
+    id: '4',
+    name: 'Boubou Silk Set',
+    designer: 'Dakar Elegance',
+    price: 349,
+    image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=600&q=80',
+  },
+];
+
+// Featured fabrics with placeholder images
+const featuredFabrics = [
+  {
+    id: '1',
+    name: 'Premium Kente Cloth',
+    material: 'Cotton Blend',
+    price: 45,
+    image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=600&q=80',
+  },
+  {
+    id: '2',
+    name: 'Vibrant Ankara Print',
+    material: '100% Cotton',
+    price: 25,
+    image: 'https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=600&q=80',
+  },
+  {
+    id: '3',
+    name: 'Ethiopian Tibeb',
+    material: 'Handwoven Cotton',
+    price: 65,
+    image: 'https://images.unsplash.com/photo-1532453288672-3a27e9be9efd?w=600&q=80',
+  },
+  {
+    id: '4',
+    name: 'Moroccan Silk',
+    material: 'Pure Silk',
+    price: 89,
+    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&q=80',
+  },
+];
+
+// Testimonials
+const testimonials = [
+  {
+    name: 'Sarah Johnson',
+    location: 'New York, USA',
+    text: 'The quality of the fabrics exceeded my expectations. My custom dress fits perfectly!',
+    rating: 5,
+    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80',
+  },
+  {
+    name: 'Michael Adeyemi',
+    location: 'London, UK',
+    text: 'Amazing platform connecting me with talented African designers. Highly recommend!',
+    rating: 5,
+    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80',
+  },
+  {
+    name: 'Amina Diallo',
+    location: 'Paris, France',
+    text: 'The 3D try-on feature helped me visualize my outfit before ordering. Brilliant!',
+    rating: 5,
+    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80',
+  },
+];
+
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
-  const [featuredProducts, setFeaturedProducts] = useState<any>({ fabrics: [], designs: [], readyToWear: [] });
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -47,21 +135,13 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  useEffect(() => {
-    productsApi.getFeatured().then((res) => {
-      if (res.success) {
-        setFeaturedProducts(res.data);
-      }
-    });
-  }, []);
-
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
 
   return (
-    <div>
+    <div className="overflow-hidden">
       {/* Hero Section */}
-      <section className="relative h-screen overflow-hidden">
+      <section className="relative h-[90vh] min-h-[600px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={index}
@@ -70,10 +150,10 @@ export default function Home() {
             }`}
           >
             <div
-              className="absolute inset-0 bg-cover bg-center"
+              className="absolute inset-0 bg-cover bg-center scale-105"
               style={{ backgroundImage: `url(${slide.image})` }}
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+            <div className="absolute inset-0 bg-gradient-to-r from-black/80 via-black/50 to-transparent" />
           </div>
         ))}
 
@@ -89,6 +169,12 @@ export default function Home() {
                       : 'opacity-0 translate-y-8 absolute'
                   }`}
                 >
+                  <div className="flex items-center gap-2 mb-4">
+                    <Sparkles className="w-5 h-5 text-coral-400" />
+                    <span className="text-coral-400 font-medium tracking-wider uppercase text-sm">
+                      African Fashion Marketplace
+                    </span>
+                  </div>
                   <h1 className="font-display text-5xl md:text-6xl lg:text-7xl text-white font-bold mb-6 leading-tight">
                     {slide.title}
                   </h1>
@@ -98,6 +184,7 @@ export default function Home() {
                   <div className="flex flex-wrap gap-4">
                     <Link to="/designs" className="btn-primary">
                       Shop New Arrivals
+                      <ArrowRight className="w-5 h-5 ml-2" />
                     </Link>
                     <Link to="/designs" className="btn-outline">
                       Explore Collections
@@ -129,16 +216,16 @@ export default function Home() {
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                index === currentSlide ? 'bg-white w-8' : 'bg-white/50 hover:bg-white/70'
+              className={`h-3 rounded-full transition-all ${
+                index === currentSlide ? 'bg-coral-500 w-8' : 'bg-white/50 hover:bg-white/70 w-3'
               }`}
             />
           ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-16 bg-white">
+      {/* Features Bar */}
+      <section className="py-12 bg-white border-b border-gray-100">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature) => (
@@ -172,22 +259,28 @@ export default function Home() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.designs?.slice(0, 4).map((design: any) => (
+            {featuredDesigns.map((design) => (
               <Link key={design.id} to={`/designs/${design.id}`} className="group">
                 <div className="card">
-                  <div className="aspect-[3/4] overflow-hidden">
+                  <div className="aspect-[3/4] overflow-hidden relative">
                     <img
-                      src={design.images?.[0]?.url || '/placeholder.jpg'}
+                      src={design.image}
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x600?text=Design';
+                      }}
                     />
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                      <Heart className="w-4 h-4" />
+                    </button>
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 group-hover:text-coral-500 transition-colors">
                       {design.name}
                     </h3>
-                    <p className="text-sm text-gray-500 mt-1">{design.designer?.businessName}</p>
-                    <p className="text-coral-500 font-semibold mt-2">${design.finalPrice}</p>
+                    <p className="text-sm text-gray-500 mt-1">{design.designer}</p>
+                    <p className="text-coral-500 font-semibold mt-2">${design.price}</p>
                   </div>
                 </div>
               </Link>
@@ -241,22 +334,25 @@ export default function Home() {
           </div>
 
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            {featuredProducts.fabrics?.slice(0, 4).map((fabric: any) => (
+            {featuredFabrics.map((fabric) => (
               <Link key={fabric.id} to={`/fabrics/${fabric.id}`} className="group">
                 <div className="card">
-                  <div className="aspect-square overflow-hidden">
+                  <div className="aspect-square overflow-hidden relative">
                     <img
-                      src={fabric.images?.[0]?.url || '/placeholder.jpg'}
+                      src={fabric.image}
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x400?text=Fabric';
+                      }}
                     />
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 group-hover:text-coral-500 transition-colors">
                       {fabric.name}
                     </h3>
-                    <p className="text-sm text-gray-500 mt-1">{fabric.materialType?.name}</p>
-                    <p className="text-coral-500 font-semibold mt-2">${fabric.finalPrice}/yard</p>
+                    <p className="text-sm text-gray-500 mt-1">{fabric.material}</p>
+                    <p className="text-coral-500 font-semibold mt-2">${fabric.price}/yard</p>
                   </div>
                 </div>
               </Link>
@@ -265,20 +361,91 @@ export default function Home() {
         </div>
       </section>
 
-      {/* CTA Section */}
+      {/* How It Works */}
       <section className="py-20 bg-navy-600">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-16">
+            <span className="text-coral-400 font-semibold text-sm tracking-wider uppercase mb-3 block">
+              How It Works
+            </span>
+            <h2 className="font-display text-4xl text-white font-bold">Your Custom Fashion Journey</h2>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-8">
+            {[
+              { step: '01', title: 'Choose Design', desc: 'Browse designs from talented African designers' },
+              { step: '02', title: 'Select Fabric', desc: 'Pick premium fabrics from verified sellers' },
+              { step: '03', title: 'Virtual Try-On', desc: 'See how it looks on you with our 3D tool' },
+              { step: '04', title: 'Receive Order', desc: 'Get your custom-made piece delivered' },
+            ].map((item, i) => (
+              <div key={i} className="text-center">
+                <div className="w-16 h-16 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-white font-bold text-xl">{item.step}</span>
+                </div>
+                <h3 className="text-white font-semibold text-lg mb-2">{item.title}</h3>
+                <p className="text-white/70 text-sm">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Testimonials */}
+      <section className="py-20 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
+              Testimonials
+            </span>
+            <h2 className="font-display text-4xl text-navy-600 font-bold">What Our Customers Say</h2>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-8">
+            {testimonials.map((testimonial, i) => (
+              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-1 mb-4">
+                  {[...Array(testimonial.rating)].map((_, j) => (
+                    <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  ))}
+                </div>
+                <p className="text-gray-600 mb-6">"{testimonial.text}"</p>
+                <div className="flex items-center gap-3">
+                  <img
+                    src={testimonial.avatar}
+                    alt={testimonial.name}
+                    className="w-10 h-10 rounded-full object-cover"
+                    onError={(e) => {
+                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40x40?text=User';
+                    }}
+                  />
+                  <div>
+                    <p className="font-semibold text-gray-900">{testimonial.name}</p>
+                    <p className="text-sm text-gray-500 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {testimonial.location}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-gradient-to-r from-coral-500 to-coral-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="font-display text-4xl md:text-5xl text-white font-bold mb-6">
             Are You a Designer or Fabric Seller?
           </h2>
-          <p className="text-white/80 text-lg mb-10 max-w-2xl mx-auto">
+          <p className="text-white/90 text-lg mb-10 max-w-2xl mx-auto">
             Join our platform and reach customers worldwide. Showcase your designs, sell your fabrics, and grow your business.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/register" className="btn-primary">
+            <Link to="/register" className="inline-flex items-center px-8 py-4 bg-white text-coral-500 font-semibold rounded-full hover:bg-white/90 transition-colors">
               Become a Seller
+              <ArrowRight className="w-5 h-5 ml-2" />
             </Link>
-            <Link to="/register" className="btn-outline">
+            <Link to="/register" className="inline-flex items-center px-8 py-4 bg-transparent text-white font-medium rounded-full border-2 border-white/50 hover:bg-white/10 transition-colors">
               Learn More
             </Link>
           </div>
