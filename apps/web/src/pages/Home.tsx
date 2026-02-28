@@ -551,8 +551,8 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Fabrics - 4 columns x 2 rows = 8 items */}
-      <section className="py-20 bg-white">
+      {/* Featured Fabrics - Duplicated from Featured Ready To Wear layout (4 columns x 3 rows = 12 items) */}
+      <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-12">
             <div>
@@ -570,12 +570,15 @@ export default function Home() {
             {featuredFabrics.map((fabric) => (
               <Link key={fabric.id} to={`/fabrics/${fabric.id}`} className="group">
                 <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
-                  <div className="aspect-square overflow-hidden relative">
+                  <div className="aspect-[3/4] overflow-hidden relative">
                     <img
                       src={fabric.image}
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                      <Heart className="w-4 h-4" />
+                    </button>
                   </div>
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900 group-hover:text-coral-500 transition-colors">
