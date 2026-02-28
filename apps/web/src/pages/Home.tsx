@@ -542,9 +542,9 @@ export default function Home() {
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    {/* Country flag overlay - top left */}
-                    <div className="absolute top-3 left-3 w-10 h-10 bg-white/90 flex items-center justify-center shadow-sm">
-                      <span className="text-xl">{design.flag}</span>
+                    {/* Country flag overlay - top left (no background, 10% larger) */}
+                    <div className="absolute top-3 left-3 w-11 h-11 flex items-center justify-center">
+                      <span className="text-2xl drop-shadow-lg">{design.flag}</span>
                     </div>
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
@@ -589,9 +589,9 @@ export default function Home() {
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    {/* Country flag overlay - top left */}
-                    <div className="absolute top-3 left-3 w-10 h-10 bg-white/90 flex items-center justify-center shadow-sm">
-                      <span className="text-xl">{item.flag}</span>
+                    {/* Country flag overlay - top left (no background, 10% larger) */}
+                    <div className="absolute top-3 left-3 w-11 h-11 flex items-center justify-center">
+                      <span className="text-2xl drop-shadow-lg">{item.flag}</span>
                     </div>
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
@@ -636,9 +636,9 @@ export default function Home() {
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    {/* Country flag overlay - top left */}
-                    <div className="absolute top-3 left-3 w-10 h-10 bg-white/90 flex items-center justify-center shadow-sm">
-                      <span className="text-xl">{fabric.flag}</span>
+                    {/* Country flag overlay - top left (no background, 10% larger) */}
+                    <div className="absolute top-3 left-3 w-11 h-11 flex items-center justify-center">
+                      <span className="text-2xl drop-shadow-lg">{fabric.flag}</span>
                     </div>
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
