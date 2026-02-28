@@ -44,8 +44,8 @@ services:
         source: /*
         destination: /index.html
 
-  # PostgreSQL Database
-  - type: postgres
-    name: african-fashion-db
+# PostgreSQL Database
+databases:
+  - name: african-fashion-db
     plan: starter
     ipAllowList: []
