@@ -9,12 +9,12 @@ build/
 *.tsbuildinfo
 
 # Environment variables
-.env 
+.env
 .env.local
 .env.*.local
 
-# IDE.
-idea/
+# IDE
+.idea/
 .vscode/
 *.swp
 *.swo
@@ -27,7 +27,8 @@ Thumbs.db
 # Logs
 logs/
 *.log
-npm-debug.log*Jyarn-debug.log*
+npm-debug.log*
+yarn-debug.log*
 yarn-error.log*
 
 # Testing
