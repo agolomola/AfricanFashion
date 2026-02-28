@@ -237,7 +237,7 @@ model MaterialType {
   
   // Relations
   fabrics     Fabric[]
-  designs     Design[] // Designs that can use this material
+  designs     Design[] // Designs that use this material
   
   isActive    Boolean @default(true)
   
@@ -322,6 +322,10 @@ model Design {
   categoryId  String
   category    ProductCategory @relation(fields: [categoryId], references: [id])
   
+  // Material Type
+  materialTypeId String?
+  materialType   MaterialType? @relation(fields: [materialTypeId], references: [id])
+  
   // Pricing
   basePrice   Decimal @db.Decimal(10, 2) // Designer's price
   finalPrice  Decimal @db.Decimal(10, 2) // After admin markup
@@ -350,6 +354,7 @@ model Design {
   
   @@index([designerId])
   @@index([categoryId])
+  @@index([materialTypeId])
   @@index([status])
 }
 
@@ -628,8 +633,9 @@ model DesignOrderItem {
   designId    String
   design      Design @relation(fields: [designId], references: [id])
   
-  // Designer (for quick access)
+  // Designer
   designerId  String
+  designer    DesignerProfile @relation(fields: [designerId], references: [id])
   
   // Customer measurements used
   measurements Json // Snapshot of measurements at order time
@@ -673,8 +679,9 @@ model FabricOrderItem {
   fabricId    String
   fabric      Fabric @relation(fields: [fabricId], references: [id])
   
-  // Seller (for quick access)
+  // Seller
   sellerId    String
+  seller      FabricSellerProfile @relation(fields: [sellerId], references: [id])
   
   // Quantity
   yards       Int
