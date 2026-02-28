@@ -58,13 +58,28 @@ const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_t
 function App() {
   const { isAuthenticated, user } = useAuthStore();
 
+  const getRedirectPath = () => {
+    switch (user?.role) {
+      case 'ADMINISTRATOR':
+        return '/admin';
+      case 'FABRIC_SELLER':
+        return '/seller';
+      case 'FASHION_DESIGNER':
+        return '/designer';
+      case 'QA_TEAM':
+        return '/qa';
+      default:
+        return '/';
+    }
+  };
+
   return (
     <QueryClientProvider client={queryClient}>
       <Elements stripe={stripePromise}>
         <Router>
           <Routes>
             {/* Public Routes */}
-            <Route element={<MainLayout />}>
+            <Route element={<MainLayout />}> 
               <Route path="/" element={<Home />} />
               <Route path="/designs" element={<Designs />} />
               <Route path="/designs/:id" element={<DesignDetail />} />
@@ -74,20 +89,20 @@ function App() {
 
             {/* Auth Routes */}
             <Route path="/login" element={
-              isAuthenticated ? <Navigate to="/" /> : <Login />
+              isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Login />
             } />
             <Route path="/register" element={
-              isAuthenticated ? <Navigate to="/" /> : <Register />
+              isAuthenticated ? <Navigate to={getRedirectPath()} /> : <Register />
             } />
 
             {/* Checkout - Requires Auth */}
-            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
+            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}> 
               <Route path="/checkout" element={<Checkout />} />
             </Route>
 
             {/* Customer Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
-              <Route element={<DashboardLayout userType="customer" />}>
+            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}> 
+              <Route element={<DashboardLayout userType="customer" />}> 
                 <Route path="/dashboard" element={<CustomerDashboard />} />
                 <Route path="/orders" element={<CustomerOrders />} />
                 <Route path="/profile" element={<CustomerProfile />} />
@@ -96,8 +111,8 @@ function App() {
             </Route>
 
             {/* Admin Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
-              <Route element={<DashboardLayout userType="admin" />}>
+            <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}> 
+              <Route element={<DashboardLayout userType="admin" />}> 
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
@@ -107,28 +122,28 @@ function App() {
             </Route>
 
             {/* Seller Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['FABRIC_SELLER']} />}>
-              <Route element={<DashboardLayout userType="seller" />}>
-                <Route path="/seller" element={<SellerDashboard />} />
+            <Route element={<ProtectedRoute allowedRoles={['FABRIC_SELLER']} />}> 
+              <Route element={<DashboardLayout userType="seller" />}> 
+                <Route path="/seller" element={<SellerDashboard />} /> 
               </Route>
             </Route>
 
             {/* Designer Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['DESIGNER']} />}>
-              <Route element={<DashboardLayout userType="designer" />}>
-                <Route path="/designer" element={<DesignerDashboard />} />
+            <Route element={<ProtectedRoute allowedRoles={['FASHION_DESIGNER']} />}> 
+              <Route element={<DashboardLayout userType="designer" />}> 
+                <Route path="/designer" element={<DesignerDashboard />} /> 
               </Route>
             </Route>
 
             {/* QA Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['QA_TEAM']} />}>
-              <Route element={<DashboardLayout userType="qa" />}>
-                <Route path="/qa" element={<QADashboard />} />
+            <Route element={<ProtectedRoute allowedRoles={['QA_TEAM']} />}> 
+              <Route element={<DashboardLayout userType="qa" />}> 
+                <Route path="/qa" element={<QADashboard />} /> 
               </Route>
             </Route>
 
             {/* Fallback */}
-            <Route path="*" element={<Navigate to="/" />} />
+            <Route path="*" element={<Navigate to="/" />} /> 
           </Routes>
         </Router>
       </Elements>
