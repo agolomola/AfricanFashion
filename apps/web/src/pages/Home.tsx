@@ -27,14 +27,14 @@ const features = [
   { icon: Clock, title: 'Custom Made', description: 'Tailored to your exact measurements' },
 ];
 
-// Countries with abstract images and fabric info
+// Countries with abstract images (non-fashion related) and fabric info
 const countries = [
-  { name: 'Ghana', flag: '🇬🇭', image: '/images/country-ghana.jpg', fabrics: 'Kente, Adinkra' },
-  { name: 'Nigeria', flag: '🇳🇬', image: '/images/country-nigeria.jpg', fabrics: 'Ankara, Aso Oke' },
-  { name: 'Kenya', flag: '🇰🇪', image: '/images/country-kenya.jpg', fabrics: 'Kitenge, Kikoy' },
-  { name: 'Senegal', flag: '🇸🇳', image: '/images/country-senegal.jpg', fabrics: 'Boubou, Lace' },
-  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/country-ethiopia.jpg', fabrics: 'Tibeb, Cotton' },
-  { name: 'Morocco', flag: '🇲🇦', image: '/images/country-morocco.jpg', fabrics: 'Caftan, Silk' },
+  { name: 'Ghana', flag: '🇬🇭', image: '/images/ghana-abstract.jpg', fabrics: 'Kente, Adinkra' },
+  { name: 'Nigeria', flag: '🇳🇬', image: '/images/nigeria-abstract.jpg', fabrics: 'Ankara, Aso Oke' },
+  { name: 'Kenya', flag: '🇰🇪', image: '/images/kenya-abstract.jpg', fabrics: 'Kitenge, Kikoy' },
+  { name: 'Senegal', flag: '🇸🇳', image: '/images/senegal-abstract.jpg', fabrics: 'Boubou, Lace' },
+  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/ethiopia-abstract.jpg', fabrics: 'Tibeb, Cotton' },
+  { name: 'Morocco', flag: '🇲🇦', image: '/images/morocco-abstract.jpg', fabrics: 'Caftan, Silk' },
 ];
 
 // Featured designs with generated African clothing images (3 columns x 2 rows = 6 items)
@@ -175,6 +175,7 @@ const testimonials = [
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -183,19 +184,41 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
+  // Auto-scroll Shop by Country from right to left
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    // Start from the right (scroll to end first)
+    scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+
+    const scrollInterval = setInterval(() => {
+      if (!isPaused && scrollContainer) {
+        scrollContainer.scrollLeft -= 1;
+        
+        // Reset to right when reaching the beginning
+        if (scrollContainer.scrollLeft <= 0) {
+          scrollContainer.scrollLeft = scrollContainer.scrollWidth - scrollContainer.clientWidth;
+        }
+      }
+    }, 30);
+
+    return () => clearInterval(scrollInterval);
+  }, [isPaused]);
+
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
 
   // Manual scroll functions for Shop by Country
   const scrollLeft = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: -200, behavior: 'smooth' });
     }
   };
 
   const scrollRight = () => {
     if (scrollRef.current) {
-      scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+      scrollRef.current.scrollBy({ left: 200, behavior: 'smooth' });
     }
   };
 
@@ -291,7 +314,7 @@ export default function Home() {
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature) => (
               <div key={feature.title} className="flex items-start gap-4">
-                <div className="w-12 h-12 bg-coral-100 rounded-xl flex items-center justify-center flex-shrink-0">
+                <div className="w-12 h-12 bg-coral-100 flex items-center justify-center flex-shrink-0">
                   <feature.icon className="w-6 h-6 text-coral-500" />
                 </div>
                 <div>
@@ -304,13 +327,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Shop by Country - Horizontal Scrolling with Arrows */}
+      {/* Shop by Country - Auto scroll right to left, pause on hover, sharp corners, 30% smaller */}
       <section className="py-12 bg-cream overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
           {/* Left Arrow */}
           <button
             onClick={scrollLeft}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center hover:bg-coral-50 transition-colors"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg flex items-center justify-center hover:bg-coral-50 transition-colors"
           >
             <ChevronLeft className="w-5 h-5 text-gray-700" />
           </button>
@@ -318,22 +341,24 @@ export default function Home() {
           {/* Right Arrow */}
           <button
             onClick={scrollRight}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center hover:bg-coral-50 transition-colors"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg flex items-center justify-center hover:bg-coral-50 transition-colors"
           >
             <ChevronRight className="w-5 h-5 text-gray-700" />
           </button>
 
-          {/* Scroll Container - increased width, reduced height, more spacing */}
+          {/* Scroll Container - 30% smaller (w-52 h-32 instead of w-72 h-44), sharp corners, auto scroll */}
           <div
             ref={scrollRef}
-            className="flex gap-8 overflow-x-auto scrollbar-hide scroll-smooth px-12"
-            style={{ scrollBehavior: 'smooth' }}
+            className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth px-12"
+            style={{ scrollBehavior: 'auto' }}
+            onMouseEnter={() => setIsPaused(true)}
+            onMouseLeave={() => setIsPaused(false)}
           >
             {countries.map((country) => (
               <Link
                 key={country.name}
                 to={`/fabrics?country=${country.name}`}
-                className="flex-shrink-0 relative w-72 h-44 rounded-2xl overflow-hidden group transition-transform duration-300 hover:scale-105 shadow-md"
+                className="flex-shrink-0 relative w-52 h-32 overflow-hidden group transition-transform duration-300 hover:scale-105 shadow-md"
               >
                 <img
                   src={country.image}
@@ -342,12 +367,12 @@ export default function Home() {
                 />
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
                 {/* Flag in top left corner */}
-                <div className="absolute top-3 left-3 flex items-center gap-2">
-                  <span className="text-3xl">{country.flag}</span>
+                <div className="absolute top-2 left-2 flex items-center gap-2">
+                  <span className="text-2xl">{country.flag}</span>
                 </div>
                 {/* Country name and fabrics at bottom */}
-                <div className="absolute bottom-3 left-3 right-3">
-                  <h3 className="font-display font-bold text-white text-lg">{country.name}</h3>
+                <div className="absolute bottom-2 left-2 right-2">
+                  <h3 className="font-display font-bold text-white text-base">{country.name}</h3>
                   <p className="text-white/80 text-xs">{country.fabrics}</p>
                 </div>
               </Link>
@@ -374,14 +399,14 @@ export default function Home() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {featuredDesigns.map((design) => (
               <Link key={design.id} to={`/designs/${design.id}`} className="group">
-                <div className="card">
+                <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
                   <div className="aspect-[3/4] overflow-hidden relative">
                     <img
                       src={design.image}
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
                   </div>
@@ -417,14 +442,14 @@ export default function Home() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredReadyToWear.map((item) => (
               <Link key={item.id} to={`/ready-to-wear/${item.id}`} className="group">
-                <div className="card">
+                <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
                   <div className="aspect-[3/4] overflow-hidden relative">
                     <img
                       src={item.image}
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
                   </div>
@@ -460,7 +485,7 @@ export default function Home() {
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredFabrics.map((fabric) => (
               <Link key={fabric.id} to={`/fabrics/${fabric.id}`} className="group">
-                <div className="card">
+                <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
                   <div className="aspect-square overflow-hidden relative">
                     <img
                       src={fabric.image}
@@ -500,7 +525,7 @@ export default function Home() {
               { step: '04', title: 'Receive Order', desc: 'Get your custom-made piece delivered' },
             ].map((item, i) => (
               <div key={i} className="text-center">
-                <div className="w-16 h-16 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 bg-coral-500 flex items-center justify-center mx-auto mb-4">
                   <span className="text-white font-bold text-xl">{item.step}</span>
                 </div>
                 <h3 className="text-white font-semibold text-lg mb-2">{item.title}</h3>
@@ -523,7 +548,7 @@ export default function Home() {
 
           <div className="grid md:grid-cols-3 gap-8">
             {testimonials.map((testimonial, i) => (
-              <div key={i} className="bg-white rounded-2xl p-6 shadow-sm">
+              <div key={i} className="bg-white p-6 shadow-sm">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, j) => (
                     <Star key={j} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
@@ -534,7 +559,7 @@ export default function Home() {
                   <img
                     src={testimonial.avatar}
                     alt={testimonial.name}
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="w-10 h-10 object-cover"
                   />
                   <div>
                     <p className="font-semibold text-gray-900">{testimonial.name}</p>
@@ -559,11 +584,11 @@ export default function Home() {
             Join our platform and reach customers worldwide. Showcase your designs, sell your fabrics, and grow your business.
           </p>
           <div className="flex flex-wrap justify-center gap-4">
-            <Link to="/register" className="inline-flex items-center px-8 py-4 bg-white text-coral-500 font-semibold rounded-full hover:bg-white/90 transition-colors">
+            <Link to="/register" className="inline-flex items-center px-8 py-4 bg-white text-coral-500 font-semibold hover:bg-white/90 transition-colors">
               Become a Seller
               <ArrowRight className="w-5 h-5 ml-2" />
             </Link>
-            <Link to="/register" className="inline-flex items-center px-8 py-4 bg-transparent text-white font-medium rounded-full border-2 border-white/50 hover:bg-white/10 transition-colors">
+            <Link to="/register" className="inline-flex items-center px-8 py-4 bg-transparent text-white font-medium border-2 border-white/50 hover:bg-white/10 transition-colors">
               Learn More
             </Link>
           </div>
