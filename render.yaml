@@ -6,7 +6,7 @@ services:
   - type: web
     name: african-fashion-api
     runtime: node
-    plan: free
+    plan: standard
     buildCommand: cd apps/api && npm install && npx prisma generate && npx prisma migrate deploy
     startCommand: cd apps/api && npm start
     envVars:
@@ -31,7 +31,6 @@ services:
   - type: web
     name: african-fashion-web
     runtime: static
-    plan: free
     buildCommand: cd apps/web && npm install && npm run build
     staticPublishPath: ./apps/web/dist
     envVars:
