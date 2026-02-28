@@ -542,11 +542,11 @@ export default function Home() {
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    {/* Country flag overlay - top left (no background, 10% larger) */}
-                    <div className="absolute top-3 left-3 w-11 h-11 flex items-center justify-center">
+                    {/* Country flag overlay - top right (no background, 10% larger) */}
+                    <div className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center z-10">
                       <span className="text-2xl drop-shadow-lg">{design.flag}</span>
                     </div>
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                    <button className="absolute top-3 right-14 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
                   </div>
@@ -589,11 +589,11 @@ export default function Home() {
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    {/* Country flag overlay - top left (no background, 10% larger) */}
-                    <div className="absolute top-3 left-3 w-11 h-11 flex items-center justify-center">
+                    {/* Country flag overlay - top right (no background, 10% larger) */}
+                    <div className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center z-10">
                       <span className="text-2xl drop-shadow-lg">{item.flag}</span>
                     </div>
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                    <button className="absolute top-3 right-14 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
                   </div>
@@ -636,11 +636,11 @@ export default function Home() {
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                     />
-                    {/* Country flag overlay - top left (no background, 10% larger) */}
-                    <div className="absolute top-3 left-3 w-11 h-11 flex items-center justify-center">
+                    {/* Country flag overlay - top right (no background, 10% larger) */}
+                    <div className="absolute top-3 right-3 w-11 h-11 flex items-center justify-center z-10">
                       <span className="text-2xl drop-shadow-lg">{fabric.flag}</span>
                     </div>
-                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                    <button className="absolute top-3 right-14 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
                     </button>
                   </div>
@@ -721,6 +721,55 @@ export default function Home() {
                 </div>
               </div>
             ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Designer Spotlight */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid lg:grid-cols-2 gap-12 items-center">
+            {/* Left - Designer Image */}
+            <div className="relative">
+              <img
+                src="/images/designer-spotlight.jpg"
+                alt="Designer in studio"
+                className="w-full h-[500px] object-cover shadow-lg"
+              />
+            </div>
+
+            {/* Right - Designer Info */}
+            <div className="lg:pl-8">
+              <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-4 block">
+                Designer Spotlight
+              </span>
+              <h2 className="font-display text-4xl lg:text-5xl text-navy-600 font-bold mb-2">
+                Meet Amara Okafor
+              </h2>
+              <p className="text-coral-500 font-medium text-lg mb-8">
+                Contemporary Ankara Specialist
+              </p>
+
+              {/* Quote */}
+              <div className="relative mb-8">
+                <span className="absolute -top-4 -left-2 text-6xl text-coral-200 font-serif">"</span>
+                <p className="text-gray-600 text-lg italic pl-8">
+                  Every piece I create tells a story of heritage meeting modern elegance. I believe African fashion should be accessible to everyone, everywhere.
+                </p>
+              </div>
+
+              <p className="text-gray-600 mb-8 leading-relaxed">
+                Based in Lagos, Nigeria, Amara has been transforming traditional Ankara prints into contemporary masterpieces for over a decade. Her designs have graced runways from Paris to New York, bringing African elegance to the global stage.
+              </p>
+
+              <Link
+                to="/designers"
+                className="inline-flex items-center px-8 py-4 bg-coral-500 text-white font-semibold hover:bg-coral-600 transition-colors"
+              >
+                Meet All Designers
+                <ArrowRight className="w-5 h-5 ml-2" />
+              </Link>
+            </div>
           </div>
         </div>
       </section>
