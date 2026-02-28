@@ -73,10 +73,20 @@ function App() {
 
             {/* Auth Routes */}
             <Route path="/login" element={
-              isAuthenticated ? <Navigate to="/" /> : <Login />
+              isAuthenticated ? <Navigate to={
+                user?.role === 'ADMINISTRATOR' ? '/admin' :
+                user?.role === 'FABRIC_SELLER' ? '/seller' :
+                user?.role === 'DESIGNER' ? '/designer' :
+                user?.role === 'QA_TEAM' ? '/qa' : '/'
+              } /> : <Login />
             } />
             <Route path="/register" element={
-              isAuthenticated ? <Navigate to="/" /> : <Register />
+              isAuthenticated ? <Navigate to={
+                user?.role === 'ADMINISTRATOR' ? '/admin' :
+                user?.role === 'FABRIC_SELLER' ? '/seller' :
+                user?.role === 'DESIGNER' ? '/designer' :
+                user?.role === 'QA_TEAM' ? '/qa' : '/'
+              } /> : <Register />
             } />
 
             {/* Checkout - Requires Auth */}
