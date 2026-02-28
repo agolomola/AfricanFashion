@@ -25,7 +25,7 @@ const PORT = process.env.PORT || 3001;
 app.use(cors({
   origin: process.env.FRONTEND_URL 
     ? process.env.FRONTEND_URL.split(',').map(u => u.trim()) 
-    : 'http://localhost:5173',
+    : ['http://localhost:5173', 'http://localhost:3000'],
   credentials: true,
 }));
 app.use(express.json());
@@ -69,14 +69,19 @@ app.use((req, res) => {
   });
 });
 
-app.listen(PORT, () => {
-  console.log(`🚀 API Server running on port ${PORT}`);
-  console.log(`📚 API Documentation: http://localhost:${PORT}/health`);
-});
-
-// Test database connection
 prisma.$connect()
-  .then(() => console.log('✅ Database connected'))
-  .catch((err: Error) => console.error('❌ Database connection failed:', err.message));
+  .then(() => {
+    console.log('✅ Database connected successfully');
+    app.listen(PORT, () => {
+      console.log(`🚀 API Server running on port ${PORT}`);
+    });
+  })
+  .catch((err: Error) => {
+    console.error('❌ Database connection failed:', err.message);
+    // Start server anyway so health check can report the issue
+    app.listen(PORT, () => {
+      console.log(`🚀 API Server running on port ${PORT} (DB disconnected)`);
+    });
+  });
 
 export default app;
