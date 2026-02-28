@@ -27,7 +27,7 @@ const features = [
   { icon: Clock, title: 'Custom Made', description: 'Tailored to your exact measurements' },
 ];
 
-// Countries with images and fabric info
+// Countries with abstract images and fabric info
 const countries = [
   { name: 'Ghana', flag: '🇬🇭', image: '/images/country-ghana.jpg', fabrics: 'Kente, Adinkra' },
   { name: 'Nigeria', flag: '🇳🇬', image: '/images/country-nigeria.jpg', fabrics: 'Ankara, Aso Oke' },
@@ -175,7 +175,6 @@ const testimonials = [
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const [scrollDirection, setScrollDirection] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -184,33 +183,21 @@ export default function Home() {
     return () => clearInterval(timer);
   }, []);
 
-  // Auto-scroll countries section
-  useEffect(() => {
-    const scrollContainer = scrollRef.current;
-    if (!scrollContainer) return;
-
-    const scrollStep = 1;
-    const scrollInterval = setInterval(() => {
-      if (scrollDirection === 'right') {
-        if (scrollContainer.scrollLeft >= scrollContainer.scrollWidth - scrollContainer.clientWidth) {
-          setScrollDirection('left');
-        } else {
-          scrollContainer.scrollLeft += scrollStep;
-        }
-      } else {
-        if (scrollContainer.scrollLeft <= 0) {
-          setScrollDirection('right');
-        } else {
-          scrollContainer.scrollLeft -= scrollStep;
-        }
-      }
-    }, 30);
-
-    return () => clearInterval(scrollInterval);
-  }, [scrollDirection]);
-
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+
+  // Manual scroll functions for Shop by Country
+  const scrollLeft = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: -300, behavior: 'smooth' });
+    }
+  };
+
+  const scrollRight = () => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollBy({ left: 300, behavior: 'smooth' });
+    }
+  };
 
   return (
     <div className="overflow-hidden">
@@ -317,28 +304,49 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Shop by Country - Horizontal Scrolling */}
+      {/* Shop by Country - Horizontal Scrolling with Arrows */}
       <section className="py-12 bg-cream overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          {/* Left Arrow */}
+          <button
+            onClick={scrollLeft}
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center hover:bg-coral-50 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-700" />
+          </button>
+
+          {/* Right Arrow */}
+          <button
+            onClick={scrollRight}
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg rounded-full flex items-center justify-center hover:bg-coral-50 transition-colors"
+          >
+            <ChevronRight className="w-5 h-5 text-gray-700" />
+          </button>
+
+          {/* Scroll Container - increased width, reduced height, more spacing */}
           <div
             ref={scrollRef}
-            className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth"
+            className="flex gap-8 overflow-x-auto scrollbar-hide scroll-smooth px-12"
             style={{ scrollBehavior: 'smooth' }}
           >
             {countries.map((country) => (
               <Link
                 key={country.name}
                 to={`/fabrics?country=${country.name}`}
-                className="flex-shrink-0 relative w-48 h-64 rounded-2xl overflow-hidden group transition-transform duration-300 hover:scale-105"
+                className="flex-shrink-0 relative w-72 h-44 rounded-2xl overflow-hidden group transition-transform duration-300 hover:scale-105 shadow-md"
               >
                 <img
                   src={country.image}
                   alt={country.name}
                   className="absolute inset-0 w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
-                <div className="absolute bottom-4 left-4 right-4">
-                  <span className="text-3xl mb-1 block">{country.flag}</span>
+                <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
+                {/* Flag in top left corner */}
+                <div className="absolute top-3 left-3 flex items-center gap-2">
+                  <span className="text-3xl">{country.flag}</span>
+                </div>
+                {/* Country name and fabrics at bottom */}
+                <div className="absolute bottom-3 left-3 right-3">
                   <h3 className="font-display font-bold text-white text-lg">{country.name}</h3>
                   <p className="text-white/80 text-xs">{country.fabrics}</p>
                 </div>
