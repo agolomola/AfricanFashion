@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { prisma, ProductStatus } from './db';
+import { prisma, ProductStatus } from '../db';
 import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
@@ -404,8 +404,8 @@ router.get('/countries', async (req, res, next) => {
     ]);
 
     const countries = Array.from(new Set([
-      ...fabricCountries.map((c) => c.country),
-      ...designerCountries.map((c) => c.country),
+      ...fabricCountries.map((c: { country: string }) => c.country),
+      ...designerCountries.map((c: { country: string }) => c.country),
     ])).sort();
 
     res.json({

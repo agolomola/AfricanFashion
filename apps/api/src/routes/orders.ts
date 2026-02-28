@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, OrderType, OrderStatus } from './db';
+import { Prisma } from '@prisma/client';
+import { prisma, UserRole, OrderType, OrderStatus } from '../db';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -178,8 +179,8 @@ router.post('/custom-design', async (req, res, next) => {
     }
 
     // Calculate prices
-    const fabricPrice = fabric.finalPrice * data.yards;
-    const designPrice = design.finalPrice;
+    const fabricPrice = Number(fabric.finalPrice) * data.yards;
+    const designPrice = Number(design.finalPrice);
     const subtotal = fabricPrice + designPrice;
     const shippingCost = 25; // Fixed for now
     const tax = subtotal * 0.08; // 8% tax
@@ -189,7 +190,7 @@ router.post('/custom-design', async (req, res, next) => {
     const orderNumber = `AF-${Date.now().toString(36).toUpperCase()}`;
 
     // Create order with all components
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Create main order
       const newOrder = await tx.order.create({
         data: {
@@ -277,7 +278,7 @@ router.post('/ready-to-wear', async (req, res, next) => {
 
     // Validate items and calculate total
     let subtotal = 0;
-    const validatedItems = [];
+    const validatedItems: any[] = [];
 
     for (const item of data.items) {
       const product = await prisma.readyToWear.findUnique({
@@ -311,7 +312,7 @@ router.post('/ready-to-wear', async (req, res, next) => {
         });
       }
 
-      const itemTotal = sizeVar.price * item.quantity;
+      const itemTotal = Number(sizeVar.price) * item.quantity;
       subtotal += itemTotal;
 
       validatedItems.push({
@@ -342,7 +343,7 @@ router.post('/ready-to-wear', async (req, res, next) => {
     const orderNumber = `AF-${Date.now().toString(36).toUpperCase()}`;
 
     // Create order
-    const order = await prisma.$transaction(async (tx) => {
+    const order = await prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       const newOrder = await tx.order.create({
         data: {
           orderNumber,
