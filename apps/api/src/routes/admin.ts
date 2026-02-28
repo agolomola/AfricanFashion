@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, UserStatus, ProductStatus } from './db';
+import { prisma, UserRole, UserStatus, ProductStatus } from '../db';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
@@ -45,7 +45,7 @@ router.get('/dashboard', async (req, res, next) => {
         prisma.fabric.count(),
         prisma.design.count(),
         prisma.readyToWear.count(),
-      ]).then(([fabrics, designs, rtw]) => fabrics + designs + rtw),
+      ]).then(([fabrics, designs, rtw]: [number, number, number]) => fabrics + designs + rtw),
       prisma.order.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
