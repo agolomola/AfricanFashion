@@ -9,7 +9,6 @@
   ],
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build",
     "lint": "turbo run lint",
     "db:generate": "cd packages/database && prisma generate",
     "db:migrate": "cd packages/database && prisma migrate dev",
