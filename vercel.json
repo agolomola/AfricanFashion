@@ -1,14 +1,12 @@
 {
-  "buildCommand": "cd apps/web && npm install && npm run build",
-  "outputDirectory": "apps/web/dist",
-  "framework": "vite",
+  "buildCommand": null,
+  "outputDirectory": null,
+  "installCommand": null,
+  "framework": null,
   "rewrites": [
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/apps/web/dist/index.html"
     }
-  ],
-  "env": {
-    "VITE_API_URL": "https://african-fashion-api.onrender.com/api"
-  }
+  ]
 }
