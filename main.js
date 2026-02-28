@@ -216,11 +216,11 @@ function addToCart(product) {
   updateCartUI();
   showToast(`${product.emoji} "${product.name}" added to cart`);
 
-  // Update button state on visible card
-  const btn = productGrid.querySelector(`[data-id="${product.id}"]`);
-  if (btn) {
-    btn.classList.add('added');
-    btn.textContent = '✓ Added';
+  // Update button state on the visible product card
+  const addBtn = productGrid.querySelector(`.add-to-cart-btn[data-id="${product.id}"]`);
+  if (addBtn) {
+    addBtn.classList.add('added');
+    addBtn.textContent = '✓ Added';
   }
 }
 
