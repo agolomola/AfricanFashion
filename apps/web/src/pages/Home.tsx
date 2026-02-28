@@ -83,7 +83,7 @@ const featuredDesigns = [
   },
 ];
 
-// Featured Ready To Wear items with generated African clothing
+// Featured Ready To Wear items - 4 columns x 3 rows = 12 items
 const featuredReadyToWear = [
   {
     id: 'rtw1',
@@ -113,9 +113,65 @@ const featuredReadyToWear = [
     price: 79,
     image: '/images/rtw-4.jpg',
   },
+  {
+    id: 'rtw5',
+    name: 'Kente Print Trousers',
+    designer: 'Ghana Gold',
+    price: 129,
+    image: '/images/rtw-5.jpg',
+  },
+  {
+    id: 'rtw6',
+    name: 'Ankara Jumpsuit',
+    designer: 'Abuja Styles',
+    price: 179,
+    image: '/images/rtw-6.jpg',
+  },
+  {
+    id: 'rtw7',
+    name: 'Embroidered Dashiki',
+    designer: 'Lagos Luxe',
+    price: 99,
+    image: '/images/rtw-7.jpg',
+  },
+  {
+    id: 'rtw8',
+    name: 'Kitenge Wrap Dress',
+    designer: 'Nairobi Chic',
+    price: 159,
+    image: '/images/rtw-8.jpg',
+  },
+  {
+    id: 'rtw9',
+    name: 'Moroccan Caftan Top',
+    designer: 'Casablanca',
+    price: 139,
+    image: '/images/rtw-9.jpg',
+  },
+  {
+    id: 'rtw10',
+    name: 'Ankara Pencil Set',
+    designer: 'Lagos Luxe',
+    price: 189,
+    image: '/images/rtw-10.jpg',
+  },
+  {
+    id: 'rtw11',
+    name: 'Senegalese Boubou',
+    designer: 'Dakar Elegance',
+    price: 249,
+    image: '/images/rtw-11.jpg',
+  },
+  {
+    id: 'rtw12',
+    name: 'Ethiopian Tunic Dress',
+    designer: 'Addis Ababa',
+    price: 169,
+    image: '/images/rtw-12.jpg',
+  },
 ];
 
-// Featured fabrics with generated African textile images
+// Featured fabrics - 4 columns x 2 rows = 8 items
 const featuredFabrics = [
   {
     id: '1',
@@ -144,6 +200,34 @@ const featuredFabrics = [
     material: 'Pure Silk',
     price: 89,
     image: '/images/fabric-4.jpg',
+  },
+  {
+    id: '5',
+    name: 'Ghana Adinkra Cloth',
+    material: 'Stamped Cotton',
+    price: 55,
+    image: '/images/fabric-5.jpg',
+  },
+  {
+    id: '6',
+    name: 'Nigerian Aso Oke',
+    material: 'Handwoven',
+    price: 75,
+    image: '/images/fabric-6.jpg',
+  },
+  {
+    id: '7',
+    name: 'Kenyan Kikoy',
+    material: 'Cotton Stripes',
+    price: 35,
+    image: '/images/fabric-7.jpg',
+  },
+  {
+    id: '8',
+    name: 'Senegalese Lace',
+    material: 'Embroidered',
+    price: 95,
+    image: '/images/fabric-8.jpg',
   },
 ];
 
@@ -424,7 +508,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Ready To Wear */}
+      {/* Featured Ready To Wear - 4 columns x 3 rows = 12 items */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-12">
@@ -439,7 +523,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredReadyToWear.map((item) => (
               <Link key={item.id} to={`/ready-to-wear/${item.id}`} className="group">
                 <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
@@ -467,7 +551,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Fabrics */}
+      {/* Featured Fabrics - 4 columns x 2 rows = 8 items */}
       <section className="py-20 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-end justify-between mb-12">
@@ -482,7 +566,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
             {featuredFabrics.map((fabric) => (
               <Link key={fabric.id} to={`/fabrics/${fabric.id}`} className="group">
                 <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
