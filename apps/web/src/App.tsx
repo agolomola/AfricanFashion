@@ -76,17 +76,13 @@ function App() {
               isAuthenticated ? <Navigate to={
                 user?.role === 'ADMINISTRATOR' ? '/admin' :
                 user?.role === 'FABRIC_SELLER' ? '/seller' :
-                user?.role === 'DESIGNER' ? '/designer' :
-                user?.role === 'QA_TEAM' ? '/qa' : '/'
-              } /> : <Login />
+                user?.role === 'FASHION_DESIGNER' ? '/designer' :
             } />
             <Route path="/register" element={
               isAuthenticated ? <Navigate to={
                 user?.role === 'ADMINISTRATOR' ? '/admin' :
                 user?.role === 'FABRIC_SELLER' ? '/seller' :
-                user?.role === 'DESIGNER' ? '/designer' :
-                user?.role === 'QA_TEAM' ? '/qa' : '/'
-              } /> : <Register />
+                user?.role === 'FASHION_DESIGNER' ? '/designer' :
             } />
 
             {/* Checkout - Requires Auth */}
@@ -122,7 +118,7 @@ function App() {
             </Route>
 
             {/* Designer Routes */}
-            <Route element={<ProtectedRoute allowedRoles={['DESIGNER']} />}>
+            <Route element={<ProtectedRoute allowedRoles={['FASHION_DESIGNER']} />}>
               <Route element={<DashboardLayout userType="designer" />}>
                 <Route path="/designer" element={<DesignerDashboard />} />
               </Route>

@@ -25,7 +25,7 @@ import {
   Home
 } from 'lucide-react';
 
-type UserRole = 'ADMINISTRATOR' | 'FABRIC_SELLER' | 'DESIGNER' | 'QA_TEAM' | 'CUSTOMER';
+type UserRole = 'ADMINISTRATOR' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM' | 'CUSTOMER';
 type DashboardType = 'admin' | 'seller' | 'designer' | 'qa' | 'customer';
 
 interface NavItem {

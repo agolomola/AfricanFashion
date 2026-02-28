@@ -35,7 +35,7 @@ export default function Login() {
           case 'FABRIC_SELLER':
             navigate('/seller');
             break;
-          case 'DESIGNER':
+          case 'FASHION_DESIGNER':
             navigate('/designer');
             break;
           case 'QA_TEAM':

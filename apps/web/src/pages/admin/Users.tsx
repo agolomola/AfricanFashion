@@ -129,7 +129,7 @@ export default function AdminUsers() {
           <option value="">All Roles</option>
           <option value="CUSTOMER">Customer</option>
           <option value="FABRIC_SELLER">Fabric Seller</option>
-          <option value="DESIGNER">Designer</option>
+          <option value="FASHION_DESIGNER">Designer</option>
           <option value="QA_TEAM">QA Team</option>
           <option value="ADMINISTRATOR">Administrator</option>
         </select>

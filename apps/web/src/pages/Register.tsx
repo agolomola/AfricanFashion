@@ -6,7 +6,7 @@ import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 
-type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'DESIGNER' | 'QA_TEAM';
+type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM';
 
 interface RoleOption {
   value: UserRole;
@@ -29,7 +29,7 @@ const roleOptions: RoleOption[] = [
     icon: Store,
   },
   {
-    value: 'DESIGNER',
+    value: 'FASHION_DESIGNER',
     label: 'Fashion Designer',
     description: 'Create and sell your unique designs',
     icon: Scissors,
@@ -288,7 +288,7 @@ export default function Register() {
                 </select>
               </div>
 
-              {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'DESIGNER') && (
+              {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'FASHION_DESIGNER') && (
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Business Name *

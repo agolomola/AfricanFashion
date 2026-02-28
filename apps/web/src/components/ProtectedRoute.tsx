@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 
-type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'DESIGNER' | 'QA_TEAM' | 'ADMINISTRATOR';
+type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM' | 'ADMINISTRATOR';
 
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
@@ -22,7 +22,7 @@ export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
           return <Navigate to="/admin" replace />;
         case 'FABRIC_SELLER':
           return <Navigate to="/seller" replace />;
-        case 'DESIGNER':
+        case 'FASHION_DESIGNER':
           return <Navigate to="/designer" replace />;
         case 'QA_TEAM':
           return <Navigate to="/qa" replace />;
