@@ -658,49 +658,91 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Designer Spotlight */}
-      <section className="py-20 bg-white">
+      {/* Designer Spotlight & Heritage */}
+      <section className="py-20 bg-navy-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-12 items-center">
-            {/* Left - Designer Image */}
-            <div className="relative">
-              <img
-                src="/images/designer-spotlight.jpg"
-                alt="Designer in studio"
-                className="w-full h-[500px] object-cover shadow-lg"
-              />
-            </div>
-
-            {/* Right - Designer Info */}
-            <div className="lg:pl-8">
-              <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-4 block">
+          <div className="grid lg:grid-cols-2 gap-16">
+            {/* Left Column - Designer Story */}
+            <div>
+              <span className="text-coral-400 font-semibold text-sm tracking-wider uppercase mb-4 block">
                 Designer Spotlight
               </span>
-              <h2 className="font-display text-4xl lg:text-5xl text-navy-600 font-bold mb-2">
+              <h2 className="font-display text-4xl lg:text-5xl text-white font-bold mb-2">
                 Meet Amara Okafor
               </h2>
-              <p className="text-coral-500 font-medium text-lg mb-8">
+              <p className="text-coral-400 font-medium text-lg mb-6">
                 Contemporary Ankara Specialist
               </p>
 
+              {/* Designer Image */}
+              <div className="relative mb-6">
+                <img
+                  src="/images/designer-spotlight.jpg"
+                  alt="Designer in studio"
+                  className="w-full h-[300px] object-cover"
+                />
+              </div>
+
               {/* Quote */}
-              <div className="relative mb-8">
-                <span className="absolute -top-4 -left-2 text-6xl text-coral-200 font-serif">"</span>
-                <p className="text-gray-600 text-lg italic pl-8">
+              <div className="relative mb-4">
+                <span className="absolute -top-2 -left-1 text-4xl text-coral-400 font-serif">"</span>
+                <p className="text-white/80 text-base italic pl-6">
                   Every piece I create tells a story of heritage meeting modern elegance. I believe African fashion should be accessible to everyone, everywhere.
                 </p>
               </div>
 
-              <p className="text-gray-600 mb-8 leading-relaxed">
-                Based in Lagos, Nigeria, Amara has been transforming traditional Ankara prints into contemporary masterpieces for over a decade. Her designs have graced runways from Paris to New York, bringing African elegance to the global stage.
+              <p className="text-white/60 text-sm mb-6 leading-relaxed">
+                Based in Lagos, Nigeria, Amara has been transforming traditional Ankara prints into contemporary masterpieces for over a decade.
               </p>
 
               <Link
                 to="/designers"
-                className="inline-flex items-center px-8 py-4 bg-coral-500 text-white font-semibold hover:bg-coral-600 transition-colors"
+                className="inline-flex items-center px-6 py-3 bg-coral-500 text-white font-semibold hover:bg-coral-600 transition-colors"
               >
                 Meet All Designers
-                <ArrowRight className="w-5 h-5 ml-2" />
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Link>
+            </div>
+
+            {/* Right Column - Heritage Story with Statistics */}
+            <div>
+              {/* Statistics */}
+              <div className="grid grid-cols-3 gap-6 mb-10">
+                <div className="text-center">
+                  <p className="text-4xl lg:text-5xl font-display font-bold text-white">6</p>
+                  <p className="text-white/60 text-sm mt-1">Countries</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-4xl lg:text-5xl font-display font-bold text-white">26</p>
+                  <p className="text-white/60 text-sm mt-1">Designs</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-4xl lg:text-5xl font-display font-bold text-white">20+</p>
+                  <p className="text-white/60 text-sm mt-1">Products</p>
+                </div>
+              </div>
+
+              <span className="text-coral-400 font-semibold text-sm tracking-wider uppercase mb-4 block">
+                Heritage
+              </span>
+              <h2 className="font-display text-4xl lg:text-5xl text-white font-bold mb-6">
+                Rooted in Culture
+              </h2>
+
+              <p className="text-white/80 text-base mb-4 leading-relaxed">
+                Every pattern carries meaning. From the bold geometric designs of Kente cloth to the intricate motifs of Ankara prints, African textiles tell stories of history, identity, and tradition.
+              </p>
+
+              <p className="text-white/60 text-sm mb-8 leading-relaxed">
+                We work directly with artisans and communities across the continent to preserve these crafts while creating sustainable economic opportunities. When you wear our pieces, you carry these stories forward.
+              </p>
+
+              <Link
+                to="/about"
+                className="inline-flex items-center px-6 py-3 border-2 border-coral-500 text-coral-400 font-semibold hover:bg-coral-500 hover:text-white transition-colors"
+              >
+                Read Our Story
+                <ArrowRight className="w-4 h-4 ml-2" />
               </Link>
             </div>
           </div>
