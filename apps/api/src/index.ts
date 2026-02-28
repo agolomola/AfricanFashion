@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
+import { prisma } from './db';
 
 // Load environment variables
 dotenv.config();
@@ -22,7 +23,9 @@ const PORT = process.env.PORT || 3001;
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: process.env.FRONTEND_URL 
+    ? process.env.FRONTEND_URL.split(',').map(u => u.trim()) 
+    : 'http://localhost:5173',
   credentials: true,
 }));
 app.use(express.json());
@@ -70,5 +73,10 @@ app.listen(PORT, () => {
   console.log(`🚀 API Server running on port ${PORT}`);
   console.log(`📚 API Documentation: http://localhost:${PORT}/health`);
 });
+
+// Test database connection
+prisma.$connect()
+  .then(() => console.log('✅ Database connected'))
+  .catch((err: Error) => console.error('❌ Database connection failed:', err.message));
 
 export default app;
