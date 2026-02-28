@@ -2,20 +2,20 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Sparkles, MapPin, Heart } from 'lucide-react';
 
-// Hero slides with authentic African fashion images
+// Hero slides with generated African fashion images
 const heroSlides = [
   {
-    image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=1920&q=80',
+    image: '/images/hero-1.jpg',
     title: 'Wear the Story',
     subtitle: 'Discover authentic African fashion — from heritage prints to modern silhouettes',
   },
   {
-    image: 'https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=1920&q=80',
+    image: '/images/hero-2.jpg',
     title: 'Fresh Drops',
     subtitle: 'New arrivals from the most talented designers across the continent',
   },
   {
-    image: 'https://images.unsplash.com/photo-1532453288672-3a27e9be9efd?w=1920&q=80',
+    image: '/images/hero-3.jpg',
     title: 'Trending Now',
     subtitle: 'The pieces everyone is talking about this season',
   },
@@ -36,124 +36,124 @@ const countries = [
   { name: 'Morocco', flag: '🇲🇦', fabrics: ['Caftan', 'Silk'] },
 ];
 
-// Featured designs with authentic African clothing images
+// Featured designs with generated African clothing images
 const featuredDesigns = [
   {
     id: '1',
     name: 'Royal Kente Gown',
     designer: 'Amma Designs',
     price: 299,
-    image: 'https://images.unsplash.com/photo-1595777457583-95e059d581b8?w=600&q=80',
+    image: '/images/design-1.jpg',
   },
   {
     id: '2',
     name: 'Ankara Maxi Dress',
     designer: 'Lagos Luxe',
     price: 189,
-    image: 'https://images.unsplash.com/photo-1594633312681-425c7b97ccd1?w=600&q=80',
+    image: '/images/design-2.jpg',
   },
   {
     id: '3',
     name: 'Kitenge Two-Piece',
     designer: 'Nairobi Styles',
     price: 159,
-    image: 'https://images.unsplash.com/photo-1585487000160-6ebcfceb0d03?w=600&q=80',
+    image: '/images/design-3.jpg',
   },
   {
     id: '4',
     name: 'Boubou Silk Set',
     designer: 'Dakar Elegance',
     price: 349,
-    image: 'https://images.unsplash.com/photo-1566174053879-31528523f8ae?w=600&q=80',
+    image: '/images/design-4.jpg',
   },
 ];
 
-// Featured Ready To Wear items with authentic African clothing
+// Featured Ready To Wear items with generated African clothing
 const featuredReadyToWear = [
   {
     id: 'rtw1',
     name: 'Classic Ankara Blazer',
     designer: 'Lagos Luxe',
     price: 149,
-    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&q=80',
+    image: '/images/rtw-1.jpg',
   },
   {
     id: 'rtw2',
     name: 'Kente Print Shirt',
     designer: 'Accra Styles',
     price: 89,
-    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&q=80',
+    image: '/images/rtw-2.jpg',
   },
   {
     id: 'rtw3',
     name: 'African Print Skirt',
     designer: 'Nairobi Chic',
     price: 119,
-    image: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=600&q=80',
+    image: '/images/rtw-3.jpg',
   },
   {
     id: 'rtw4',
     name: 'Boubou Style Top',
     designer: 'Dakar Fashion',
     price: 79,
-    image: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=600&q=80',
+    image: '/images/rtw-4.jpg',
   },
 ];
 
-// Featured fabrics with authentic African textile images
+// Featured fabrics with generated African textile images
 const featuredFabrics = [
   {
     id: '1',
     name: 'Premium Kente Cloth',
     material: 'Cotton Blend',
     price: 45,
-    image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=600&q=80',
+    image: '/images/fabric-1.jpg',
   },
   {
     id: '2',
     name: 'Vibrant Ankara Print',
     material: '100% Cotton',
     price: 25,
-    image: 'https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=600&q=80',
+    image: '/images/fabric-2.jpg',
   },
   {
     id: '3',
     name: 'Ethiopian Tibeb',
     material: 'Handwoven Cotton',
     price: 65,
-    image: 'https://images.unsplash.com/photo-1532453288672-3a27e9be9efd?w=600&q=80',
+    image: '/images/fabric-3.jpg',
   },
   {
     id: '4',
     name: 'Moroccan Silk',
     material: 'Pure Silk',
     price: 89,
-    image: 'https://images.unsplash.com/photo-1490481651871-ab68de25d43d?w=600&q=80',
+    image: '/images/fabric-4.jpg',
   },
 ];
 
-// Testimonials with diverse customer avatars
+// Testimonials with generated customer avatars
 const testimonials = [
   {
     name: 'Sarah Johnson',
     location: 'New York, USA',
     text: 'The quality of the fabrics exceeded my expectations. My custom dress fits perfectly!',
     rating: 5,
-    avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=100&q=80',
+    avatar: '/images/avatar-1.jpg',
   },
   {
     name: 'Michael Adeyemi',
     location: 'London, UK',
     text: 'Amazing platform connecting me with talented African designers. Highly recommend!',
     rating: 5,
-    avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&q=80',
+    avatar: '/images/avatar-2.jpg',
   },
   {
     name: 'Amina Diallo',
     location: 'Paris, France',
     text: 'The 3D try-on feature helped me visualize my outfit before ordering. Brilliant!',
     rating: 5,
-    avatar: 'https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=100&q=80',
+    avatar: '/images/avatar-3.jpg',
   },
 ];
 
@@ -299,9 +299,6 @@ export default function Home() {
                       src={design.image}
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&h=600&fit=crop';
-                      }}
                     />
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
@@ -345,9 +342,6 @@ export default function Home() {
                       src={item.image}
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&h=600&fit=crop';
-                      }}
                     />
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
                       <Heart className="w-4 h-4" />
@@ -420,9 +414,6 @@ export default function Home() {
                       src={fabric.image}
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&h=400&fit=crop';
-                      }}
                     />
                   </div>
                   <div className="p-4">
@@ -492,9 +483,6 @@ export default function Home() {
                     src={testimonial.avatar}
                     alt={testimonial.name}
                     className="w-10 h-10 rounded-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop';
-                    }}
                   />
                   <div>
                     <p className="font-semibold text-gray-900">{testimonial.name}</p>
