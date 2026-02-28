@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, OrderType, OrderStatus } from '@african-fashion/database';
+import { prisma, UserRole, OrderType, OrderStatus } from './db';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
