@@ -36,7 +36,7 @@ const countries = [
   { name: 'Morocco', flag: '🇲🇦', fabrics: ['Caftan', 'Silk'] },
 ];
 
-// Featured designs with generated African clothing images
+// Featured designs with generated African clothing images (3 columns x 2 rows = 6 items)
 const featuredDesigns = [
   {
     id: '1',
@@ -65,6 +65,20 @@ const featuredDesigns = [
     designer: 'Dakar Elegance',
     price: 349,
     image: '/images/design-4.jpg',
+  },
+  {
+    id: '5',
+    name: 'Embroidered Dashiki',
+    designer: 'Accra Heritage',
+    price: 219,
+    image: '/images/design-5.jpg',
+  },
+  {
+    id: '6',
+    name: 'African Fusion Gown',
+    designer: 'Modern Africa',
+    price: 399,
+    image: '/images/design-6.jpg',
   },
 ];
 
@@ -290,7 +304,7 @@ export default function Home() {
             </Link>
           </div>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
             {featuredDesigns.map((design) => (
               <Link key={design.id} to={`/designs/${design.id}`} className="group">
                 <div className="card">
