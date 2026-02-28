@@ -1,14 +1,17 @@
 {
   "name": "african-fashion-platform",
   "version": "1.0.0",
-  "description": "African Fashion eCommerce Platform - Connects African designers, fabric sellers, and global customers",
+  "description": "African Fashion eCommerce Platform",
   "private": true,
-  "workspaces": [
-    "apps/*",
-    "packages/*"
-  ],
   "scripts": {
-    "dev": "turbo run dev",
+    "dev": "cd apps/web && npm run dev",
+    "build": "cd apps/web && npm run build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
+urbo run dev",
     "lint": "turbo run lint",
     "db:generate": "cd packages/database && prisma generate",
     "db:migrate": "cd packages/database && prisma migrate dev",
