@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Sparkles, MapPin, Heart } from 'lucide-react';
 
@@ -27,13 +27,14 @@ const features = [
   { icon: Clock, title: 'Custom Made', description: 'Tailored to your exact measurements' },
 ];
 
+// Countries with images and fabric info
 const countries = [
-  { name: 'Ghana', flag: '🇬🇭', fabrics: ['Kente', 'Adinkra'] },
-  { name: 'Nigeria', flag: '🇳🇬', fabrics: ['Ankara', 'Aso Oke'] },
-  { name: 'Kenya', flag: '🇰🇪', fabrics: ['Kitenge', 'Kikoy'] },
-  { name: 'Senegal', flag: '🇸🇳', fabrics: ['Boubou', 'Lace'] },
-  { name: 'Ethiopia', flag: '🇪🇹', fabrics: ['Tibeb', 'Cotton'] },
-  { name: 'Morocco', flag: '🇲🇦', fabrics: ['Caftan', 'Silk'] },
+  { name: 'Ghana', flag: '🇬🇭', image: '/images/country-ghana.jpg', fabrics: 'Kente, Adinkra' },
+  { name: 'Nigeria', flag: '🇳🇬', image: '/images/country-nigeria.jpg', fabrics: 'Ankara, Aso Oke' },
+  { name: 'Kenya', flag: '🇰🇪', image: '/images/country-kenya.jpg', fabrics: 'Kitenge, Kikoy' },
+  { name: 'Senegal', flag: '🇸🇳', image: '/images/country-senegal.jpg', fabrics: 'Boubou, Lace' },
+  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/country-ethiopia.jpg', fabrics: 'Tibeb, Cotton' },
+  { name: 'Morocco', flag: '🇲🇦', image: '/images/country-morocco.jpg', fabrics: 'Caftan, Silk' },
 ];
 
 // Featured designs with generated African clothing images (3 columns x 2 rows = 6 items)
@@ -173,6 +174,8 @@ const testimonials = [
 
 export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [scrollDirection, setScrollDirection] = useState<'left' | 'right'>('right');
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -180,6 +183,31 @@ export default function Home() {
     }, 5000);
     return () => clearInterval(timer);
   }, []);
+
+  // Auto-scroll countries section
+  useEffect(() => {
+    const scrollContainer = scrollRef.current;
+    if (!scrollContainer) return;
+
+    const scrollStep = 1;
+    const scrollInterval = setInterval(() => {
+      if (scrollDirection === 'right') {
+        if (scrollContainer.scrollLeft >= scrollContainer.scrollWidth - scrollContainer.clientWidth) {
+          setScrollDirection('left');
+        } else {
+          scrollContainer.scrollLeft += scrollStep;
+        }
+      } else {
+        if (scrollContainer.scrollLeft <= 0) {
+          setScrollDirection('right');
+        } else {
+          scrollContainer.scrollLeft -= scrollStep;
+        }
+      }
+    }, 30);
+
+    return () => clearInterval(scrollInterval);
+  }, [scrollDirection]);
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
@@ -289,6 +317,37 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Shop by Country - Horizontal Scrolling */}
+      <section className="py-12 bg-cream overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div
+            ref={scrollRef}
+            className="flex gap-4 overflow-x-auto scrollbar-hide scroll-smooth"
+            style={{ scrollBehavior: 'smooth' }}
+          >
+            {countries.map((country) => (
+              <Link
+                key={country.name}
+                to={`/fabrics?country=${country.name}`}
+                className="flex-shrink-0 relative w-48 h-64 rounded-2xl overflow-hidden group transition-transform duration-300 hover:scale-105"
+              >
+                <img
+                  src={country.image}
+                  alt={country.name}
+                  className="absolute inset-0 w-full h-full object-cover"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute bottom-4 left-4 right-4">
+                  <span className="text-3xl mb-1 block">{country.flag}</span>
+                  <h3 className="font-display font-bold text-white text-lg">{country.name}</h3>
+                  <p className="text-white/80 text-xs">{country.fabrics}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* Featured Designs */}
       <section className="py-20 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -369,35 +428,6 @@ export default function Home() {
                     <p className="text-coral-500 font-semibold mt-2">${item.price}</p>
                   </div>
                 </div>
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* Shop by Country */}
-      <section className="py-20 bg-cream">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
-              Explore
-            </span>
-            <h2 className="font-display text-4xl text-navy-600 font-bold mb-4">Shop by Country</h2>
-            <p className="text-gray-600 max-w-xl mx-auto">
-              Explore traditional prints and textiles from every region of the continent
-            </p>
-          </div>
-
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {countries.map((country) => (
-              <Link
-                key={country.name}
-                to={`/fabrics?country=${country.name}`}
-                className="bg-white rounded-2xl p-6 text-center transition-all duration-300 hover:shadow-lg hover:-translate-y-1"
-              >
-                <span className="text-5xl mb-4 block">{country.flag}</span>
-                <h3 className="font-display font-bold text-navy-600 text-lg mb-2">{country.name}</h3>
-                <p className="text-sm text-gray-500">{country.fabrics.join(', ')}</p>
               </Link>
             ))}
           </div>
