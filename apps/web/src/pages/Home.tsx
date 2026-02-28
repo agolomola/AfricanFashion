@@ -68,6 +68,38 @@ const featuredDesigns = [
   },
 ];
 
+// Featured Ready To Wear items
+const featuredReadyToWear = [
+  {
+    id: 'rtw1',
+    name: 'Classic Ankara Blazer',
+    designer: 'Lagos Luxe',
+    price: 149,
+    image: 'https://images.unsplash.com/photo-1591047139829-d91aecb6caea?w=600&q=80',
+  },
+  {
+    id: 'rtw2',
+    name: 'Kente Print Shirt',
+    designer: 'Accra Styles',
+    price: 89,
+    image: 'https://images.unsplash.com/photo-1596755094514-f87e34085b2c?w=600&q=80',
+  },
+  {
+    id: 'rtw3',
+    name: 'African Print Skirt',
+    designer: 'Nairobi Chic',
+    price: 119,
+    image: 'https://images.unsplash.com/photo-1583496661160-fb5886a0ujf9?w=600&q=80',
+  },
+  {
+    id: 'rtw4',
+    name: 'Boubou Style Top',
+    designer: 'Dakar Fashion',
+    price: 79,
+    image: 'https://images.unsplash.com/photo-1552374196-1ab2a1c593e8?w=600&q=80',
+  },
+];
+
 // Featured fabrics with placeholder images
 const featuredFabrics = [
   {
@@ -281,6 +313,52 @@ export default function Home() {
                     </h3>
                     <p className="text-sm text-gray-500 mt-1">{design.designer}</p>
                     <p className="text-coral-500 font-semibold mt-2">${design.price}</p>
+                  </div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Ready To Wear */}
+      <section className="py-20 bg-white">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-end justify-between mb-12">
+            <div>
+              <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
+                New Arrivals
+              </span>
+              <h2 className="font-display text-4xl text-navy-600 font-bold">Featured Ready To Wear</h2>
+            </div>
+            <Link to="/ready-to-wear" className="flex items-center gap-2 text-navy-600 font-medium hover:text-coral-500 transition-colors">
+              View All <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            {featuredReadyToWear.map((item) => (
+              <Link key={item.id} to={`/ready-to-wear/${item.id}`} className="group">
+                <div className="card">
+                  <div className="aspect-[3/4] overflow-hidden relative">
+                    <img
+                      src={item.image}
+                      alt={item.name}
+                      className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x600?text=Ready+To+Wear';
+                      }}
+                    />
+                    <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
+                      <Heart className="w-4 h-4" />
+                    </button>
+                  </div>
+                  <div className="p-4">
+                    <h3 className="font-semibold text-gray-900 group-hover:text-coral-500 transition-colors">
+                      {item.name}
+                    </h3>
+                    <p className="text-sm text-gray-500 mt-1">{item.designer}</p>
+                    <p className="text-coral-500 font-semibold mt-2">${item.price}</p>
                   </div>
                 </div>
               </Link>
