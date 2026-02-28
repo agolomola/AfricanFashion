@@ -2,20 +2,20 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Sparkles, MapPin, Heart } from 'lucide-react';
 
-// Hero slides with reliable Unsplash images
+// Hero slides with authentic African fashion images
 const heroSlides = [
   {
-    image: 'https://images.unsplash.com/photo-1539109136881-3be0616acf4b?w=1920&q=80',
+    image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=1920&q=80',
     title: 'Wear the Story',
     subtitle: 'Discover authentic African fashion — from heritage prints to modern silhouettes',
   },
   {
-    image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=1920&q=80',
+    image: 'https://images.unsplash.com/photo-1594534475808-b18fc33b045e?w=1920&q=80',
     title: 'Fresh Drops',
     subtitle: 'New arrivals from the most talented designers across the continent',
   },
   {
-    image: 'https://images.unsplash.com/photo-1496747611176-843222e1e57c?w=1920&q=80',
+    image: 'https://images.unsplash.com/photo-1532453288672-3a27e9be9efd?w=1920&q=80',
     title: 'Trending Now',
     subtitle: 'The pieces everyone is talking about this season',
   },
@@ -36,7 +36,7 @@ const countries = [
   { name: 'Morocco', flag: '🇲🇦', fabrics: ['Caftan', 'Silk'] },
 ];
 
-// Featured designs with placeholder images
+// Featured designs with authentic African clothing images
 const featuredDesigns = [
   {
     id: '1',
@@ -68,7 +68,7 @@ const featuredDesigns = [
   },
 ];
 
-// Featured Ready To Wear items
+// Featured Ready To Wear items with authentic African clothing
 const featuredReadyToWear = [
   {
     id: 'rtw1',
@@ -89,7 +89,7 @@ const featuredReadyToWear = [
     name: 'African Print Skirt',
     designer: 'Nairobi Chic',
     price: 119,
-    image: 'https://images.unsplash.com/photo-1583496661160-fb5886a0ujf9?w=600&q=80',
+    image: 'https://images.unsplash.com/photo-1583496661160-fb5886a0aaaa?w=600&q=80',
   },
   {
     id: 'rtw4',
@@ -100,7 +100,7 @@ const featuredReadyToWear = [
   },
 ];
 
-// Featured fabrics with placeholder images
+// Featured fabrics with authentic African textile images
 const featuredFabrics = [
   {
     id: '1',
@@ -132,7 +132,7 @@ const featuredFabrics = [
   },
 ];
 
-// Testimonials
+// Testimonials with diverse customer avatars
 const testimonials = [
   {
     name: 'Sarah Johnson',
@@ -300,7 +300,7 @@ export default function Home() {
                       alt={design.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x600?text=Design';
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&h=600&fit=crop';
                       }}
                     />
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
@@ -346,7 +346,7 @@ export default function Home() {
                       alt={item.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x600?text=Ready+To+Wear';
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&h=600&fit=crop';
                       }}
                     />
                     <button className="absolute top-3 right-3 w-8 h-8 bg-white/90 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white">
@@ -421,7 +421,7 @@ export default function Home() {
                       alt={fabric.name}
                       className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = 'https://via.placeholder.com/400x400?text=Fabric';
+                        (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=400&h=400&fit=crop';
                       }}
                     />
                   </div>
@@ -493,7 +493,7 @@ export default function Home() {
                     alt={testimonial.name}
                     className="w-10 h-10 rounded-full object-cover"
                     onError={(e) => {
-                      (e.target as HTMLImageElement).src = 'https://via.placeholder.com/40x40?text=User';
+                      (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=40&h=40&fit=crop';
                     }}
                   />
                   <div>
