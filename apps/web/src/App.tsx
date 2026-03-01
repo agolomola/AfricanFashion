@@ -1,0 +1,150 @@
+// Cache bust: v3 - Force rebuild
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements } from '@stripe/react-stripe-js';
+
+// Layouts
+import MainLayout from './layouts/MainLayout';
+import DashboardLayout from './layouts/DashboardLayout';
+
+// Public Pages
+import Home from './pages/Home';
+import Designs from './pages/Designs';
+import DesignDetail from './pages/DesignDetail';
+import Fabrics from './pages/Fabrics';
+import FabricDetail from './pages/FabricDetail';
+import ReadyToWear from './pages/ReadyToWear';
+import ReadyToWearDetail from './pages/ReadyToWearDetail';
+import TryOn from './pages/TryOn';
+import Cart from './pages/Cart';
+import Checkout from './pages/Checkout';
+import Login from './pages/Login';
+import Register from './pages/Register';
+
+// Customer Pages
+import CustomerDashboard from './pages/customer/Dashboard';
+import CustomerOrders from './pages/customer/Orders';
+import CustomerProfile from './pages/customer/Profile';
+import CustomerMeasurements from './pages/customer/Measurements';
+
+// Admin Pages
+import AdminDashboard from './pages/Admin/Dashboard';
+import AdminUsers from './pages/Admin/Users';
+import AdminProducts from './pages/Admin/Products';
+import AdminOrders from './pages/Admin/Orders';
+import AdminPricingRules from './pages/Admin/PricingRules';
+import AdminBanners from './pages/Admin/Banners';
+
+// Seller Pages
+import SellerDashboard from './pages/seller/Dashboard';
+
+// Designer Pages
+import DesignerDashboard from './pages/designer/Dashboard';
+
+// QA Pages
+import QADashboard from './pages/qa/Dashboard';
+
+// Auth
+import ProtectedRoute from './components/ProtectedRoute';
+import { useAuthStore } from './store/authStore';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 5 * 60 * 1000,
+      retry: 1,
+    },
+  },
+});
+
+// Initialize Stripe
+const stripePromise = loadStripe(import.meta.env.VITE_STRIPE_PUBLIC_KEY || 'pk_test_placeholder');
+
+function App() {
+  const { isAuthenticated, user } = useAuthStore();
+
+  return (
+    <QueryClientProvider client={queryClient}>
+      <Elements stripe={stripePromise}>
+        <Router>
+          <Routes>
+            {/* Public Routes */}
+            <Route element={<MainLayout />}>
+              <Route path="/" element={<Home />} />
+              <Route path="/designs" element={<Designs />} />
+              <Route path="/designs/:id" element={<DesignDetail />} />
+              <Route path="/fabrics" element={<Fabrics />} />
+              <Route path="/fabrics/:id" element={<FabricDetail />} />
+              <Route path="/ready-to-wear" element={<ReadyToWear />} />
+              <Route path="/ready-to-wear/:id" element={<ReadyToWearDetail />} />
+              <Route path="/try-on/:id" element={<TryOn />} />
+              <Route path="/cart" element={<Cart />} />
+            </Route>
+
+            {/* Auth Routes */}
+            <Route path="/login" element={
+              isAuthenticated ? <Navigate to="/" /> : <Login />
+            } />
+            <Route path="/register" element={
+              isAuthenticated ? <Navigate to="/" /> : <Register />
+            } />
+
+            {/* Checkout - Requires Auth */}
+            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
+              <Route path="/checkout" element={<Checkout />} />
+            </Route>
+
+            {/* Customer Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['CUSTOMER']} />}>
+              <Route element={<DashboardLayout userType="customer" />}>
+                <Route path="/dashboard" element={<CustomerDashboard />} />
+                <Route path="/orders" element={<CustomerOrders />} />
+                <Route path="/profile" element={<CustomerProfile />} />
+                <Route path="/measurements" element={<CustomerMeasurements />} />
+              </Route>
+            </Route>
+
+            {/* Admin Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
+              <Route element={<DashboardLayout userType="admin" />}>
+                <Route path="/admin" element={<AdminDashboard />} />
+                <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/products" element={<AdminProducts />} />
+                <Route path="/admin/orders" element={<AdminOrders />} />
+                <Route path="/admin/pricing" element={<AdminPricingRules />} />
+                <Route path="/admin/banners" element={<AdminBanners />} />
+              </Route>
+            </Route>
+
+            {/* Seller Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['FABRIC_SELLER']} />}>
+              <Route element={<DashboardLayout userType="seller" />}>
+                <Route path="/seller" element={<SellerDashboard />} />
+              </Route>
+            </Route>
+
+            {/* Designer Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['FASHION_DESIGNER']} />}>
+              <Route element={<DashboardLayout userType="designer" />}>
+                <Route path="/designer" element={<DesignerDashboard />} />
+              </Route>
+            </Route>
+
+            {/* QA Routes */}
+            <Route element={<ProtectedRoute allowedRoles={['QA_TEAM']} />}>
+              <Route element={<DashboardLayout userType="qa" />}>
+                <Route path="/qa" element={<QADashboard />} />
+              </Route>
+            </Route>
+
+            {/* Fallback */}
+            <Route path="*" element={<Navigate to="/" />} />
+          </Routes>
+        </Router>
+      </Elements>
+    </QueryClientProvider>
+  );
+}
+
+export default App;
