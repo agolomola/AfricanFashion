@@ -446,7 +446,7 @@ export default function Home() {
 
       {/* Features Bar */}
       <section className="py-12 bg-white border-b border-gray-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid md:grid-cols-3 gap-8">
             {features.map((feature) => (
               <div key={feature.title} className="flex items-start gap-4">
@@ -463,13 +463,13 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Shop by Country - Auto scroll right to left, pause on hover, sharp corners, 30% smaller */}
+      {/* Shop by Country - Full width, responsive cards */}
       <section className="py-12 bg-cream overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 relative">
           {/* Left Arrow */}
           <button
             onClick={scrollLeft}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg flex items-center justify-center hover:bg-coral-50 transition-colors"
+            className="absolute left-2 lg:left-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg flex items-center justify-center hover:bg-coral-50 transition-colors"
           >
             <ChevronLeft className="w-5 h-5 text-gray-700" />
           </button>
@@ -477,15 +477,15 @@ export default function Home() {
           {/* Right Arrow */}
           <button
             onClick={scrollRight}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg flex items-center justify-center hover:bg-coral-50 transition-colors"
+            className="absolute right-2 lg:right-4 top-1/2 -translate-y-1/2 z-10 w-10 h-10 bg-white shadow-lg flex items-center justify-center hover:bg-coral-50 transition-colors"
           >
             <ChevronRight className="w-5 h-5 text-gray-700" />
           </button>
 
-          {/* Scroll Container - 30% smaller (w-52 h-32 instead of w-72 h-44), sharp corners, auto scroll */}
+          {/* Scroll Container - Responsive card sizes */}
           <div
             ref={scrollRef}
-            className="flex gap-6 overflow-x-auto scrollbar-hide scroll-smooth px-12"
+            className="flex gap-4 md:gap-6 overflow-x-auto scrollbar-hide scroll-smooth px-12 md:px-14"
             style={{ scrollBehavior: 'auto' }}
             onMouseEnter={() => setIsPaused(true)}
             onMouseLeave={() => setIsPaused(false)}
@@ -494,7 +494,7 @@ export default function Home() {
               <Link
                 key={country.name}
                 to={`/fabrics?country=${country.name}`}
-                className="flex-shrink-0 relative w-52 h-32 overflow-hidden group transition-transform duration-300 hover:scale-105 shadow-md"
+                className="flex-shrink-0 relative w-40 h-28 sm:w-48 sm:h-32 md:w-56 md:h-36 lg:w-64 lg:h-40 overflow-hidden group transition-transform duration-300 hover:scale-105 shadow-md"
               >
                 <img
                   src={country.image}
@@ -504,12 +504,12 @@ export default function Home() {
                 <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-black/60" />
                 {/* Flag in top left corner */}
                 <div className="absolute top-2 left-2 flex items-center gap-2">
-                  <span className="text-2xl">{country.flag}</span>
+                  <span className="text-xl md:text-2xl">{country.flag}</span>
                 </div>
                 {/* Country name and fabrics at bottom */}
                 <div className="absolute bottom-2 left-2 right-2">
-                  <h3 className="font-display font-bold text-white text-base">{country.name}</h3>
-                  <p className="text-white/80 text-xs">{country.fabrics}</p>
+                  <h3 className="font-display font-bold text-white text-sm md:text-base">{country.name}</h3>
+                  <p className="text-white/80 text-xs hidden sm:block">{country.fabrics}</p>
                 </div>
               </Link>
             ))}
@@ -519,7 +519,7 @@ export default function Home() {
 
       {/* Featured Designs */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-end justify-between mb-12">
             <div>
               <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
@@ -575,7 +575,7 @@ export default function Home() {
 
       {/* Featured Ready To Wear - 4 columns x 3 rows = 12 items */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-end justify-between mb-12">
             <div>
               <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
@@ -631,7 +631,7 @@ export default function Home() {
 
       {/* Featured Fabrics - Duplicated from Featured Ready To Wear layout (4 columns x 3 rows = 12 items) */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-end justify-between mb-12">
             <div>
               <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
@@ -678,7 +678,7 @@ export default function Home() {
 
       {/* How It Works */}
       <section className="py-20 bg-navy-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-16">
             <span className="text-coral-400 font-semibold text-sm tracking-wider uppercase mb-3 block">
               How It Works
@@ -707,7 +707,7 @@ export default function Home() {
 
       {/* Testimonials */}
       <section className="py-20 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-12">
             <span className="text-coral-500 font-semibold text-sm tracking-wider uppercase mb-3 block">
               Testimonials
@@ -745,7 +745,7 @@ export default function Home() {
 
       {/* Designer Spotlight */}
       <section className="py-20 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left - Designer Image */}
             <div className="relative">
@@ -794,7 +794,7 @@ export default function Home() {
 
       {/* CTA Section */}
       <section className="py-20 bg-gradient-to-r from-coral-500 to-coral-600">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 text-center">
           <h2 className="font-display text-4xl md:text-5xl text-white font-bold mb-6">
             Are You a Designer or Fabric Seller?
           </h2>
@@ -815,7 +815,7 @@ export default function Home() {
 
       {/* Heritage Story Section - Before Footer */}
       <section className="py-20 bg-navy-700">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
             {/* Left - Heritage Image */}
             <div className="relative">
