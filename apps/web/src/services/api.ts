@@ -325,6 +325,9 @@ const uploadApi = {
     }).then((res) => res.data),
 };
 
+// Named exports for individual API objects
+export { productsApi, authApi, ordersApi, customerApi, adminApi, sellerApi, designerApi, qaApi, paymentsApi, bannersApi, uploadApi };
+
 // Export combined API
 export const api = {
   auth: authApi,
