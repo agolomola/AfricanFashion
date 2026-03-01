@@ -33,7 +33,7 @@ import AdminUsers from './pages/admin/Users';
 import AdminProducts from './pages/admin/Products';
 import AdminOrders from './pages/admin/Orders';
 import AdminPricingRules from './pages/admin/PricingRules';
-import AdminBanners from './pages/admin/Banners';
+import AdminBanners from './pages/admin/Banners.tsx';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
