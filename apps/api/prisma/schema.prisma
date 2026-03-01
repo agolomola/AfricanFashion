@@ -1,0 +1,905 @@
+// African Fashion Platform - Database Schema
+// Multi-role eCommerce with order splitting and virtual try-on
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER MANAGEMENT ====================
+
+enum UserRole {
+  CUSTOMER
+  FABRIC_SELLER
+  FASHION_DESIGNER
+  QA_TEAM
+  ADMINISTRATOR
+}
+
+enum UserStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  REJECTED
+}
+
+model User {
+  id        String   @id @default(uuid())
+  email     String   @unique
+  password  String
+  firstName String
+  lastName  String
+  phone     String?
+  avatar    String?
+  
+  role      UserRole
+  status    UserStatus @default(PENDING)
+  
+  // Profile based on role
+  customerProfile    CustomerProfile?
+  fabricSellerProfile FabricSellerProfile?
+  designerProfile    DesignerProfile?
+  qaProfile          QAProfile?
+  adminProfile       AdminProfile?
+  
+  // Common timestamps
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+  
+  // Relations
+  ordersAsCustomer    Order[]      @relation("CustomerOrders")
+  notifications       Notification[]
+  activities          ActivityLog[]
+  
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model CustomerProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Address
+  addresses   Address[]
+  
+  // Measurements for virtual try-on
+  measurements CustomerMeasurement?
+  
+  // Order history
+  totalOrders     Int     @default(0)
+  totalSpent      Decimal @default(0) @db.Decimal(10, 2)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FabricSellerProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Business Info
+  businessName    String
+  businessEmail   String
+  businessPhone   String
+  
+  // Location (critical for matching with designers)
+  country         String
+  city            String
+  address         String
+  postalCode      String?
+  
+  // Verification
+  isVerified      Boolean @default(false)
+  verificationDoc String? // URL to document
+  
+  // Products
+  fabrics         Fabric[]
+  
+  // Orders
+  fabricOrders    FabricOrderItem[]
+  
+  // Stats
+  totalFabrics    Int     @default(0)
+  totalSales      Decimal @default(0) @db.Decimal(10, 2)
+  rating          Float   @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([country])
+  @@index([isVerified])
+}
+
+model DesignerProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Business Info
+  businessName    String
+  businessEmail   String
+  businessPhone   String
+  bio             String? @db.Text
+  
+  // Location (critical for matching with fabric sellers)
+  country         String
+  city            String
+  address         String
+  postalCode      String?
+  
+  // Verification
+  isVerified      Boolean @default(false)
+  portfolioUrl    String?
+  verificationDoc String?
+  
+  // Products
+  designs         Design[]
+  readyToWear     ReadyToWear[]
+  
+  // Orders
+  designOrders    DesignOrderItem[]
+  
+  // Stats
+  totalDesigns    Int     @default(0)
+  totalSales      Decimal @default(0) @db.Decimal(10, 2)
+  rating          Float   @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([country])
+  @@index([isVerified])
+}
+
+model QAProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Location for shipping
+  country     String
+  city        String
+  address     String
+  
+  // Assigned orders
+  orders      Order[]
+  
+  // Stats
+  totalProcessed  Int @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model AdminProfile {
+  id          String @id @default(uuid())
+  userId      String @unique
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Admin can have specific permissions
+  permissions Json? // Store array of permission strings
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Address {
+  id          String @id @default(uuid())
+  
+  customerProfileId String
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+  
+  label       String // Home, Work, etc.
+  fullName    String
+  phone       String
+  country     String
+  city        String
+  address     String
+  postalCode  String?
+  isDefault   Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== PRODUCT CATEGORIES & MATERIALS (Admin Managed) ====================
+
+model ProductCategory {
+  id          String @id @default(uuid())
+  name        String @unique
+  slug        String @unique
+  description String?
+  
+  // Relations
+  designs     Design[]
+  readyToWear ReadyToWear[]
+  
+  isActive    Boolean @default(true)
+  sortOrder   Int     @default(0)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model MaterialType {
+  id          String @id @default(uuid())
+  name        String @unique
+  slug        String @unique
+  description String?
+  
+  // Relations
+  fabrics     Fabric[]
+  designs     Design[] // Designs that use this material
+  
+  isActive    Boolean @default(true)
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ==================== FABRIC PRODUCTS ====================
+
+model Fabric {
+  id          String @id @default(uuid())
+  
+  // Seller
+  sellerId    String
+  seller      FabricSellerProfile @relation(fields: [sellerId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name        String
+  description String @db.Text
+  
+  // Category & Material
+  materialTypeId String
+  materialType   MaterialType @relation(fields: [materialTypeId], references: [id])
+  
+  // Pricing (seller's price - admin adds markup)
+  sellerPrice     Decimal @db.Decimal(10, 2)
+  finalPrice      Decimal @db.Decimal(10, 2) // After admin markup
+  
+  // Yard-based inventory
+  minYards        Int     @default(1)
+  stockYards      Int     @default(0)
+  
+  // Images
+  images          FabricImage[]
+  
+  // Status
+  status          ProductStatus @default(DRAFT)
+  isAvailable     Boolean @default(true)
+  
+  // Stats
+  totalSold       Int @default(0)
+  
+  // Relations
+  designFabrics   DesignFabric[] // Designs that can use this fabric
+  orderItems      FabricOrderItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([sellerId])
+  @@index([materialTypeId])
+  @@index([status])
+  @@index([isAvailable])
+}
+
+model FabricImage {
+  id          String @id @default(uuid())
+  fabricId    String
+  fabric      Fabric @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  
+  url         String
+  alt         String?
+  sortOrder   Int @default(0)
+  
+  createdAt DateTime @default(now())
+}
+
+// ==================== DESIGN PRODUCTS ====================
+
+model Design {
+  id          String @id @default(uuid())
+  
+  // Designer
+  designerId  String
+  designer    DesignerProfile @relation(fields: [designerId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name        String
+  description String @db.Text
+  
+  // Category (Admin defined)
+  categoryId  String
+  category    ProductCategory @relation(fields: [categoryId], references: [id])
+  
+  // Material Type
+  materialTypeId String?
+  materialType   MaterialType? @relation(fields: [materialTypeId], references: [id])
+  
+  // Pricing
+  basePrice   Decimal @db.Decimal(10, 2) // Designer's price
+  finalPrice  Decimal @db.Decimal(10, 2) // After admin markup
+  
+  // Suitable Fabrics (Designer specifies which fabrics work)
+  suitableFabrics DesignFabric[]
+  
+  // Images
+  images      DesignImage[]
+  
+  // Measurement Variables (Designer specifies what measurements needed)
+  measurementVariables DesignMeasurementVariable[]
+  
+  // Status
+  status      ProductStatus @default(DRAFT)
+  isAvailable Boolean @default(true)
+  
+  // Stats
+  totalOrders Int @default(0)
+  
+  // Relations
+  orderItems  DesignOrderItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([designerId])
+  @@index([categoryId])
+  @@index([materialTypeId])
+  @@index([status])
+}
+
+model DesignFabric {
+  id          String @id @default(uuid())
+  
+  designId    String
+  design      Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  
+  fabricId    String
+  fabric      Fabric @relation(fields: [fabricId], references: [id], onDelete: Cascade)
+  
+  // Additional yards needed for this design
+  yardsNeeded   Int @default(3)
+  
+  @@unique([designId, fabricId])
+  @@index([designId])
+  @@index([fabricId])
+}
+
+model DesignImage {
+  id          String @id @default(uuid())
+  designId    String
+  design      Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  
+  url         String
+  alt         String?
+  sortOrder   Int @default(0)
+  
+  createdAt DateTime @default(now())
+}
+
+model DesignMeasurementVariable {
+  id          String @id @default(uuid())
+  designId    String
+  design      Design @relation(fields: [designId], references: [id], onDelete: Cascade)
+  
+  name        String // e.g., "Bust", "Waist", "Hip", "Shoulder Width"
+  unit        String @default("cm") // cm or inches
+  minValue    Float?
+  maxValue    Float?
+  isRequired  Boolean @default(true)
+  instructions String? // How to measure
+  
+  sortOrder   Int @default(0)
+  
+  createdAt DateTime @default(now())
+}
+
+// ==================== READY-TO-WEAR PRODUCTS ====================
+
+model ReadyToWear {
+  id          String @id @default(uuid())
+  
+  // Designer
+  designerId  String
+  designer    DesignerProfile @relation(fields: [designerId], references: [id], onDelete: Cascade)
+  
+  // Basic Info
+  name        String
+  description String @db.Text
+  
+  // Category (Admin defined)
+  categoryId  String
+  category    ProductCategory @relation(fields: [categoryId], references: [id])
+  
+  // Base Price (before size variations)
+  basePrice   Decimal @db.Decimal(10, 2)
+  
+  // Size Variations
+  sizeVariations ReadyToWearSize[]
+  
+  // Images
+  images      ReadyToWearImage[]
+  
+  // Status
+  status      ProductStatus @default(DRAFT)
+  isAvailable Boolean @default(true)
+  
+  // Stats
+  totalSold   Int @default(0)
+  
+  // Relations
+  orderItems  ReadyToWearOrderItem[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([designerId])
+  @@index([categoryId])
+  @@index([status])
+}
+
+model ReadyToWearSize {
+  id          String @id @default(uuid())
+  
+  readyToWearId String
+  readyToWear   ReadyToWear @relation(fields: [readyToWearId], references: [id], onDelete: Cascade)
+  
+  size        String // S, M, L, XL, XXL
+  price       Decimal @db.Decimal(10, 2) // Final price for this size
+  stock       Int @default(0)
+  
+  // Measurements for this size
+  measurements Json? // { chest: 96, waist: 80, hip: 100 }
+  
+  @@unique([readyToWearId, size])
+}
+
+model ReadyToWearImage {
+  id          String @id @default(uuid())
+  readyToWearId String
+  readyToWear   ReadyToWear @relation(fields: [readyToWearId], references: [id], onDelete: Cascade)
+  
+  url         String
+  alt         String?
+  sortOrder   Int @default(0)
+  
+  createdAt DateTime @default(now())
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  ARCHIVED
+}
+
+// ==================== CUSTOMER MEASUREMENTS ====================
+
+model CustomerMeasurement {
+  id          String @id @default(uuid())
+  
+  customerProfileId String @unique
+  customerProfile   CustomerProfile @relation(fields: [customerProfileId], references: [id], onDelete: Cascade)
+  
+  // Basic body measurements
+  height      Float? // cm
+  weight      Float? // kg
+  
+  // Detailed measurements stored as JSON for flexibility
+  measurements Json? // { bust: 90, waist: 70, hip: 95, ... }
+  
+  // 3D Avatar data
+  avatarData  Json? // Stores 3D model parameters
+  
+  // Virtual try-on history
+  tryOnHistory VirtualTryOn[]
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model VirtualTryOn {
+  id          String @id @default(uuid())
+  
+  customerMeasurementId String
+  customerMeasurement   CustomerMeasurement @relation(fields: [customerMeasurementId], references: [id], onDelete: Cascade)
+  
+  designId    String
+  fabricId    String
+  
+  // Generated images/results
+  resultImages String[] // URLs to generated preview images
+  
+  // Customer feedback
+  isLiked     Boolean?
+  notes       String?
+  
+  createdAt DateTime @default(now())
+}
+
+// ==================== ORDERS (Complex Split Logic) ====================
+
+enum OrderType {
+  CUSTOM_DESIGN  // Design + Fabric (custom made)
+  READY_TO_WEAR  // Pre-made items
+  FABRIC_ONLY    // Just fabric
+}
+
+enum OrderStatus {
+  PENDING_PAYMENT
+  PAYMENT_CONFIRMED
+  FABRIC_PENDING    // Waiting for fabric seller confirmation
+  FABRIC_CONFIRMED  // Fabric seller confirmed
+  FABRIC_SHIPPED    // Fabric shipped to designer
+  FABRIC_RECEIVED   // Designer received fabric
+  IN_PRODUCTION     // Designer making the garment
+  PRODUCTION_COMPLETE // Designer finished
+  QA_PENDING        // Waiting for QA inspection
+  QA_INSPECTING     // QA inspecting
+  QA_APPROVED       // QA approved
+  QA_REJECTED       // QA rejected (back to designer)
+  SHIPPED           // Shipped to customer
+  DELIVERED         // Customer received
+  COMPLETED         // Customer accepted
+  REFUND_REQUESTED
+  REFUNDED
+  CANCELLED
+}
+
+model Order {
+  id          String @id @default(uuid())
+  orderNumber String @unique // Human-readable order number (e.g., AF-2024-0001)
+  
+  // Order Type
+  type        OrderType
+  
+  // Customer
+  customerId  String
+  customer    User @relation("CustomerOrders", fields: [customerId], references: [id])
+  
+  // Shipping Address
+  shippingAddress Json // Full address object
+  
+  // For custom design orders
+  designOrder   DesignOrderItem?
+  fabricOrder   FabricOrderItem?
+  
+  // For ready-to-wear orders
+  readyToWearItems ReadyToWearOrderItem[]
+  
+  // Pricing
+  subtotal      Decimal @db.Decimal(10, 2)
+  shippingCost  Decimal @db.Decimal(10, 2)
+  tax           Decimal @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
+  
+  // Payment
+  paymentStatus   PaymentStatus @default(PENDING)
+  paymentMethod   String?
+  paymentIntentId String? // Stripe payment intent ID
+  paidAt          DateTime?
+  
+  // Status
+  status          OrderStatus @default(PENDING_PAYMENT)
+  
+  // QA Assignment
+  qaId            String?
+  qa              QAProfile? @relation(fields: [qaId], references: [id])
+  
+  // Tracking
+  trackingNumber  String?
+  shippedAt       DateTime?
+  deliveredAt     DateTime?
+  
+  // Customer acceptance
+  customerAcceptedAt DateTime?
+  customerNotes      String?
+  
+  // Timeline
+  timeline        OrderTimeline[]
+  
+  // Refund
+  refundAmount    Decimal? @db.Decimal(10, 2)
+  refundReason    String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([customerId])
+  @@index([status])
+  @@index([orderNumber])
+  @@index([qaId])
+}
+
+model DesignOrderItem {
+  id          String @id @default(uuid())
+  
+  // Parent Order
+  orderId     String @unique
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Design
+  designId    String
+  design      Design @relation(fields: [designId], references: [id])
+  
+  // Designer
+  designerId  String
+  designer    DesignerProfile @relation(fields: [designerId], references: [id])
+  
+  // Customer measurements used
+  measurements Json // Snapshot of measurements at order time
+  
+  // Virtual try-on result
+  virtualTryOnId String?
+  
+  // Pricing
+  price       Decimal @db.Decimal(10, 2)
+  
+  // Status tracking (designer's view)
+  status      DesignOrderStatus @default(PENDING)
+  
+  // Production notes
+  productionNotes String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([designId])
+  @@index([designerId])
+}
+
+enum DesignOrderStatus {
+  PENDING
+  CONFIRMED
+  FABRIC_RECEIVED
+  IN_PRODUCTION
+  COMPLETED
+  QA_REJECTED
+}
+
+model FabricOrderItem {
+  id          String @id @default(uuid())
+  
+  // Parent Order
+  orderId     String @unique
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Fabric
+  fabricId    String
+  fabric      Fabric @relation(fields: [fabricId], references: [id])
+  
+  // Seller
+  sellerId    String
+  seller      FabricSellerProfile @relation(fields: [sellerId], references: [id])
+  
+  // Quantity
+  yards       Int
+  
+  // Pricing
+  pricePerYard Decimal @db.Decimal(10, 2)
+  totalPrice   Decimal @db.Decimal(10, 2)
+  
+  // Status tracking (fabric seller's view)
+  status      FabricOrderStatus @default(PENDING)
+  
+  // Shipping to designer
+  shippedToDesignerAt DateTime?
+  trackingNumber      String?
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([fabricId])
+  @@index([sellerId])
+}
+
+enum FabricOrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED_TO_DESIGNER
+  DELIVERED
+}
+
+model ReadyToWearOrderItem {
+  id          String @id @default(uuid())
+  
+  // Parent Order
+  orderId     String
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  // Product
+  readyToWearId String
+  readyToWear   ReadyToWear @relation(fields: [readyToWearId], references: [id])
+  
+  // Size
+  size        String
+  
+  // Pricing
+  price       Decimal @db.Decimal(10, 2)
+  quantity    Int @default(1)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([readyToWearId])
+}
+
+model OrderTimeline {
+  id          String @id @default(uuid())
+  
+  orderId     String
+  order       Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  
+  status      OrderStatus
+  notes       String?
+  
+  // Who made this update
+  updatedById String
+  updatedByRole UserRole
+  
+  createdAt DateTime @default(now())
+  
+  @@index([orderId])
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+// ==================== ADMIN PRICING CONTROLS ====================
+
+model PricingRule {
+  id          String @id @default(uuid())
+  
+  name        String
+  description String?
+  
+  // Rule Type
+  ruleType    PricingRuleType
+  
+  // Applicable to
+  productType ProductTypeForPricing? // FABRIC, DESIGN, READY_TO_WEAR, or null for all
+  country     String? // Specific country or null for all
+  
+  // Date range (for time-based rules like sales)
+  startDate   DateTime?
+  endDate     DateTime?
+  isSale      Boolean @default(false)
+  
+  // Pricing adjustment
+  adjustmentType AdjustmentType // PERCENTAGE or FIXED
+  value       Decimal @db.Decimal(10, 2) // Percentage (e.g., 10 for 10%) or fixed amount
+  
+  // Is this rule active
+  isActive    Boolean @default(true)
+  
+  // Priority (higher = applied first)
+  priority    Int @default(0)
+  
+  createdById String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([ruleType])
+  @@index([productType])
+  @@index([country])
+  @@index([isActive])
+}
+
+enum PricingRuleType {
+  GLOBAL_MARKUP      // Apply to all products
+  CATEGORY_MARKUP    // Apply to specific category
+  COUNTRY_MARKUP     // Apply to specific country
+  DATE_BASED         // Sale/discount for date range
+}
+
+enum ProductTypeForPricing {
+  FABRIC
+  DESIGN
+  READY_TO_WEAR
+}
+
+enum AdjustmentType {
+  PERCENTAGE_MARKUP    // +%
+  PERCENTAGE_DISCOUNT  // -%
+  FIXED_MARKUP         // +$amount
+  FIXED_DISCOUNT       // -$amount
+}
+
+// ==================== NOTIFICATIONS & ACTIVITY ====================
+
+model Notification {
+  id          String @id @default(uuid())
+  
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type        NotificationType
+  title       String
+  message     String
+  
+  // Related entity
+  relatedId   String? // Order ID, Product ID, etc.
+  relatedType String? // 'ORDER', 'PRODUCT', etc.
+  
+  isRead      Boolean @default(false)
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([isRead])
+}
+
+enum NotificationType {
+  ORDER_UPDATE
+  PAYMENT_CONFIRMED
+  SHIPPING_UPDATE
+  PRODUCT_APPROVED
+  PRODUCT_REJECTED
+  NEW_MESSAGE
+  SYSTEM
+}
+
+model ActivityLog {
+  id          String @id @default(uuid())
+  
+  userId      String
+  user        User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  action      String // e.g., 'LOGIN', 'ORDER_CREATED', 'PRODUCT_UPDATED'
+  details     Json? // Additional context
+  
+  ipAddress   String?
+  userAgent   String?
+  
+  createdAt DateTime @default(now())
+  
+  @@index([userId])
+  @@index([action])
+}
+
+// ==================== REVIEWS & RATINGS ====================
+
+model Review {
+  id          String @id @default(uuid())
+  
+  customerId  String
+  
+  // Can review: Designer, Fabric Seller, or Product
+  designerId  String?
+  fabricSellerId String?
+  productId   String?
+  productType String? // 'DESIGN', 'FABRIC', 'READY_TO_WEAR'
+  
+  orderId     String // Must have purchased to review
+  
+  rating      Int // 1-5
+  title       String?
+  comment     String @db.Text
+  
+  // Photos
+  images      String[]
+  
+  isVerified  Boolean @default(false) // Verified purchase
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  
+  @@index([customerId])
+  @@index([designerId])
+  @@index([fabricSellerId])
+}
