@@ -89,7 +89,13 @@ export default function Register() {
         navigate('/');
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
+      if (err.response) {
+        setError(err.response.data?.message || 'Registration failed. Please try again.');
+      } else if (err.request) {
+        setError('Unable to connect to the server. Please check your connection and try again.');
+      } else {
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }

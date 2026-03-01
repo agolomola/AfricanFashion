@@ -46,7 +46,16 @@ export default function Login() {
         }
       }
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Invalid email or password');
+      if (err.response) {
+        // Server responded with an error status
+        setError(err.response.data?.message || 'Login failed. Please try again.');
+      } else if (err.request) {
+        // Request was made but no response received (server down / network issue)
+        setError('Unable to connect to the server. Please check your connection and try again.');
+      } else {
+        // Something else went wrong
+        setError('An unexpected error occurred. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
