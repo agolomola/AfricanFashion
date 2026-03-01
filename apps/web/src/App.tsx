@@ -1,3 +1,4 @@
+// Cache bust: v2
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { loadStripe } from '@stripe/stripe-js';
@@ -33,7 +34,7 @@ import AdminUsers from './pages/admin/Users';
 import AdminProducts from './pages/admin/Products';
 import AdminOrders from './pages/admin/Orders';
 import AdminPricingRules from './pages/admin/PricingRules';
-import AdminBanners from './pages/admin/Banners.tsx';
+import AdminBanners from './pages/admin/Banners';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
