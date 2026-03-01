@@ -565,14 +565,12 @@ export default function Home() {
       </section>
 
       {/* Banner 1 - After Featured Designs */}
-      <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
-          <img 
-            src="/images/banner-1.jpg" 
-            alt="African Fashion Collection" 
-            className="w-[80%] max-w-4xl h-auto rounded-lg shadow-lg"
-          />
-        </div>
+      <section className="w-full">
+        <img 
+          src="/images/banner-1.jpg" 
+          alt="African Fashion Collection" 
+          className="w-full h-48 md:h-64 lg:h-80 object-cover"
+        />
       </section>
 
       {/* Featured Ready To Wear - 4 columns x 3 rows = 12 items */}
@@ -623,14 +621,12 @@ export default function Home() {
       </section>
 
       {/* Banner 2 - After Featured Ready To Wear */}
-      <section className="py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex justify-center">
-          <img 
-            src="/images/banner-2.jpg" 
-            alt="Become a Seller" 
-            className="w-[80%] max-w-4xl h-auto rounded-lg shadow-lg"
-          />
-        </div>
+      <section className="w-full">
+        <img 
+          src="/images/banner-2.jpg" 
+          alt="Become a Seller" 
+          className="w-full h-48 md:h-64 lg:h-80 object-cover"
+        />
       </section>
 
       {/* Featured Fabrics - Duplicated from Featured Ready To Wear layout (4 columns x 3 rows = 12 items) */}
