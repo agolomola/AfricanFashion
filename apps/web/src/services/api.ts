@@ -4,7 +4,7 @@ import { useAuthStore } from '../store/authStore';
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
 
 // Create axios instance
-const api = axios.create({
+const axiosInstance = axios.create({
   baseURL: API_URL,
   headers: {
     'Content-Type': 'application/json',
@@ -12,7 +12,7 @@ const api = axios.create({
 });
 
 // Request interceptor to add auth token
-api.interceptors.request.use(
+axiosInstance.interceptors.request.use(
   (config) => {
     const token = useAuthStore.getState().token;
     if (token) {
@@ -24,7 +24,7 @@ api.interceptors.request.use(
 );
 
 // Response interceptor for error handling
-api.interceptors.response.use(
+axiosInstance.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
     if (error.response?.status === 401) {
@@ -39,16 +39,16 @@ api.interceptors.response.use(
 // Generic API methods
 export const apiService = {
   get: <T>(url: string, config?: AxiosRequestConfig) =>
-    api.get<T>(url, config).then((res) => res.data),
+    axiosInstance.get<T>(url, config).then((res) => res.data),
 
   post: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
-    api.post<T>(url, data, config).then((res) => res.data),
+    axiosInstance.post<T>(url, data, config).then((res) => res.data),
 
   patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
-    api.patch<T>(url, data, config).then((res) => res.data),
+    axiosInstance.patch<T>(url, data, config).then((res) => res.data),
 
   delete: <T>(url: string, config?: AxiosRequestConfig) =>
-    api.delete<T>(url, config).then((res) => res.data),
+    axiosInstance.delete<T>(url, config).then((res) => res.data),
 };
 
 // Auth API
