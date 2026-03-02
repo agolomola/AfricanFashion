@@ -81,7 +81,7 @@ export default function DesignDetail() {
   const fetchDesign = async () => {
     try {
       setLoading(true);
-      const response = await api.products.getDesignById(id!);
+      const response = await api.products.getDesign(id!);
       if (response.success) {
         setDesign(response.data);
         // Initialize fabric meters
