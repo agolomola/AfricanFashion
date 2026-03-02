@@ -1,41 +1,97 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Ruler } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Ruler, Loader2 } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { api } from '../services/api';
 
-// Sample fabric data
-const sampleFabric = {
-  id: '1',
-  name: 'Premium Kente Cloth',
-  description: 'Authentic handwoven Ghanaian Kente cloth. This premium quality fabric features traditional geometric patterns in vibrant colors. Perfect for special occasions, traditional ceremonies, or creating stunning fashion pieces. Each piece is carefully crafted by skilled artisans in Ghana.',
-  pricePerMeter: 45,
-  minOrderMeters: 2,
-  stockMeters: 150,
-  images: [
-    { url: '/images/fabrics/kente-cloth.jpg' },
-    { url: '/images/fabrics/kente-cloth-2.jpg' },
-    { url: '/images/fabrics/kente-cloth-3.jpg' },
-  ],
+interface Fabric {
+  id: string;
+  name: string;
+  description: string;
+  pricePerMeter: number;
+  minOrderMeters: number;
+  stockMeters: number;
+  images: { url: string }[];
   seller: {
-    id: 's1',
-    businessName: 'Kente Masters',
-    country: 'Ghana',
-    rating: 4.8,
-    reviewCount: 124,
-  },
-  materialType: { id: 'm1', name: 'Cotton' },
-  flag: '🇬🇭',
-  careInstructions: 'Hand wash cold, dry flat. Do not bleach.',
-  shippingInfo: 'Ships from Accra, Ghana. 5-10 business days.',
+    id: string;
+    businessName: string;
+    country: string;
+    rating: number;
+    reviewCount: number;
+  };
+  materialType: { id: string; name: string };
+  flag?: string;
+  careInstructions?: string;
+  shippingInfo?: string;
+}
+
+const countryFlags: Record<string, string> = {
+  'Ghana': '🇬🇭',
+  'Nigeria': '🇳🇬',
+  'Kenya': '🇰🇪',
+  'Senegal': '🇸🇳',
+  'Ethiopia': '🇪🇹',
+  'Morocco': '🇲🇦',
+  'Mali': '🇲🇱',
+  'South Africa': '🇿🇦',
+  'Tanzania': '🇹🇿',
 };
 
 export default function FabricDetail() {
   const { id } = useParams();
+  const [fabric, setFabric] = useState<Fabric | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [quantity, setQuantity] = useState(2);
   const [isWishlisted, setIsWishlisted] = useState(false);
 
-  const fabric = sampleFabric;
+  useEffect(() => {
+    const fetchFabric = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const response = await api.products.getFabric(id);
+        if (response.success) {
+          setFabric(response.data);
+          setQuantity(response.data.minOrderMeters || 2);
+        } else {
+          setError('Failed to load fabric details');
+        }
+      } catch (err) {
+        console.error('Error fetching fabric:', err);
+        setError('Failed to load fabric details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchFabric();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+      </div>
+    );
+  }
+
+  if (error || !fabric) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">{error || 'Fabric not found'}</p>
+          <Link to="/fabrics" className="text-coral-500 hover:underline">
+            Back to Fabrics
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const flag = countryFlags[fabric.seller?.country] || '🌍';
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -51,27 +107,29 @@ export default function FabricDetail() {
           <div className="space-y-4">
             <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative">
               <img
-                src={fabric.images[selectedImage]?.url}
+                src={fabric.images?.[selectedImage]?.url || '/images/placeholder.jpg'}
                 alt={fabric.name}
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-4 right-4 w-12 h-12 flex items-center justify-center bg-white/90 rounded-full">
-                <span className="text-3xl">{fabric.flag}</span>
+                <span className="text-3xl">{flag}</span>
               </div>
             </div>
-            <div className="flex gap-3">
-              {fabric.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedImage(idx)}
-                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                    selectedImage === idx ? 'border-coral-500' : 'border-transparent'
-                  }`}
-                >
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
+            {fabric.images && fabric.images.length > 1 && (
+              <div className="flex gap-3">
+                {fabric.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(idx)}
+                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                      selectedImage === idx ? 'border-coral-500' : 'border-transparent'
+                    }`}
+                  >
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Details */}
@@ -79,21 +137,23 @@ export default function FabricDetail() {
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
                 <MapPin className="w-4 h-4" />
-                {fabric.seller.country}
+                {fabric.seller?.country || 'Unknown'}
                 <span className="mx-2">•</span>
-                <span>{fabric.materialType.name}</span>
+                <span>{fabric.materialType?.name || 'Unknown Material'}</span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900">{fabric.name}</h1>
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="font-medium">{fabric.seller.rating}</span>
-                  <span className="text-gray-500">({fabric.seller.reviewCount} reviews)</span>
+                  <span className="font-medium">{fabric.seller?.rating || 0}</span>
+                  <span className="text-gray-500">({fabric.seller?.reviewCount || 0} reviews)</span>
                 </div>
               </div>
             </div>
 
-            <p className="text-3xl font-bold text-coral-500">${fabric.pricePerMeter}<span className="text-lg text-gray-500 font-normal">/meter</span></p>
+            <p className="text-3xl font-bold text-coral-500">
+              ${fabric.pricePerMeter}<span className="text-lg text-gray-500 font-normal">/meter</span>
+            </p>
 
             <p className="text-gray-600 leading-relaxed">{fabric.description}</p>
 
@@ -102,7 +162,7 @@ export default function FabricDetail() {
               <span className="font-medium">Quantity (meters):</span>
               <div className="flex items-center border rounded-lg">
                 <button
-                  onClick={() => setQuantity(Math.max(fabric.minOrderMeters, quantity - 1))}
+                  onClick={() => setQuantity(Math.max(fabric.minOrderMeters || 1, quantity - 1))}
                   className="px-4 py-2 hover:bg-gray-100"
                 >
                   -
@@ -115,7 +175,7 @@ export default function FabricDetail() {
                   +
                 </button>
               </div>
-              <span className="text-sm text-gray-500">Min: {fabric.minOrderMeters}m</span>
+              <span className="text-sm text-gray-500">Min: {fabric.minOrderMeters || 1}m</span>
             </div>
 
             {/* Total */}
@@ -146,11 +206,11 @@ export default function FabricDetail() {
               <h3 className="font-semibold mb-3">Sold by</h3>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-coral-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">{fabric.flag}</span>
+                  <span className="text-2xl">{flag}</span>
                 </div>
                 <div>
-                  <p className="font-medium">{fabric.seller.businessName}</p>
-                  <p className="text-sm text-gray-500">{fabric.seller.country}</p>
+                  <p className="font-medium">{fabric.seller?.businessName || 'Unknown Seller'}</p>
+                  <p className="text-sm text-gray-500">{fabric.seller?.country || 'Unknown'}</p>
                 </div>
               </div>
             </div>
@@ -164,14 +224,18 @@ export default function FabricDetail() {
                   <p className="text-sm text-gray-500">120cm (47 inches)</p>
                 </div>
               </div>
-              <div>
-                <p className="font-medium">Care Instructions</p>
-                <p className="text-sm text-gray-500">{fabric.careInstructions}</p>
-              </div>
-              <div>
-                <p className="font-medium">Shipping</p>
-                <p className="text-sm text-gray-500">{fabric.shippingInfo}</p>
-              </div>
+              {fabric.careInstructions && (
+                <div>
+                  <p className="font-medium">Care Instructions</p>
+                  <p className="text-sm text-gray-500">{fabric.careInstructions}</p>
+                </div>
+              )}
+              {fabric.shippingInfo && (
+                <div>
+                  <p className="font-medium">Shipping</p>
+                  <p className="text-sm text-gray-500">{fabric.shippingInfo}</p>
+                </div>
+              )}
             </div>
           </div>
         </div>
