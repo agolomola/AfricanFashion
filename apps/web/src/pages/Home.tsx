@@ -12,12 +12,12 @@ const features = [
 ];
 
 const countries = [
-  { name: 'Ghana', flag: '🇬🇭', image: '/images/ghana-abstract.jpg', fabrics: 'Kente, Adinkra' },
-  { name: 'Nigeria', flag: '🇳🇬', image: '/images/nigeria-abstract.jpg', fabrics: 'Ankara, Aso Oke' },
-  { name: 'Kenya', flag: '🇰🇪', image: '/images/kenya-abstract.jpg', fabrics: 'Kitenge, Kikoy' },
-  { name: 'Senegal', flag: '🇸🇳', image: '/images/senegal-abstract.jpg', fabrics: 'Boubou, Lace' },
-  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/ethiopia-abstract.jpg', fabrics: 'Tibeb, Cotton' },
-  { name: 'Morocco', flag: '🇲🇦', image: '/images/morocco-abstract.jpg', fabrics: 'Caftan, Silk' },
+  { name: 'Ghana', flag: '🇬🇭', image: 'https://images.unsplash.com/photo-1568992687947-868a62a9f521?w=600&h=450&fit=crop', fabrics: 'Kente, Adinkra' },
+  { name: 'Nigeria', flag: '🇳🇬', image: 'https://images.unsplash.com/photo-1618828665011-0abd973f7bb8?w=600&h=450&fit=crop', fabrics: 'Ankara, Aso Oke' },
+  { name: 'Kenya', flag: '🇰🇪', image: 'https://images.unsplash.com/photo-1489392191049-fc10c97e64b6?w=600&h=450&fit=crop', fabrics: 'Kitenge, Kikoy' },
+  { name: 'Senegal', flag: '🇸🇳', image: 'https://images.unsplash.com/photo-1611348586804-61bf6c080437?w=600&h=450&fit=crop', fabrics: 'Boubou, Lace' },
+  { name: 'Ethiopia', flag: '🇪🇹', image: 'https://images.unsplash.com/photo-1523805009345-7448845a9e53?w=600&h=450&fit=crop', fabrics: 'Tibeb, Cotton' },
+  { name: 'Morocco', flag: '🇲🇦', image: 'https://images.unsplash.com/photo-1539020140153-e479b8c22e70?w=600&h=450&fit=crop', fabrics: 'Caftan, Silk' },
 ];
 
 // Testimonials (static for now)
@@ -297,15 +297,25 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Explore by Country (before Featured Designs) */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {countries.map((country) => (
+      {/* Explore by Country */}
+      <section className="py-16 bg-gray-50 overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mb-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Explore by Country</h2>
+          <p className="text-gray-500 mt-1">Discover fashion from across Africa</p>
+        </div>
+        <div className="overflow-hidden">
+          <div
+            className="flex gap-4 hover:[animation-play-state:paused]"
+            style={{
+              animation: 'scroll-left 30s linear infinite',
+              width: 'max-content',
+            }}
+          >
+            {[...countries, ...countries].map((country, index) => (
               <Link
-                key={country.name}
+                key={`${country.name}-${index}`}
                 to={`/designs?country=${country.name}`}
-                className="group relative aspect-square overflow-hidden"
+                className="group relative w-[280px] h-[172px] flex-shrink-0 overflow-hidden"
               >
                 <img
                   src={country.image}
