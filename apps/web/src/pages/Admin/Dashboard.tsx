@@ -76,8 +76,8 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const [statsRes, ordersRes] = await Promise.all([
-        api.admin.getDashboardStats(),
-        api.admin.getRecentOrders()
+        api.admin.getDashboard(),
+        api.admin.getOrders()
       ]);
       
       if (statsRes.success) {
