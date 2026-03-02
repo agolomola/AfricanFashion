@@ -28,13 +28,13 @@ import CustomerProfile from './pages/customer/Profile';
 import CustomerMeasurements from './pages/customer/Measurements';
 
 // Admin Pages
-import AdminDashboard from './pages/Admin/Dashboard';
-import AdminUsers from './pages/Admin/Users';
-import AdminProducts from './pages/Admin/Products';
-import AdminOrders from './pages/Admin/Orders';
-import AdminPricingRules from './pages/Admin/PricingRules';
-import AdminBanners from './pages/Admin/Banners';
-import AdminHomepage from './pages/Admin/Homepage';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminProducts from './pages/admin/Products';
+import AdminOrders from './pages/admin/Orders';
+import AdminPricingRules from './pages/admin/PricingRules';
+import AdminBanners from './pages/admin/Banners';
+import AdminHomepage from './pages/admin/Homepage';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
