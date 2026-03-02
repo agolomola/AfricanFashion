@@ -360,89 +360,101 @@ export default function Designs() {
     filters.maxPrice,
   ].filter(Boolean).length;
 
-  // Filter Sidebar Component with Dropdowns
-  const FilterSidebar = ({ isMobile = false }: { isMobile?: boolean }) => (
-    <div className={`space-y-6 ${isMobile ? '' : 'sticky top-24'}`}>
+  // Filter Bar Component - Single row
+  const FilterBar = () => (
+    <div className="flex flex-wrap items-center gap-2 md:gap-3">
       {/* Categories Dropdown */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Category</label>
-        <div className="relative">
-          <select
-            value={filters.categoryId}
-            onChange={(e) => updateFilter('categoryId', e.target.value)}
-            className="w-full px-4 py-3 border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
-          >
-            <option value="">All Categories</option>
-            {categories.map((cat) => (
-              <option key={cat.id} value={cat.id}>{cat.name}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        </div>
+      <div className="relative">
+        <select
+          value={filters.categoryId}
+          onChange={(e) => updateFilter('categoryId', e.target.value)}
+          className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
+        >
+          <option value="">All Categories</option>
+          {categories.map((cat) => (
+            <option key={cat.id} value={cat.id}>{cat.name}</option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
       </div>
 
       {/* Countries Dropdown */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Country</label>
-        <div className="relative">
-          <select
-            value={filters.country}
-            onChange={(e) => updateFilter('country', e.target.value)}
-            className="w-full px-4 py-3 border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
-          >
-            <option value="">All Countries</option>
-            {countries.map((country) => (
-              <option key={country} value={country}>{country}</option>
-            ))}
-          </select>
-          <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-        </div>
+      <div className="relative">
+        <select
+          value={filters.country}
+          onChange={(e) => updateFilter('country', e.target.value)}
+          className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
+        >
+          <option value="">All Countries</option>
+          {countries.map((country) => (
+            <option key={country} value={country}>{country}</option>
+          ))}
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
       </div>
 
       {/* Price Range */}
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-2">Price Range</label>
-        <div className="flex items-center gap-2">
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-            <input
-              type="number"
-              placeholder="Min"
-              value={filters.minPrice}
-              onChange={(e) => updateFilter('minPrice', e.target.value)}
-              className="w-full pl-7 pr-3 py-3 border rounded-lg text-sm focus:ring-2 focus:ring-coral-500"
-            />
-          </div>
-          <span className="text-gray-400">-</span>
-          <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
-            <input
-              type="number"
-              placeholder="Max"
-              value={filters.maxPrice}
-              onChange={(e) => updateFilter('maxPrice', e.target.value)}
-              className="w-full pl-7 pr-3 py-3 border rounded-lg text-sm focus:ring-2 focus:ring-coral-500"
-            />
-          </div>
+      <div className="flex items-center gap-1">
+        <div className="relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+          <input
+            type="number"
+            placeholder="Min"
+            value={filters.minPrice}
+            onChange={(e) => updateFilter('minPrice', e.target.value)}
+            className="w-20 pl-5 pr-2 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500"
+          />
         </div>
+        <span className="text-gray-400 text-sm">-</span>
+        <div className="relative">
+          <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+          <input
+            type="number"
+            placeholder="Max"
+            value={filters.maxPrice}
+            onChange={(e) => updateFilter('maxPrice', e.target.value)}
+            className="w-20 pl-5 pr-2 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500"
+          />
+        </div>
+      </div>
+
+      {/* Sort */}
+      <div className="relative">
+        <select
+          value={filters.sortBy}
+          onChange={(e) => updateFilter('sortBy', e.target.value)}
+          className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 bg-white"
+        >
+          <option value="newest">Newest</option>
+          <option value="price-low">Price: Low-High</option>
+          <option value="price-high">Price: High-Low</option>
+          <option value="rating">Rated</option>
+          <option value="popular">Popular</option>
+        </select>
+        <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
       </div>
 
       {/* Clear Filters */}
       {activeFiltersCount > 0 && (
         <button
           onClick={clearFilters}
-          className="w-full py-3 text-coral-500 font-medium hover:bg-coral-50 rounded-lg transition-colors border border-coral-200"
+          className="px-3 py-2 text-xs text-coral-500 font-medium hover:bg-coral-50 rounded-lg transition-colors border border-coral-200"
         >
-          Clear All Filters ({activeFiltersCount})
+          Clear ({activeFiltersCount})
         </button>
       )}
+
+      {/* Results Count */}
+      <div className="ml-auto text-xs text-gray-500">
+        {pagination?.total || 0} designs
+      </div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Banner */}
-      <section className="relative h-80 md:h-96 overflow-hidden">
+      {/* Hero Banner with Search */}
+      <section className="relative h-72 md:h-80 overflow-hidden">
         <img
           src="/images/hero-designs.jpg"
           alt="African Fashion Designs"
@@ -451,21 +463,46 @@ export default function Designs() {
         <div className="absolute inset-0 bg-gradient-to-r from-navy-900/80 via-navy-900/50 to-transparent" />
         <div className="absolute inset-0 flex items-center">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-            <div className="max-w-2xl">
-              <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-4">
+            <div className="max-w-3xl">
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
                 Designer Collections
               </h1>
-              <p className="text-lg md:text-xl text-white/80 mb-6">
-                Discover unique African fashion designs from talented designers across the continent. Each piece tells a story of heritage and craftsmanship.
+              <p className="text-base md:text-lg text-white/80 mb-4">
+                Discover unique African fashion designs from talented designers across the continent.
               </p>
-              <div className="flex flex-wrap gap-3">
-                <Badge variant="info" className="bg-white/20 text-white border-0">
+              
+              {/* Search Bar on Banner - Longer */}
+              <div className="relative max-w-2xl">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => updateFilter('search', e.target.value)}
+                  placeholder="Search designs, designers, styles..."
+                  className="w-full pl-12 pr-12 py-3.5 rounded-full bg-white shadow-lg focus:ring-2 focus:ring-coral-500 focus:outline-none text-base"
+                />
+                {filters.search ? (
+                  <button
+                    onClick={() => updateFilter('search', '')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                  </button>
+                ) : (
+                  <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-coral-500 text-white px-4 py-1.5 rounded-full text-sm font-medium hover:bg-coral-600 transition-colors">
+                    Search
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mt-4">
+                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   {pagination?.total || 0}+ Designs
                 </Badge>
-                <Badge variant="info" className="bg-white/20 text-white border-0">
+                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   {countries.length}+ Countries
                 </Badge>
-                <Badge variant="info" className="bg-white/20 text-white border-0">
+                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   Custom Made
                 </Badge>
               </div>
@@ -474,78 +511,41 @@ export default function Designs() {
         </div>
       </section>
 
-      {/* Search & Filter Bar */}
+      {/* Filter Bar - Single Row Below Banner */}
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-4">
-          <div className="flex flex-wrap items-center gap-4">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-3">
+          <div className="flex items-center justify-between">
             {/* Mobile Filter Toggle */}
             <button
               onClick={() => setShowMobileFilters(true)}
-              className="lg:hidden flex items-center gap-2 px-4 py-2 border rounded-lg hover:bg-gray-50"
+              className="lg:hidden flex items-center gap-1.5 px-3 py-2 text-sm border rounded-lg hover:bg-gray-50"
             >
               <SlidersHorizontal className="w-4 h-4" />
               Filters
               {activeFiltersCount > 0 && (
-                <span className="w-5 h-5 bg-coral-500 text-white text-xs rounded-full flex items-center justify-center">
+                <span className="w-4 h-4 bg-coral-500 text-white text-xs rounded-full flex items-center justify-center">
                   {activeFiltersCount}
                 </span>
               )}
             </button>
 
-            {/* Search */}
-            <div className="relative flex-1 min-w-[200px] max-w-md">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-              <input
-                type="text"
-                value={filters.search}
-                onChange={(e) => updateFilter('search', e.target.value)}
-                placeholder="Search designs, designers..."
-                className="w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent"
-              />
-              {filters.search && (
-                <button
-                  onClick={() => updateFilter('search', '')}
-                  className="absolute right-4 top-1/2 -translate-y-1/2"
-                >
-                  <X className="w-4 h-4 text-gray-400" />
-                </button>
-              )}
-            </div>
-
-            {/* Sort */}
-            <div className="relative">
-              <select
-                value={filters.sortBy}
-                onChange={(e) => updateFilter('sortBy', e.target.value)}
-                className="pl-4 pr-10 py-3 border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500"
-              >
-                <option value="newest">Newest First</option>
-                <option value="price-low">Price: Low to High</option>
-                <option value="price-high">Price: High to Low</option>
-                <option value="rating">Highest Rated</option>
-                <option value="popular">Most Popular</option>
-              </select>
-              <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
-            </div>
-
-            {/* Results Count */}
-            <div className="hidden md:block text-gray-500">
-              {pagination?.total || 0} designs
+            {/* Desktop Filter Bar */}
+            <div className="hidden lg:block flex-1">
+              <FilterBar />
             </div>
           </div>
         </div>
       </div>
 
       {/* Main Content */}
-      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
-        <div className="flex gap-8">
-          {/* Desktop Sidebar Filters */}
-          <aside className="hidden lg:block w-64 flex-shrink-0">
-            <FilterSidebar />
-          </aside>
+      <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-6">
+        {/* Mobile Filter Bar */}
+        <div className="lg:hidden mb-4">
+          <FilterBar />
+        </div>
 
-          {/* Products Grid */}
-          <div className="flex-1">
+        {/* Products Grid */}
+        <div>
             {isLoading ? (
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-10 h-10 animate-spin text-coral-500" />
@@ -683,7 +683,9 @@ export default function Designs() {
                 <X className="w-6 h-6" />
               </button>
             </div>
-            <FilterSidebar isMobile />
+            <div className="space-y-4">
+              <FilterBar />
+            </div>
           </div>
         </div>
       )}
