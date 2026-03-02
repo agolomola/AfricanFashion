@@ -460,14 +460,14 @@ export default function Designs() {
           alt="African Fashion Designs"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-900/80 via-navy-900/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-navy-900\/80 via-navy-900\/50 to-transparent" />
         <div className="absolute inset-0 flex items-center">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
             <div className="max-w-3xl">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
                 Designer Collections
               </h1>
-              <p className="text-base md:text-lg text-white/80 mb-4">
+              <p className="text-base md:text-lg text-white\/80 mb-4">
                 Discover unique African fashion designs from talented designers across the continent.
               </p>
               
@@ -496,13 +496,13 @@ export default function Designs() {
               </div>
               
               <div className="flex flex-wrap gap-2 mt-4">
-                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white\/20 text-white border-0 text-xs">
                   {pagination?.total || 0}+ Designs
                 </Badge>
-                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white\/20 text-white border-0 text-xs">
                   {countries.length}+ Countries
                 </Badge>
-                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white\/20 text-white border-0 text-xs">
                   Custom Made
                 </Badge>
               </div>
@@ -668,7 +668,7 @@ export default function Designs() {
         {showMobileFilters && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <div 
-              className="absolute inset-0 bg-black/50"
+              className="absolute inset-0 bg-black\/50"
               onClick={() => setShowMobileFilters(false)}
             />
             <div className="absolute right-0 top-0 bottom-0 w-80 bg-white overflow-auto p-6">
