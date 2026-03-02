@@ -662,7 +662,6 @@ export default function Designs() {
                 )}
               </>
             )}
-          </div>
         </div>
 
         {/* Mobile Filter Drawer */}
