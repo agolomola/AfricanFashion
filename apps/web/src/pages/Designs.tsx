@@ -547,146 +547,144 @@ export default function Designs() {
 
         {/* Products Grid */}
         <div>
-            {isLoading ? (
-              <div className="flex items-center justify-center py-20">
-                <Loader2 className="w-10 h-10 animate-spin text-coral-500" />
+          {isLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <Loader2 className="w-10 h-10 animate-spin text-coral-500" />
+            </div>
+          ) : designs.length === 0 ? (
+            <div className="text-center py-20">
+              <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <Search className="w-10 h-10 text-gray-400" />
               </div>
-            ) : designs.length === 0 ? (
-              <div className="text-center py-20">
-                <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                  <Search className="w-10 h-10 text-gray-400" />
-                </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No designs found</h3>
-                <p className="text-gray-500 mb-4">Try adjusting your filters or search terms</p>
-                <Button onClick={clearFilters} variant="outline">
-                  Clear All Filters
-                </Button>
-              </div>
-            ) : (
-              <>
-                {/* 4 Column Grid - 50 rows per page (200 items) */}
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                  {designs.map((design) => (
-                    <Link 
-                      key={design.id} 
-                      to={`/designs/${design.id}`} 
-                      className="group"
-                    >
-                      <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
-                        {/* Image */}
-                        <div className="aspect-[3/4] overflow-hidden relative bg-gray-100">
-                          <img
-                            src={design.images?.[0]?.url || '/placeholder.jpg'}
-                            alt={design.name}
-                            className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            loading="lazy"
-                          />
-                          {/* Country flag - bottom right */}
-                          <div className="absolute bottom-3 right-3 w-10 h-10 flex items-center justify-center z-10">
-                            <span className="text-2xl drop-shadow-lg">{design.flag}</span>
-                          </div>
-                          {/* Heart button - top right */}
-                          <button 
-                            className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
-                            onClick={(e) => e.preventDefault()}
-                          >
-                            <Heart className="w-4 h-4" />
-                          </button>
+              <h3 className="text-xl font-semibold text-gray-900 mb-2">No designs found</h3>
+              <p className="text-gray-500 mb-4">Try adjusting your filters or search terms</p>
+              <Button onClick={clearFilters} variant="outline">
+                Clear All Filters
+              </Button>
+            </div>
+          ) : (
+            <>
+              {/* 4 Column Grid - 50 rows per page (200 items) */}
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
+                {designs.map((design) => (
+                  <Link 
+                    key={design.id} 
+                    to={`/designs/${design.id}`} 
+                    className="group"
+                  >
+                    <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
+                      {/* Image */}
+                      <div className="aspect-[3/4] overflow-hidden relative bg-gray-100">
+                        <img
+                          src={design.images?.[0]?.url || '/placeholder.jpg'}
+                          alt={design.name}
+                          className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          loading="lazy"
+                        />
+                        {/* Country flag - bottom right */}
+                        <div className="absolute bottom-3 right-3 w-10 h-10 flex items-center justify-center z-10">
+                          <span className="text-2xl drop-shadow-lg">{design.flag}</span>
                         </div>
-                        
-                        {/* Content */}
-                        <div className="p-4">
-                          <h3 className="font-semibold text-gray-900 group-hover:text-coral-500 transition-colors">
-                            {design.name}
-                          </h3>
-                          <p className="text-sm text-gray-500 mt-1">
-                            {design.designer?.businessName}
-                          </p>
-                          <p className="text-coral-500 font-semibold mt-2">${design.finalPrice}</p>
-                        </div>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
-
-                {/* Pagination */}
-                {pagination && pagination.pages > 1 && (
-                  <div className="flex justify-center items-center mt-12 gap-2">
-                    <button
-                      onClick={() => goToPage(filters.page - 1)}
-                      disabled={filters.page === 1}
-                      className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-5 h-5" />
-                    </button>
-                    
-                    {Array.from({ length: Math.min(10, pagination.pages) }, (_, i) => {
-                      // Show pages around current page
-                      let pageNum;
-                      if (pagination.pages <= 10) {
-                        pageNum = i + 1;
-                      } else if (filters.page <= 5) {
-                        pageNum = i + 1;
-                      } else if (filters.page >= pagination.pages - 4) {
-                        pageNum = pagination.pages - 9 + i;
-                      } else {
-                        pageNum = filters.page - 4 + i;
-                      }
-                      
-                      return (
-                        <button
-                          key={pageNum}
-                          onClick={() => goToPage(pageNum)}
-                          className={`w-10 h-10 rounded-lg font-medium transition-colors ${filters.page === pageNum ? 'bg-coral-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
+                        {/* Heart button - top right */}
+                        <button 
+                          className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
+                          onClick={(e) => e.preventDefault()}
                         >
-                          {pageNum}
+                          <Heart className="w-4 h-4" />
                         </button>
-                      );
-                    })}
+                      </div>
+                      
+                      {/* Content */}
+                      <div className="p-4">
+                        <h3 className="font-semibold text-gray-900 group-hover:text-coral-500 transition-colors">
+                          {design.name}
+                        </h3>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {design.designer?.businessName}
+                        </p>
+                        <p className="text-coral-500 font-semibold mt-2">${design.finalPrice}</p>
+                      </div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {pagination && pagination.pages > 1 && (
+                <div className="flex justify-center items-center mt-12 gap-2">
+                  <button
+                    onClick={() => goToPage(filters.page - 1)}
+                    disabled={filters.page === 1}
+                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronLeft className="w-5 h-5" />
+                  </button>
+                  
+                  {Array.from({ length: Math.min(10, pagination.pages) }, (_, i) => {
+                    // Show pages around current page
+                    let pageNum;
+                    if (pagination.pages <= 10) {
+                      pageNum = i + 1;
+                    } else if (filters.page <= 5) {
+                      pageNum = i + 1;
+                    } else if (filters.page >= pagination.pages - 4) {
+                      pageNum = pagination.pages - 9 + i;
+                    } else {
+                      pageNum = filters.page - 4 + i;
+                    }
                     
-                    <button
-                      onClick={() => goToPage(filters.page + 1)}
-                      disabled={filters.page === pagination.pages}
-                      className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-5 h-5" />
-                    </button>
-                  </div>
-                )}
+                    return (
+                      <button
+                        key={pageNum}
+                        onClick={() => goToPage(pageNum)}
+                        className={`w-10 h-10 rounded-lg font-medium transition-colors ${filters.page === pageNum ? 'bg-coral-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`} 
+                      >
+                        {pageNum}
+                      </button>
+                    );
+                  })}
+                  
+                  <button
+                    onClick={() => goToPage(filters.page + 1)}
+                    disabled={filters.page === pagination.pages}
+                    className="p-2 rounded-lg border hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                  >
+                    <ChevronRight className="w-5 h-5" />
+                  </button>
+                </div>
+              )}
 
-                {/* Page Info */}
-                {pagination && (
-                  <p className="text-center text-gray-500 mt-4">
-                    Page {pagination.page} of {pagination.pages} • Showing {designs.length} of {pagination.total} designs
-                  </p>
-                )}
-              </>
-            )}
-          </div>
+              {/* Page Info */}
+              {pagination && (
+                <p className="text-center text-gray-500 mt-4">
+                  Page {pagination.page} of {pagination.pages} • Showing {designs.length} of {pagination.total} designs
+                </p>
+              )}
+            </>
+          )}
         </div>
+      </div>
 
-        {/* Mobile Filter Drawer */}
-        {showMobileFilters && (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <div 
-              className="absolute inset-0 bg-black/50"
-              onClick={() => setShowMobileFilters(false)}
-            />
-            <div className="absolute right-0 top-0 bottom-0 w-80 bg-white overflow-auto p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold">Filters</h2>
-                <button onClick={() => setShowMobileFilters(false)}>
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <FilterBar />
-              </div>
+      {/* Mobile Filter Drawer */}
+      {showMobileFilters && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <div 
+            className="absolute inset-0 bg-black/50"
+            onClick={() => setShowMobileFilters(false)}
+          />
+          <div className="absolute right-0 top-0 bottom-0 w-80 bg-white overflow-auto p-6">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-semibold">Filters</h2>
+              <button onClick={() => setShowMobileFilters(false)}>
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+            <div className="space-y-4">
+              <FilterBar />
             </div>
           </div>
-        )}
-      </div>
+        </div>
+      )}
+    </div>
   );
 }
-
-
