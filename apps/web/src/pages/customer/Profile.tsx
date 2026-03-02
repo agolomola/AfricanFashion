@@ -34,11 +34,15 @@ export default function CustomerProfile() {
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [showAddressForm, setShowAddressForm] = useState(false);
   
+  const fullName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.firstName || user?.lastName || '';
+  
   const [profile, setProfile] = useState({
-    fullName: user?.fullName || '',
+    firstName: user?.firstName || '',
+    lastName: user?.lastName || '',
     email: user?.email || '',
     phone: user?.phone || '',
-    bio: user?.bio || '',
   });
 
   const [newAddress, setNewAddress] = useState<Partial<Address>>({
@@ -125,7 +129,7 @@ export default function CustomerProfile() {
             <div className="relative">
               <div className="w-24 h-24 bg-amber-100 rounded-full flex items-center justify-center">
                 <span className="text-3xl font-bold text-amber-700">
-                  {profile.fullName.charAt(0)}
+                  {profile.firstName.charAt(0) || profile.lastName.charAt(0) || '?'}
                 </span>
               </div>
               <button className="absolute bottom-0 right-0 w-8 h-8 bg-amber-600 rounded-full flex items-center justify-center text-white hover:bg-amber-700">
@@ -133,7 +137,7 @@ export default function CustomerProfile() {
               </button>
             </div>
             <div>
-              <h2 className="text-xl font-semibold text-gray-900">{profile.fullName}</h2>
+              <h2 className="text-xl font-semibold text-gray-900">{fullName}</h2>
               <p className="text-gray-500">{user?.email}</p>
               <Badge variant="secondary" className="mt-2">Customer</Badge>
             </div>
@@ -155,12 +159,23 @@ export default function CustomerProfile() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Full Name
+                  First Name
                 </label>
                 <input
                   type="text"
-                  value={profile.fullName}
-                  onChange={(e) => setProfile({ ...profile, fullName: e.target.value })}
+                  value={profile.firstName}
+                  onChange={(e) => setProfile({ ...profile, firstName: e.target.value })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Name
+                </label>
+                <input
+                  type="text"
+                  value={profile.lastName}
+                  onChange={(e) => setProfile({ ...profile, lastName: e.target.value })}
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>
@@ -186,17 +201,6 @@ export default function CustomerProfile() {
                   className="w-full px-4 py-2 border rounded-lg"
                 />
               </div>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Bio
-              </label>
-              <textarea
-                value={profile.bio}
-                onChange={(e) => setProfile({ ...profile, bio: e.target.value })}
-                rows={3}
-                className="w-full px-4 py-2 border rounded-lg"
-              />
             </div>
             <Button onClick={handleSaveProfile} disabled={loading}>
               <Save className="w-4 h-4 mr-2" />
