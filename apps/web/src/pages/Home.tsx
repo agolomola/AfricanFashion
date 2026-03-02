@@ -339,8 +339,8 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Featured Designs</h2>
-              <p className="text-gray-500 mt-1">Handpicked custom designs from top African designers</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Custom Designs</h2>
+              <p className="text-gray-500 mt-1">Handpicked designs from top African designers</p>
             </div>
             <Link
               to="/designs"
@@ -368,7 +368,7 @@ export default function Home() {
               to="/designs"
               className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
             >
-              View All Designs
+              View All Custom Designs
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -421,7 +421,7 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Featured Fabrics</h2>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Fabrics</h2>
               <p className="text-gray-500 mt-1">Premium African textiles from verified sellers</p>
             </div>
             <Link
