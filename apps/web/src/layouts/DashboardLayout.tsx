@@ -23,7 +23,8 @@ import { useAuthStore } from '../store/authStore';
 import { 
   User, 
   Ruler,
-  Home
+  Home,
+  LayoutTemplate
 } from 'lucide-react';
 
 type UserRole = 'ADMINISTRATOR' | 'FABRIC_SELLER' | 'DESIGNER' | 'QA_TEAM' | 'CUSTOMER';
@@ -43,6 +44,7 @@ const navItems: Record<DashboardType, NavItem[]> = {
     { label: 'Pricing Rules', href: '/admin/pricing', icon: DollarSign },
     { label: 'Orders', href: '/admin/orders', icon: ShoppingBag },
     { label: 'Banners', href: '/admin/banners', icon: ImageIcon },
+    { label: 'Homepage', href: '/admin/homepage', icon: LayoutTemplate },
   ],
   seller: [
     { label: 'Dashboard', href: '/seller', icon: LayoutDashboard },

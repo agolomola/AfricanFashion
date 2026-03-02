@@ -904,31 +904,95 @@ model Review {
   @@index([fabricSellerId])
 }
 
-// ==================== BANNERS (Homepage Management) ====================
+// ==================== HOMEPAGE MANAGEMENT ====================
 
+// Hero Slides (carousel on homepage)
+model HeroSlide {
+  id          String @id @default(uuid())
+
+  title       String // Main headline
+  subtitle    String // Subtext/description
+  image       String // Hero image URL
+
+  ctaText     String? // Call-to-action button text (e.g., "Shop Now")
+  ctaLink     String? // Call-to-action link (e.g., "/designs")
+
+  displayOrder Int @default(0) // Slide order in carousel
+  isActive    Boolean @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([isActive])
+  @@index([displayOrder])
+}
+
+// Featured Products (managed by admin for homepage)
+model FeaturedProduct {
+  id          String @id @default(uuid())
+
+  // The product being featured
+  productId   String
+  productType ProductType // DESIGN, FABRIC, or READY_TO_WEAR
+
+  // Section on homepage
+  section     FeaturedSection @default(FEATURED_DESIGNS)
+
+  // Display order within section
+  displayOrder Int @default(0)
+
+  // Optional custom title/override
+  customTitle String?
+  customDescription String?
+
+  isActive    Boolean @default(true)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([productId, productType, section])
+  @@index([section])
+  @@index([isActive])
+  @@index([displayOrder])
+}
+
+enum ProductType {
+  DESIGN
+  FABRIC
+  READY_TO_WEAR
+}
+
+enum FeaturedSection {
+  FEATURED_DESIGNS
+  FEATURED_FABRICS
+  FEATURED_READY_TO_WEAR
+  TRENDING_NOW
+  NEW_ARRIVALS
+}
+
+// Promo Banners (small promotional banners)
 model Banner {
   id          String @id @default(uuid())
-  
+
   name        String // Internal name for the banner
-  section     String // 'BANNER_1', 'BANNER_2', 'HERO', etc.
-  
+  section     String // 'BANNER_1', 'BANNER_2', etc.
+
   // Content
   title       String? // Banner headline
   subtitle    String? // Banner subtext
   ctaText     String? // Call-to-action button text
   ctaLink     String? // Call-to-action button link
-  
+
   // Images (array for random rotation)
   images      String[] // Array of image URLs
-  
+
   // Status
   isActive    Boolean @default(true)
-  displayOrder Int @default(0) // For ordering banners in the same section
-  
-  // Metadata
+  displayOrder Int @default(0)
+
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
-  
+
   @@index([section])
   @@index([isActive])
   @@index([displayOrder])

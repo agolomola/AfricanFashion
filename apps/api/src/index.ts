@@ -24,6 +24,7 @@ import orderRoutes from './routes/orders';
 import productRoutes from './routes/products';
 import uploadRoutes from './routes/upload';
 import bannerRoutes from './routes/banners';
+import homepageRoutes from './routes/homepage';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -56,6 +57,7 @@ app.use('/api/orders', orderRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/banners', bannerRoutes);
+app.use('/api/homepage', homepageRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {

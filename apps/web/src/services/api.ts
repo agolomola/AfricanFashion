@@ -325,6 +325,47 @@ const uploadApi = {
     }).then((res) => res.data),
 };
 
+// Homepage API
+const homepageApi = {
+  // Public endpoints
+  getHeroSlides: () =>
+    apiService.get<{ success: boolean; data: any[] }>('/homepage/hero-slides'),
+
+  getFeaturedBySection: (section: string) =>
+    apiService.get<{ success: boolean; data: any[] }>(`/homepage/featured/${section}`),
+
+  getAllFeatured: () =>
+    apiService.get<{ success: boolean; data: any }>('/homepage/featured'),
+
+  // Admin endpoints
+  getAdminHeroSlides: () =>
+    apiService.get<{ success: boolean; data: any[] }>('/homepage/admin/hero-slides'),
+
+  createHeroSlide: (data: any) =>
+    apiService.post<{ success: boolean; data: any }>('/homepage/admin/hero-slides', data),
+
+  updateHeroSlide: (id: string, data: any) =>
+    apiService.patch<{ success: boolean; data: any }>(`/homepage/admin/hero-slides/${id}`, data),
+
+  deleteHeroSlide: (id: string) =>
+    apiService.delete<{ success: boolean }>(`/homepage/admin/hero-slides/${id}`),
+
+  getAdminFeatured: () =>
+    apiService.get<{ success: boolean; data: any[] }>('/homepage/admin/featured'),
+
+  addFeaturedProduct: (data: any) =>
+    apiService.post<{ success: boolean; data: any }>('/homepage/admin/featured', data),
+
+  updateFeaturedProduct: (id: string, data: any) =>
+    apiService.patch<{ success: boolean; data: any }>(`/homepage/admin/featured/${id}`, data),
+
+  removeFeaturedProduct: (id: string) =>
+    apiService.delete<{ success: boolean }>(`/homepage/admin/featured/${id}`),
+
+  getProductsForFeaturing: (type?: string) =>
+    apiService.get<{ success: boolean; data: any[] }>('/homepage/admin/products-for-featured', { params: type ? { type } : undefined }),
+};
+
 // Export combined API
 export const api = {
   auth: authApi,
@@ -338,6 +379,7 @@ export const api = {
   payments: paymentsApi,
   banners: bannersApi,
   upload: uploadApi,
+  homepage: homepageApi,
 };
 
 // Named exports for direct import
@@ -353,6 +395,7 @@ export {
   paymentsApi,
   bannersApi,
   uploadApi,
+  homepageApi,
   apiService,
   httpClient,
 };
