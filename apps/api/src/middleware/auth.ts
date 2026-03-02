@@ -2,7 +2,17 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { prisma, UserRole } from '../db';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
+// JWT Secret - must be set in production
+const JWT_SECRET = process.env.JWT_SECRET;
+
+if (!JWT_SECRET) {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('JWT_SECRET environment variable is required in production');
+  }
+  console.warn('WARNING: JWT_SECRET not set. Using insecure fallback for development only.');
+}
+
+const SECRET = JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production';
 
 // Extend Express Request type
 declare global {
@@ -23,14 +33,14 @@ declare global {
 export function generateToken(user: { id: string; email: string; role: UserRole }) {
   return jwt.sign(
     { id: user.id, email: user.email, role: user.role },
-    JWT_SECRET,
+    SECRET,
     { expiresIn: '7d' }
   );
 }
 
 // Verify JWT token
 export function verifyToken(token: string): { id: string; email: string; role: UserRole } {
-  return jwt.verify(token, JWT_SECRET) as { id: string; email: string; role: UserRole };
+  return jwt.verify(token, SECRET) as { id: string; email: string; role: UserRole };
 }
 
 // Authentication middleware
