@@ -101,6 +101,16 @@
   @apply bg-gray-400;
 }
 
+/* Carousel scroll animation */
+@keyframes scroll-left {
+  0% {
+    transform: translateX(0);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
 /* Animation for page transitions */
 @keyframes fadeIn {
   from {
