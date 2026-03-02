@@ -300,16 +300,12 @@ export default function Home() {
       {/* Explore by Country (before Featured Designs) */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Explore by Country</h2>
-            <p className="text-gray-500 mt-2">Discover unique styles from across Africa</p>
-          </div>
           <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
             {countries.map((country) => (
               <Link
                 key={country.name}
                 to={`/designs?country=${country.name}`}
-                className="group relative aspect-square rounded-xl overflow-hidden"
+                className="group relative aspect-square overflow-hidden"
               >
                 <img
                   src={country.image}
