@@ -118,6 +118,14 @@ const defaultFeaturedRTW: FeaturedProduct[] = [
   { id: 'r2', name: 'Kente Print Shirt', description: '', price: 89, image: '/images/rtw-2.jpg', designer: 'Accra Styles', country: 'Ghana', productType: 'READY_TO_WEAR' },
   { id: 'r3', name: 'African Print Skirt', description: '', price: 119, image: '/images/rtw-3.jpg', designer: 'Nairobi Chic', country: 'Kenya', productType: 'READY_TO_WEAR' },
   { id: 'r4', name: 'Boubou Style Top', description: '', price: 79, image: '/images/rtw-4.jpg', designer: 'Dakar Fashion', country: 'Senegal', productType: 'READY_TO_WEAR' },
+  { id: 'r5', name: 'Dashiki Maxi Dress', description: '', price: 135, image: '/images/rtw-5.jpg', designer: 'Addis Couture', country: 'Ethiopia', productType: 'READY_TO_WEAR' },
+  { id: 'r6', name: 'Kanga Wrap Skirt', description: '', price: 65, image: '/images/rtw-6.jpg', designer: 'Dar es Salaam Styles', country: 'Tanzania', productType: 'READY_TO_WEAR' },
+  { id: 'r7', name: 'Ndebele Beaded Jacket', description: '', price: 210, image: '/images/rtw-7.jpg', designer: 'Cape Town Couture', country: 'South Africa', productType: 'READY_TO_WEAR' },
+  { id: 'r8', name: 'Kaftan Embroidered Set', description: '', price: 175, image: '/images/rtw-8.jpg', designer: 'Marrakech Mode', country: 'Morocco', productType: 'READY_TO_WEAR' },
+  { id: 'r9', name: 'Adinkra Print Jumpsuit', description: '', price: 155, image: '/images/rtw-9.jpg', designer: 'Kumasi Kreations', country: 'Ghana', productType: 'READY_TO_WEAR' },
+  { id: 'r10', name: 'Mud Cloth Trousers', description: '', price: 99, image: '/images/rtw-10.jpg', designer: 'Bamako Boutique', country: 'Mali', productType: 'READY_TO_WEAR' },
+  { id: 'r11', name: 'Habesha Kemis Dress', description: '', price: 190, image: '/images/rtw-11.jpg', designer: 'Addis Heritage', country: 'Ethiopia', productType: 'READY_TO_WEAR' },
+  { id: 'r12', name: 'Chitenge Shirt Dress', description: '', price: 109, image: '/images/rtw-12.jpg', designer: 'Nairobi Originals', country: 'Kenya', productType: 'READY_TO_WEAR' },
 ];
 
 // Country flag mapping
@@ -384,7 +392,7 @@ export default function Home() {
             </div>
           ) : (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {featuredRTW.slice(0, 4).map((product) => (
+              {featuredRTW.slice(0, 12).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
