@@ -636,11 +636,7 @@ export default function Designs() {
                         <button
                           key={pageNum}
                           onClick={() => goToPage(pageNum)}
-                          className={`w-10 h-10 rounded-lg font-medium transition-colors ${
-                            filters.page === pageNum
-                              ? 'bg-coral-500 text-white'
-                              : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'
-                          }`}
+                          className={`w-10 h-10 rounded-lg font-medium transition-colors ${filters.page === pageNum ? 'bg-coral-500 text-white' : 'bg-white text-gray-700 hover:bg-gray-100 border border-gray-200'}`}
                         >
                           {pageNum}
                         </button>
