@@ -306,7 +306,7 @@ export default function CustomerDashboard() {
                       <img
                         src={order.design.images[0]}
                         alt={order.design.name}
-                        className="w-16 h-20 object-cover rounded-lg"
+                        className="w-16 h-20 object-cover"
                       />
                       <div className="flex-1">
                         <div className="flex items-center gap-2">
@@ -361,7 +361,7 @@ export default function CustomerDashboard() {
                   <img
                     src={order.design.images[0]}
                     alt={order.design.name}
-                    className="w-24 h-32 object-cover rounded-lg"
+                    className="w-24 h-32 object-cover"
                   />
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">{order.design.name}</h4>
@@ -453,7 +453,7 @@ export default function CustomerDashboard() {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {wishlist.map((item) => (
-                <div key={item.id} className="border rounded-xl overflow-hidden group">
+                <div key={item.id} className="border overflow-hidden group">
                   <div className="relative">
                     <img
                       src={item.image}

@@ -422,7 +422,7 @@ export default function TryOn() {
                   <img
                     src={fabric.images[0]}
                     alt={fabric.name}
-                    className="w-16 h-16 object-cover rounded-lg"
+                    className="w-16 h-16 object-cover"
                   />
                   <div>
                     <p className="font-medium text-gray-900">{fabric.name}</p>

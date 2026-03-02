@@ -202,7 +202,7 @@ export default function DesignDetail() {
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
           {/* Image Gallery */}
           <div className="space-y-4">
-            <div className="relative aspect-[4/5] bg-gray-100 rounded-2xl overflow-hidden">
+            <div className="relative aspect-[4/5] bg-gray-100 overflow-hidden">
               <img
                 src={design.images[selectedImage]}
                 alt={design.name}
@@ -239,7 +239,7 @@ export default function DesignDetail() {
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border-2 transition-colors ${
+                    className={`flex-shrink-0 w-20 h-20 overflow-hidden border-2 transition-colors ${
                       selectedImage === idx ? 'border-amber-600' : 'border-transparent'
                     }`}
                   >
@@ -368,7 +368,7 @@ export default function DesignDetail() {
                           <img
                             src={fabric.images[0]}
                             alt={fabric.name}
-                            className="w-20 h-20 object-cover rounded-lg"
+                            className="w-20 h-20 object-cover"
                           />
                           <div className="flex-1">
                             <div className="flex items-start justify-between">

@@ -105,7 +105,7 @@ export default function FabricDetail() {
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Images */}
           <div className="space-y-4">
-            <div className="aspect-square bg-gray-100 rounded-xl overflow-hidden relative">
+            <div className="aspect-square bg-gray-100 overflow-hidden relative">
               <img
                 src={fabric.images?.[selectedImage]?.url || '/images/placeholder.jpg'}
                 alt={fabric.name}
@@ -121,7 +121,7 @@ export default function FabricDetail() {
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                    className={`w-20 h-20 overflow-hidden border-2 ${
                       selectedImage === idx ? 'border-coral-500' : 'border-transparent'
                     }`}
                   >

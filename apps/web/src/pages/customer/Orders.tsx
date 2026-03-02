@@ -151,7 +151,7 @@ export default function CustomerOrders() {
                   <img
                     src={order.design.images[0]}
                     alt={order.design.name}
-                    className="w-24 h-32 object-cover rounded-lg"
+                    className="w-24 h-32 object-cover"
                   />
                   <div className="flex-1">
                     <h4 className="font-medium text-gray-900">{order.design.name}</h4>

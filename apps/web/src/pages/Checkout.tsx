@@ -422,7 +422,7 @@ export default function Checkout() {
                     <img
                       src={item.designImage}
                       alt={item.designName}
-                      className="w-16 h-20 object-cover rounded-lg"
+                      className="w-16 h-20 object-cover"
                     />
                     <div className="flex-1">
                       <p className="font-medium text-sm text-gray-900">{item.designName}</p>

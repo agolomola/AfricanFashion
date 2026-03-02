@@ -115,7 +115,7 @@ export default function ReadyToWearDetail() {
         <div className="grid lg:grid-cols-2 gap-8 lg:gap-12">
           {/* Images */}
           <div className="space-y-4">
-            <div className="aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden relative">
+            <div className="aspect-[3/4] bg-gray-100 overflow-hidden relative">
               <img
                 src={product.images?.[selectedImage]?.url || '/images/placeholder.jpg'}
                 alt={product.name}
@@ -136,7 +136,7 @@ export default function ReadyToWearDetail() {
                   <button
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
-                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                    className={`w-20 h-20 overflow-hidden border-2 ${
                       selectedImage === idx ? 'border-coral-500' : 'border-transparent'
                     }`}
                   >

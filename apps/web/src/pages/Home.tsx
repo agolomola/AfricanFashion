@@ -182,7 +182,7 @@ export default function Home() {
   const ProductCard = ({ product }: { product: FeaturedProduct }) => (
     <Link
       to={`/${product.productType === 'DESIGN' ? 'designs' : product.productType === 'FABRIC' ? 'fabrics' : 'ready-to-wear'}/${product.id}`}
-      className="group block bg-white rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
+      className="group block bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
     >
       <div className="relative aspect-[3/4] overflow-hidden bg-gray-100">
         <img
@@ -467,7 +467,7 @@ export default function Home() {
                   <img
                     src={testimonial.avatar}
                     alt={testimonial.name}
-                    className="w-10 h-10 rounded-full object-cover"
+                    className="w-10 h-10 object-cover"
                   />
                   <div>
                     <p className="font-semibold text-white">{testimonial.name}</p>

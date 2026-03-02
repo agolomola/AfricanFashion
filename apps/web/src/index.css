@@ -36,7 +36,7 @@
   }
   
   .card {
-    @apply bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1;
+    @apply bg-white rounded-none shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1;
   }
   
   .input {
