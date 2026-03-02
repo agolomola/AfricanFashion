@@ -11,6 +11,12 @@ const features = [
   { icon: Clock, title: 'Custom Made', description: 'Tailored to your exact measurements' },
 ];
 
+const shopByCategory = [
+  { name: 'Ready To Wear', image: 'https://images.unsplash.com/photo-1558171813-4c088753af8f?w=800&h=600&fit=crop', link: '/ready-to-wear' },
+  { name: 'Custom Designs', image: 'https://images.unsplash.com/photo-1590735213920-68192a487bc2?w=800&h=600&fit=crop', link: '/designs' },
+  { name: 'Fabrics', image: 'https://images.unsplash.com/photo-1558171813-01231e4841d2?w=800&h=600&fit=crop', link: '/fabrics' },
+];
+
 const countries = [
   { name: 'Ghana', flag: '🇬🇭', image: 'https://images.unsplash.com/photo-1568992687947-868a62a9f521?w=600&h=450&fit=crop', fabrics: 'Kente, Adinkra' },
   { name: 'Nigeria', flag: '🇳🇬', image: 'https://images.unsplash.com/photo-1618828665011-0abd973f7bb8?w=600&h=450&fit=crop', fabrics: 'Ankara, Aso Oke' },
@@ -292,6 +298,30 @@ export default function Home() {
                   <p className="text-gray-500 text-sm mt-1">{feature.description}</p>
                 </div>
               </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Shop by Category */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Shop by Category</h2>
+          <p className="text-gray-500 mt-1">Find exactly what you're looking for</p>
+          <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-6">
+            {shopByCategory.map((category) => (
+              <Link key={category.name} to={category.link} className="group block overflow-hidden rounded-xl">
+                <div className="relative aspect-[4/3] overflow-hidden">
+                  <img
+                    src={category.image}
+                    alt={`Browse ${category.name} collection`}
+                    className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-black/20 flex items-center justify-center">
+                    <span className="text-2xl md:text-3xl font-bold text-white">{category.name}</span>
+                  </div>
+                </div>
+              </Link>
             ))}
           </div>
         </div>
