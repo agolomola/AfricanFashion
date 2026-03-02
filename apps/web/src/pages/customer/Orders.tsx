@@ -64,7 +64,7 @@ export default function CustomerOrders() {
       setLoading(true);
       const response = await api.customer.getOrders();
       if (response.success) {
-        setOrders(response.data);
+        setOrders(response.data.orders || response.data);
       }
     } catch (error) {
       console.error('Failed to fetch orders:', error);
