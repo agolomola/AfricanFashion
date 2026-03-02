@@ -43,8 +43,12 @@ export default function Checkout() {
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
   
+  const fullName = user?.firstName && user?.lastName 
+    ? `${user.firstName} ${user.lastName}` 
+    : user?.firstName || user?.lastName || '';
+  
   const [shippingAddress, setShippingAddress] = useState<ShippingAddress>({
-    fullName: user?.fullName || '',
+    fullName: fullName,
     addressLine1: '',
     addressLine2: '',
     city: '',
