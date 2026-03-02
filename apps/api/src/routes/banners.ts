@@ -41,7 +41,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get banner by ID (admin only)
-router.get('/:id', authenticate, authorize(['ADMINISTRATOR']), async (req, res) => {
+router.get('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -70,7 +70,7 @@ router.get('/:id', authenticate, authorize(['ADMINISTRATOR']), async (req, res) 
 });
 
 // Get all banners for admin (including inactive)
-router.get('/admin/all', authenticate, authorize(['ADMINISTRATOR']), async (req, res) => {
+router.get('/admin/all', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const banners = await prisma.banner.findMany({
       orderBy: {
@@ -92,7 +92,7 @@ router.get('/admin/all', authenticate, authorize(['ADMINISTRATOR']), async (req,
 });
 
 // Create new banner (admin only)
-router.post('/', authenticate, authorize(['ADMINISTRATOR']), async (req, res) => {
+router.post('/', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const { name, section, title, subtitle, ctaText, ctaLink, images, isActive, displayOrder } = req.body;
 
@@ -141,7 +141,7 @@ router.post('/', authenticate, authorize(['ADMINISTRATOR']), async (req, res) =>
 });
 
 // Update banner (admin only)
-router.put('/:id', authenticate, authorize(['ADMINISTRATOR']), async (req, res) => {
+router.put('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, section, title, subtitle, ctaText, ctaLink, images, isActive, displayOrder } = req.body;
@@ -188,7 +188,7 @@ router.put('/:id', authenticate, authorize(['ADMINISTRATOR']), async (req, res) 
 });
 
 // Delete banner (admin only)
-router.delete('/:id', authenticate, authorize(['ADMINISTRATOR']), async (req, res) => {
+router.delete('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -222,7 +222,7 @@ router.delete('/:id', authenticate, authorize(['ADMINISTRATOR']), async (req, re
 });
 
 // Toggle banner active status (admin only)
-router.patch('/:id/toggle', authenticate, authorize(['ADMINISTRATOR']), async (req, res) => {
+router.patch('/:id/toggle', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const { id } = req.params;
 
