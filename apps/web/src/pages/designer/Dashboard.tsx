@@ -343,7 +343,7 @@ export default function DesignerDashboard() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {designs.map((design) => (
-              <div key={design.id} className="border rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+              <div key={design.id} className="border overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative">
                   <img
                     src={design.images[0]}

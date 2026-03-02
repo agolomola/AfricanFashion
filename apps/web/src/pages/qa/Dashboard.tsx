@@ -344,7 +344,7 @@ export default function QADashboard() {
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {pendingItems.slice(0, 4).map((item) => (
-                  <div key={item.id} className="border rounded-xl overflow-hidden">
+                  <div key={item.id} className="border overflow-hidden">
                     <div className="relative">
                       <img
                         src={item.images[0]}
@@ -390,7 +390,7 @@ export default function QADashboard() {
               header: 'Design',
               render: (item) => (
                 <div className="flex items-center gap-3">
-                  <img src={item.images[0]} alt={item.designName} className="w-12 h-12 rounded-lg object-cover" />
+                  <img src={item.images[0]} alt={item.designName} className="w-12 h-12 object-cover" />
                   <div>
                     <p className="font-medium text-gray-900">{item.designName}</p>
                     <p className="text-xs text-gray-500">{item.orderNumber}</p>
@@ -492,7 +492,7 @@ export default function QADashboard() {
                     key={idx}
                     src={img}
                     alt={`Review ${idx + 1}`}
-                    className="w-full h-48 object-cover rounded-lg"
+                    className="w-full h-48 object-cover"
                   />
                 ))}
               </div>

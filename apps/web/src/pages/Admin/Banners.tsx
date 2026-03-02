@@ -484,7 +484,7 @@ export default function AdminBanners() {
                         <img
                           src={image}
                           alt={`Banner ${index + 1}`}
-                          className="w-full h-full object-cover rounded-lg"
+                          className="w-full h-full object-cover"
                         />
                         <button
                           type="button"

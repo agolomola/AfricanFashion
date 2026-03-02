@@ -76,12 +76,12 @@ export default function Cart() {
                     <img
                       src={item.designImage}
                       alt={item.designName}
-                      className="w-24 h-32 object-cover rounded-lg"
+                      className="w-24 h-32 object-cover"
                     />
                     <img
                       src={item.fabricImage}
                       alt={item.fabricName}
-                      className="w-12 h-16 object-cover rounded-lg absolute -bottom-2 -right-2 border-2 border-white shadow-md"
+                      className="w-12 h-16 object-cover absolute -bottom-2 -right-2 border-2 border-white shadow-md"
                     />
                   </div>
 

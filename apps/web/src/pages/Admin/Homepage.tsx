@@ -386,7 +386,7 @@ export default function AdminHomepage() {
               {heroSlides.map((slide) => (
                 <div
                   key={slide.id}
-                  className="bg-white rounded-lg border overflow-hidden"
+                  className="bg-white border overflow-hidden"
                 >
                   <div className="aspect-video bg-gray-100 relative">
                     {slide.image ? (
