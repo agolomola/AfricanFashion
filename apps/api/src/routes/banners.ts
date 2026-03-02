@@ -40,36 +40,7 @@ router.get('/', async (req, res) => {
   }
 });
 
-// Get banner by ID (admin only)
-router.get('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
-  try {
-    const { id } = req.params;
-    
-    const banner = await prisma.banner.findUnique({
-      where: { id },
-    });
-
-    if (!banner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Banner not found',
-      });
-    }
-
-    res.json({
-      success: true,
-      data: banner,
-    });
-  } catch (error) {
-    console.error('Error fetching banner:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch banner',
-    });
-  }
-});
-
-// Get all banners for admin (including inactive)
+// Get all banners for admin (including inactive) - MUST be before /:id
 router.get('/admin/all', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
     const banners = await prisma.banner.findMany({
@@ -136,6 +107,95 @@ router.post('/', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
     res.status(500).json({
       success: false,
       message: 'Failed to create banner',
+    });
+  }
+});
+
+// Toggle banner active status (admin only) - MUST be before /:id
+router.patch('/:id/toggle', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const banner = await prisma.banner.findUnique({
+      where: { id },
+    });
+
+    if (!banner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Banner not found',
+      });
+    }
+
+    const updatedBanner = await prisma.banner.update({
+      where: { id },
+      data: {
+        isActive: !banner.isActive,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: updatedBanner,
+      message: `Banner ${updatedBanner.isActive ? 'activated' : 'deactivated'} successfully`,
+    });
+  } catch (error) {
+    console.error('Error toggling banner:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to toggle banner status',
+    });
+  }
+});
+
+// Get banner sections (for dropdown) - MUST be before /:id
+router.get('/meta/sections', async (req, res) => {
+  try {
+    const sections = [
+      { value: 'BANNER_1', label: 'Banner 1 (After Featured Designs)' },
+      { value: 'BANNER_2', label: 'Banner 2 (After Featured Ready To Wear)' },
+      { value: 'HERO', label: 'Hero Banner' },
+      { value: 'PROMO', label: 'Promotional Banner' },
+    ];
+
+    res.json({
+      success: true,
+      data: sections,
+    });
+  } catch (error) {
+    console.error('Error fetching sections:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch sections',
+    });
+  }
+});
+
+// Get banner by ID (admin only) - MUST be after static routes like /admin/all
+router.get('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+  try {
+    const { id } = req.params;
+    
+    const banner = await prisma.banner.findUnique({
+      where: { id },
+    });
+
+    if (!banner) {
+      return res.status(404).json({
+        success: false,
+        message: 'Banner not found',
+      });
+    }
+
+    res.json({
+      success: true,
+      data: banner,
+    });
+  } catch (error) {
+    console.error('Error fetching banner:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch banner',
     });
   }
 });
@@ -217,66 +277,6 @@ router.delete('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res)
     res.status(500).json({
       success: false,
       message: 'Failed to delete banner',
-    });
-  }
-});
-
-// Toggle banner active status (admin only)
-router.patch('/:id/toggle', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
-  try {
-    const { id } = req.params;
-
-    const banner = await prisma.banner.findUnique({
-      where: { id },
-    });
-
-    if (!banner) {
-      return res.status(404).json({
-        success: false,
-        message: 'Banner not found',
-      });
-    }
-
-    const updatedBanner = await prisma.banner.update({
-      where: { id },
-      data: {
-        isActive: !banner.isActive,
-      },
-    });
-
-    res.json({
-      success: true,
-      data: updatedBanner,
-      message: `Banner ${updatedBanner.isActive ? 'activated' : 'deactivated'} successfully`,
-    });
-  } catch (error) {
-    console.error('Error toggling banner:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to toggle banner status',
-    });
-  }
-});
-
-// Get banner sections (for dropdown)
-router.get('/meta/sections', async (req, res) => {
-  try {
-    const sections = [
-      { value: 'BANNER_1', label: 'Banner 1 (After Featured Designs)' },
-      { value: 'BANNER_2', label: 'Banner 2 (After Featured Ready To Wear)' },
-      { value: 'HERO', label: 'Hero Banner' },
-      { value: 'PROMO', label: 'Promotional Banner' },
-    ];
-
-    res.json({
-      success: true,
-      data: sections,
-    });
-  } catch (error) {
-    console.error('Error fetching sections:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to fetch sections',
     });
   }
 });
