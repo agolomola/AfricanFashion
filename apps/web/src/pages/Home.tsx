@@ -196,7 +196,7 @@ export default function Home() {
           {product.name}
         </h3>
         <p className="text-sm text-gray-500 mt-1">{product.designer}</p>
-        <p className="font-bold text-coral-600 mt-2">${product.price}</p>
+        <p className="font-bold text-coral-600 mt-2}>${product.price}</p>
       </div>
     </Link>
   );
@@ -257,14 +257,14 @@ export default function Home() {
         </button>
 
         {/* Dots */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2"> 
           {heroSlides.map((_, index) => (
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
               className={`w-3 h-3 rounded-full transition-all ${
                 index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
-              }`}
+              }`} 
             />
           ))}
         </div>
@@ -289,8 +289,39 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Designs - 3 columns x 2 rows */}
+      {/* Explore by Country (moved before Featured Designs) */}
       <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center mb-12">
+            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Explore by Country</h2>
+            <p className="text-gray-500 mt-2">Discover unique styles from across Africa</p>
+          </div>
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {countries.map((country) => (
+              <Link
+                key={country.name}
+                to={`/designs?country=${country.name}`}
+                className="group relative aspect-square rounded-xl overflow-hidden"
+              >
+                <img
+                  src={country.image}
+                  alt={country.name}
+                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                <div className="absolute bottom-4 left-4 text-white">
+                  <span className="text-2xl">{country.flag}</span>
+                  <h3 className="font-semibold mt-1">{country.name}</h3>
+                  <p className="text-xs text-white/70">{country.fabrics}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Designs - 3 columns x 2 rows */}
+      <section className="py-16 bg-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
@@ -324,6 +355,47 @@ export default function Home() {
               className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
             >
               View All Designs
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Ready To Wear (moved after Featured Designs) */}
+      <section className="py-16 bg-gray-50">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Ready To Wear</h2>
+              <p className="text-gray-500 mt-1">Stunning pieces ready to ship</p>
+            </div>
+            <Link
+              to="/ready-to-wear"
+              className="hidden sm:inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
+            >
+              View All
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+
+          {featuredLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {featuredRTW.slice(0, 4).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+
+          <div className="mt-6 text-center sm:hidden">
+            <Link
+              to="/ready-to-wear"
+              className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
+            >
+              View All Ready To Wear
               <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
@@ -367,78 +439,6 @@ export default function Home() {
               View All Fabrics
               <ArrowRight className="w-4 h-4" />
             </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Featured Ready To Wear */}
-      <section className="py-16 bg-gray-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Ready To Wear</h2>
-              <p className="text-gray-500 mt-1">Stunning pieces ready to ship</p>
-            </div>
-            <Link
-              to="/ready-to-wear"
-              className="hidden sm:inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-
-          {featuredLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {featuredRTW.slice(0, 4).map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          )}
-
-          <div className="mt-6 text-center sm:hidden">
-            <Link
-              to="/ready-to-wear"
-              className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All Ready To Wear
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* Countries */}
-      <section className="py-16 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Explore by Country</h2>
-            <p className="text-gray-500 mt-2">Discover unique styles from across Africa</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {countries.map((country) => (
-              <Link
-                key={country.name}
-                to={`/designs?country=${country.name}`}
-                className="group relative aspect-square rounded-xl overflow-hidden"
-              >
-                <img
-                  src={country.image}
-                  alt={country.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
-                <div className="absolute bottom-4 left-4 text-white">
-                  <span className="text-2xl">{country.flag}</span>
-                  <h3 className="font-semibold mt-1">{country.name}</h3>
-                  <p className="text-xs text-white/70">{country.fabrics}</p>
-                </div>
-              </Link>
-            ))}
           </div>
         </div>
       </section>
@@ -503,5 +503,3 @@ export default function Home() {
         </div>
       </section>
     </div>
-  );
-}
