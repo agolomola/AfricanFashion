@@ -289,7 +289,7 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Featured Designs */}
+      {/* Featured Designs - 3 columns x 2 rows */}
       <section className="py-16 bg-gray-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
@@ -311,7 +311,7 @@ export default function Home() {
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4 md:gap-6">
               {featuredDesigns.slice(0, 6).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
