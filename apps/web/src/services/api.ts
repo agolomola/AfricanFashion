@@ -213,7 +213,7 @@ const adminApi = {
     apiService.post<{ success: boolean; data: any }>('/banners', data),
 
   updateBanner: (id: string, data: any) =>
-    apiService.patch<{ success: boolean; data: any }>(`/banners/${id}`, data),
+    apiService.put<{ success: boolean; data: any }>(`/banners/${id}`, data),
 
   deleteBanner: (id: string) =>
     apiService.delete<{ success: boolean }>(`/banners/${id}`),
