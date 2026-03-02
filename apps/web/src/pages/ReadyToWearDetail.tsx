@@ -1,46 +1,107 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Truck, Check } from 'lucide-react';
+import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Truck, Check, Loader2 } from 'lucide-react';
 import Button from '../components/ui/Button';
+import { api } from '../services/api';
 
-// Sample product data
-const sampleProduct = {
-  id: '1',
-  name: 'Kente Shift Dress',
-  description: 'A modern take on traditional Kente fashion. This elegant shift dress features authentic Kente patterns woven into a contemporary silhouette. Perfect for both formal events and casual outings. The breathable cotton fabric ensures all-day comfort while the vibrant colors make a bold statement.',
-  price: 185,
-  originalPrice: 220,
-  images: [
-    { url: '/images/readytowear/kente-shift.jpg' },
-    { url: '/images/readytowear/kente-shift-2.jpg' },
-    { url: '/images/readytowear/kente-shift-3.jpg' },
-  ],
+interface ReadyToWearProduct {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  originalPrice?: number;
+  images: { url: string }[];
   designer: {
-    id: 'd1',
-    businessName: 'Amma Designs',
-    country: 'Ghana',
-    rating: 4.9,
-    reviewCount: 234,
-  },
-  category: { id: 'c1', name: 'Dresses' },
-  sizes: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
-  flag: '🇬🇭',
-  colors: ['Multi', 'Gold/Green', 'Red/Black'],
-  material: '100% Cotton Kente',
-  careInstructions: 'Hand wash cold, hang dry. Do not bleach.',
-  shippingInfo: 'Ships from Accra, Ghana. 3-5 business days worldwide.',
-  inStock: true,
+    id: string;
+    businessName: string;
+    country: string;
+    rating: number;
+    reviewCount: number;
+  };
+  category?: { id: string; name: string };
+  sizes?: string[];
+  colors?: string[];
+  material?: string;
+  careInstructions?: string;
+  shippingInfo?: string;
+  inStock?: boolean;
+}
+
+const countryFlags: Record<string, string> = {
+  'Ghana': '🇬🇭',
+  'Nigeria': '🇳🇬',
+  'Kenya': '🇰🇪',
+  'Senegal': '🇸🇳',
+  'Ethiopia': '🇪🇹',
+  'Morocco': '🇲🇦',
+  'Mali': '🇲🇱',
+  'South Africa': '🇿🇦',
+  'Tanzania': '🇹🇿',
 };
 
 export default function ReadyToWearDetail() {
   const { id } = useParams();
+  const [product, setProduct] = useState<ReadyToWearProduct | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
   const [selectedSize, setSelectedSize] = useState('M');
-  const [selectedColor, setSelectedColor] = useState('Multi');
+  const [selectedColor, setSelectedColor] = useState('');
   const [quantity, setQuantity] = useState(1);
   const [isWishlisted, setIsWishlisted] = useState(false);
 
-  const product = sampleProduct;
+  useEffect(() => {
+    const fetchProduct = async () => {
+      if (!id) return;
+      
+      try {
+        setLoading(true);
+        const response = await api.products.getReadyToWearProduct(id);
+        if (response.success) {
+          setProduct(response.data);
+          if (response.data.sizes && response.data.sizes.length > 0) {
+            setSelectedSize(response.data.sizes[0]);
+          }
+          if (response.data.colors && response.data.colors.length > 0) {
+            setSelectedColor(response.data.colors[0]);
+          }
+        } else {
+          setError('Failed to load product details');
+        }
+      } catch (err) {
+        console.error('Error fetching product:', err);
+        setError('Failed to load product details');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchProduct();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+      </div>
+    );
+  }
+
+  if (error || !product) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <p className="text-gray-500 mb-4">{error || 'Product not found'}</p>
+          <Link to="/ready-to-wear" className="text-coral-500 hover:underline">
+            Back to Ready To Wear
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const flag = countryFlags[product.designer?.country] || '🌍';
+  const hasDiscount = product.originalPrice && product.originalPrice > product.price;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -56,32 +117,34 @@ export default function ReadyToWearDetail() {
           <div className="space-y-4">
             <div className="aspect-[3/4] bg-gray-100 rounded-xl overflow-hidden relative">
               <img
-                src={product.images[selectedImage]?.url}
+                src={product.images?.[selectedImage]?.url || '/images/placeholder.jpg'}
                 alt={product.name}
                 className="w-full h-full object-cover"
               />
               <div className="absolute bottom-4 right-4 w-12 h-12 flex items-center justify-center bg-white/90 rounded-full">
-                <span className="text-3xl">{product.flag}</span>
+                <span className="text-3xl">{flag}</span>
               </div>
-              {product.originalPrice > product.price && (
+              {hasDiscount && (
                 <div className="absolute top-4 left-4 bg-red-500 text-white px-3 py-1 rounded-full text-sm font-medium">
                   Sale
                 </div>
               )}
             </div>
-            <div className="flex gap-3">
-              {product.images.map((img, idx) => (
-                <button
-                  key={idx}
-                  onClick={() => setSelectedImage(idx)}
-                  className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
-                    selectedImage === idx ? 'border-coral-500' : 'border-transparent'
-                  }`}
-                >
-                  <img src={img.url} alt="" className="w-full h-full object-cover" />
-                </button>
-              ))}
-            </div>
+            {product.images && product.images.length > 1 && (
+              <div className="flex gap-3">
+                {product.images.map((img, idx) => (
+                  <button
+                    key={idx}
+                    onClick={() => setSelectedImage(idx)}
+                    className={`w-20 h-20 rounded-lg overflow-hidden border-2 ${
+                      selectedImage === idx ? 'border-coral-500' : 'border-transparent'
+                    }`}
+                  >
+                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Details */}
@@ -89,16 +152,16 @@ export default function ReadyToWearDetail() {
             <div>
               <div className="flex items-center gap-2 text-sm text-gray-500 mb-2">
                 <MapPin className="w-4 h-4" />
-                {product.designer.country}
+                {product.designer?.country || 'Unknown'}
                 <span className="mx-2">•</span>
-                <span>{product.category.name}</span>
+                <span>{product.category?.name || 'Ready To Wear'}</span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
-                  <span className="font-medium">{product.designer.rating}</span>
-                  <span className="text-gray-500">({product.designer.reviewCount} reviews)</span>
+                  <span className="font-medium">{product.designer?.rating || 0}</span>
+                  <span className="text-gray-500">({product.designer?.reviewCount || 0} reviews)</span>
                 </div>
                 {product.inStock && (
                   <span className="flex items-center gap-1 text-green-600 text-sm">
@@ -112,7 +175,7 @@ export default function ReadyToWearDetail() {
             {/* Price */}
             <div className="flex items-baseline gap-3">
               <p className="text-3xl font-bold text-coral-500">${product.price}</p>
-              {product.originalPrice > product.price && (
+              {hasDiscount && (
                 <p className="text-xl text-gray-400 line-through">${product.originalPrice}</p>
               )}
             </div>
@@ -120,44 +183,48 @@ export default function ReadyToWearDetail() {
             <p className="text-gray-600 leading-relaxed">{product.description}</p>
 
             {/* Color Selection */}
-            <div>
-              <span className="font-medium">Color: {selectedColor}</span>
-              <div className="flex gap-2 mt-2">
-                {product.colors.map((color) => (
-                  <button
-                    key={color}
-                    onClick={() => setSelectedColor(color)}
-                    className={`px-4 py-2 border rounded-lg text-sm ${
-                      selectedColor === color
-                        ? 'border-coral-500 bg-coral-50 text-coral-600'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {color}
-                  </button>
-                ))}
+            {product.colors && product.colors.length > 0 && (
+              <div>
+                <span className="font-medium">Color: {selectedColor}</span>
+                <div className="flex gap-2 mt-2">
+                  {product.colors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => setSelectedColor(color)}
+                      className={`px-4 py-2 border rounded-lg text-sm ${
+                        selectedColor === color
+                          ? 'border-coral-500 bg-coral-50 text-coral-600'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {color}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Size Selection */}
-            <div>
-              <span className="font-medium">Size: {selectedSize}</span>
-              <div className="flex gap-2 mt-2 flex-wrap">
-                {product.sizes.map((size) => (
-                  <button
-                    key={size}
-                    onClick={() => setSelectedSize(size)}
-                    className={`w-12 h-12 border rounded-lg font-medium ${
-                      selectedSize === size
-                        ? 'border-coral-500 bg-coral-50 text-coral-600'
-                        : 'border-gray-200 hover:border-gray-300'
-                    }`}
-                  >
-                    {size}
-                  </button>
-                ))}
+            {product.sizes && product.sizes.length > 0 && (
+              <div>
+                <span className="font-medium">Size: {selectedSize}</span>
+                <div className="flex gap-2 mt-2 flex-wrap">
+                  {product.sizes.map((size) => (
+                    <button
+                      key={size}
+                      onClick={() => setSelectedSize(size)}
+                      className={`w-12 h-12 border rounded-lg font-medium ${
+                        selectedSize === size
+                          ? 'border-coral-500 bg-coral-50 text-coral-600'
+                          : 'border-gray-200 hover:border-gray-300'
+                      }`}
+                    >
+                      {size}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
+            )}
 
             {/* Quantity */}
             <div className="flex items-center gap-4">
@@ -207,32 +274,38 @@ export default function ReadyToWearDetail() {
               <h3 className="font-semibold mb-3">Designed by</h3>
               <div className="flex items-center gap-4">
                 <div className="w-12 h-12 bg-coral-100 rounded-full flex items-center justify-center">
-                  <span className="text-2xl">{product.flag}</span>
+                  <span className="text-2xl">{flag}</span>
                 </div>
                 <div>
-                  <p className="font-medium">{product.designer.businessName}</p>
-                  <p className="text-sm text-gray-500">{product.designer.country}</p>
+                  <p className="font-medium">{product.designer?.businessName || 'Unknown Designer'}</p>
+                  <p className="text-sm text-gray-500">{product.designer?.country || 'Unknown'}</p>
                 </div>
               </div>
             </div>
 
             {/* Info */}
             <div className="border-t pt-6 space-y-3">
-              <div>
-                <p className="font-medium">Material</p>
-                <p className="text-sm text-gray-500">{product.material}</p>
-              </div>
-              <div>
-                <p className="font-medium">Care Instructions</p>
-                <p className="text-sm text-gray-500">{product.careInstructions}</p>
-              </div>
-              <div className="flex items-start gap-3">
-                <Truck className="w-5 h-5 text-gray-400 mt-0.5" />
+              {product.material && (
                 <div>
-                  <p className="font-medium">Shipping</p>
-                  <p className="text-sm text-gray-500">{product.shippingInfo}</p>
+                  <p className="font-medium">Material</p>
+                  <p className="text-sm text-gray-500">{product.material}</p>
                 </div>
-              </div>
+              )}
+              {product.careInstructions && (
+                <div>
+                  <p className="font-medium">Care Instructions</p>
+                  <p className="text-sm text-gray-500">{product.careInstructions}</p>
+                </div>
+              )}
+              {product.shippingInfo && (
+                <div className="flex items-start gap-3">
+                  <Truck className="w-5 h-5 text-gray-400 mt-0.5" />
+                  <div>
+                    <p className="font-medium">Shipping</p>
+                    <p className="text-sm text-gray-500">{product.shippingInfo}</p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>
