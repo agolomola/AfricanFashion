@@ -1,0 +1,460 @@
+import { useState, useEffect } from 'react';
+import { 
+  Scissors, 
+  DollarSign, 
+  TrendingUp, 
+  ShoppingBag,
+  Plus,
+  Edit,
+  Eye,
+  Clock,
+  CheckCircle,
+  AlertCircle,
+  Image as ImageIcon,
+  Star,
+  Calendar,
+  MessageSquare,
+  ArrowRight,
+  TrendingDown,
+  Palette
+} from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { api } from '../../services/api';
+import StatCard from '../../components/dashboard/StatCard';
+import ActivityFeed from '../../components/dashboard/ActivityFeed';
+import DataTable from '../../components/dashboard/DataTable';
+import { BarChart, LineChart } from '../../components/dashboard/SimpleChart';
+import Badge from '../../components/ui/Badge';
+import Button from '../../components/ui/Button';
+
+interface DesignerStats {
+  totalDesigns: number;
+  totalOrders: number;
+  totalRevenue: number;
+  pendingOrders: number;
+  inProductionOrders: number;
+  completedOrders: number;
+  monthlyRevenue: { label: string; value: number }[];
+  topDesigns: { label: string; value: number }[];
+  rating: number;
+  revenueChange: number;
+  orderChange: number;
+}
+
+interface Design {
+  id: string;
+  name: string;
+  basePrice: number;
+  images: string[];
+  category: { name: string };
+  rating: number;
+  orderCount: number;
+  status: string;
+  createdAt: string;
+}
+
+interface DesignOrder {
+  id: string;
+  orderNumber: string;
+  designName: string;
+  customerName: string;
+  measurements: Record<string, number>;
+  fabricInfo: string;
+  totalAmount: number;
+  status: string;
+  createdAt: string;
+  dueDate: string;
+  priority: 'LOW' | 'MEDIUM' | 'HIGH';
+}
+
+interface Activity {
+  id: string;
+  type: 'order' | 'review' | 'system';
+  title: string;
+  description: string;
+  timestamp: string;
+}
+
+export default function DesignerDashboard() {
+  const [stats, setStats] = useState<DesignerStats | null>(null);
+  const [designs, setDesigns] = useState<Design[]>([]);
+  const [orders, setOrders] = useState<DesignOrder[]>([]);
+  const [activities, setActivities] = useState<Activity[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'overview' | 'designs' | 'orders'>('overview');
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      const [statsRes, designsRes, ordersRes] = await Promise.all([
+        api.designer.getStats(),
+        api.designer.getDesigns(),
+        api.designer.getOrders()
+      ]);
+      
+      if (statsRes.success) setStats(statsRes.data);
+      if (designsRes.success) setDesigns(designsRes.data);
+      if (ordersRes.success) setOrders(ordersRes.data);
+      
+      // Mock activities
+      setActivities([
+        {
+          id: '1',
+          type: 'order',
+          title: 'New order received',
+          description: 'Order #D-2024-089 for Royal Kente Gown',
+          timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
+        },
+        {
+          id: '2',
+          type: 'review',
+          title: '5-star review received',
+          description: 'Customer loved the Ankara Maxi Dress',
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+        },
+        {
+          id: '3',
+          type: 'order',
+          title: 'Order completed',
+          description: 'Order #D-2024-076 delivered successfully',
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+        },
+        {
+          id: '4',
+          type: 'system',
+          title: 'Payout processed',
+          description: '$1,250.00 deposited to your account',
+          timestamp: new Date(Date.now() - 1000 * 60 * 60 * 24).toISOString(),
+        },
+      ]);
+    } catch (error) {
+      console.error('Failed to fetch dashboard data:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+    try {
+      await api.designer.updateOrderStatus(orderId, status);
+      fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to update order status:', error);
+    }
+  };
+
+  const pendingOrders = orders.filter(o => o.status === 'PENDING');
+  const inProductionOrders = orders.filter(o => o.status === 'IN_PRODUCTION');
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Designer Dashboard</h1>
+          <p className="text-gray-500 mt-1">Manage your designs and track orders</p>
+        </div>
+        <Button asChild>
+          <Link to="/designer/designs/new">
+            <Plus className="w-4 h-4 mr-2" />
+            Add New Design
+          </Link>
+        </Button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard
+          title="Total Designs"
+          value={stats?.totalDesigns || 0}
+          icon={Palette}
+          iconColor="text-purple-600"
+          iconBgColor="bg-purple-100"
+          subtitle="Active designs"
+        />
+        <StatCard
+          title="Total Orders"
+          value={stats?.totalOrders || 0}
+          change={stats?.orderChange}
+          icon={ShoppingBag}
+          iconColor="text-blue-600"
+          iconBgColor="bg-blue-100"
+        />
+        <StatCard
+          title="Revenue"
+          value={`$${(stats?.totalRevenue || 0).toFixed(2)}`}
+          change={stats?.revenueChange}
+          icon={DollarSign}
+          iconColor="text-green-600"
+          iconBgColor="bg-green-100"
+        />
+        <StatCard
+          title="Rating"
+          value={`${(stats?.rating || 0).toFixed(1)} ⭐`}
+          icon={Star}
+          iconColor="text-amber-600"
+          iconBgColor="bg-amber-100"
+          subtitle="Average rating"
+        />
+      </div>
+
+      {/* Tabs */}
+      <div className="border-b">
+        <div className="flex gap-6">
+          {(['overview', 'designs', 'orders'] as const).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={`pb-3 text-sm font-medium capitalize transition-colors relative ${
+                activeTab === tab ? 'text-amber-600' : 'text-gray-500 hover:text-gray-700'
+              }`}
+            >
+              {tab}
+              {tab === 'orders' && pendingOrders.length > 0 && (
+                <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full">
+                  {pendingOrders.length}
+                </span>
+              )}
+              {activeTab === tab && (
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />
+              )}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {activeTab === 'overview' && (
+        <>
+          {/* Order Status & Revenue Chart */}
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Order Status */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Order Status</h3>
+              <div className="space-y-4">
+                <div className="flex items-center justify-between p-3 bg-yellow-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Clock className="w-5 h-5 text-yellow-600" />
+                    <span className="text-sm font-medium text-yellow-900">Pending</span>
+                  </div>
+                  <span className="text-xl font-bold text-yellow-700">{stats?.pendingOrders || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <Scissors className="w-5 h-5 text-purple-600" />
+                    <span className="text-sm font-medium text-purple-900">In Production</span>
+                  </div>
+                  <span className="text-xl font-bold text-purple-700">{stats?.inProductionOrders || 0}</span>
+                </div>
+                <div className="flex items-center justify-between p-3 bg-green-50 rounded-lg">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle className="w-5 h-5 text-green-600" />
+                    <span className="text-sm font-medium text-green-900">Completed</span>
+                  </div>
+                  <span className="text-xl font-bold text-green-700">{stats?.completedOrders || 0}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Revenue Chart */}
+            <div className="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Monthly Revenue</h3>
+              <LineChart 
+                data={stats?.monthlyRevenue || [
+                  { label: 'Jan', value: 1200 },
+                  { label: 'Feb', value: 1800 },
+                  { label: 'Mar', value: 2400 },
+                  { label: 'Apr', value: 2100 },
+                  { label: 'May', value: 3200 },
+                  { label: 'Jun', value: 3800 },
+                ]}
+                height={200}
+              />
+            </div>
+          </div>
+
+          {/* Top Designs & Activity */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top Performing Designs */}
+            <div className="bg-white rounded-xl p-6 shadow-sm border">
+              <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Designs</h3>
+              <BarChart 
+                data={stats?.topDesigns || [
+                  { label: 'Kente Gown', value: 45, color: 'bg-amber-500' },
+                  { label: 'Ankara Dress', value: 38, color: 'bg-blue-500' },
+                  { label: 'Dashiki', value: 32, color: 'bg-purple-500' },
+                  { label: 'Boubou', value: 28, color: 'bg-green-500' },
+                ]}
+                height={180}
+              />
+            </div>
+
+            {/* Activity Feed */}
+            <ActivityFeed activities={activities} title="Recent Activity" />
+          </div>
+
+          {/* Pending Orders Alert */}
+          {pendingOrders.length > 0 && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+              <div className="flex items-center gap-3">
+                <AlertCircle className="w-5 h-5 text-amber-600" />
+                <div className="flex-1">
+                  <p className="font-medium text-amber-900">
+                    You have {pendingOrders.length} pending order{pendingOrders.length > 1 ? 's' : ''}
+                  </p>
+                  <p className="text-sm text-amber-700">
+                    Start production to keep your customers happy
+                  </p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => setActiveTab('orders')}
+                >
+                  View Orders
+                </Button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {activeTab === 'designs' && (
+        <div className="bg-white rounded-xl p-6 shadow-sm border">
+          <div className="flex items-center justify-between mb-6">
+            <h2 className="text-lg font-semibold text-gray-900">My Designs</h2>
+            <Button size="sm" asChild>
+              <Link to="/designer/designs/new">
+                <Plus className="w-4 h-4 mr-2" />
+                Add Design
+              </Link>
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {designs.map((design) => (
+              <div key={design.id} className="border rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
+                <div className="relative">
+                  <img
+                    src={design.images[0]}
+                    alt={design.name}
+                    className="w-full h-56 object-cover"
+                  />
+                  <Badge 
+                    variant={design.status === 'ACTIVE' ? 'green' : 'gray'}
+                    className="absolute top-3 right-3"
+                  >
+                    {design.status}
+                  </Badge>
+                </div>
+                <div className="p-4">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <h3 className="font-semibold text-gray-900">{design.name}</h3>
+                      <p className="text-sm text-gray-500">{design.category.name}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-4">
+                    <div>
+                      <p className="text-xs text-gray-500">Price</p>
+                      <p className="font-medium text-amber-700">${design.basePrice}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Rating</p>
+                      <p className="font-medium text-gray-900">⭐ {design.rating.toFixed(1)}</p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-gray-500">Orders</p>
+                      <p className="font-medium text-gray-900">{design.orderCount}</p>
+                    </div>
+                  </div>
+                  <div className="mt-4 flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Edit className="w-4 h-4 mr-1" />
+                      Edit
+                    </Button>
+                    <Button variant="outline" size="sm" className="flex-1">
+                      <Eye className="w-4 h-4 mr-1" />
+                      View
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {activeTab === 'orders' && (
+        <DataTable
+          title="All Orders"
+          columns={[
+            { key: 'orderNumber', header: 'Order ID' },
+            { key: 'designName', header: 'Design' },
+            { key: 'customerName', header: 'Customer' },
+            { 
+              key: 'totalAmount', 
+              header: 'Amount',
+              render: (item) => `$${item.totalAmount.toFixed(2)}`
+            },
+            { 
+              key: 'dueDate', 
+              header: 'Due Date',
+              render: (item) => new Date(item.dueDate).toLocaleDateString()
+            },
+            { 
+              key: 'status', 
+              header: 'Status',
+              render: (item) => (
+                <Badge variant={
+                  item.status === 'COMPLETED' ? 'green' :
+                  item.status === 'IN_PRODUCTION' ? 'purple' :
+                  item.status === 'PENDING' ? 'yellow' : 'gray'
+                }>
+                  {item.status}
+                </Badge>
+              )
+            },
+          ]}
+          data={orders}
+          keyExtractor={(item) => item.id}
+          searchable
+          searchKeys={['orderNumber', 'designName', 'customerName']}
+          actions={(item) => (
+            <div className="flex gap-2">
+              {item.status === 'PENDING' && (
+                <Button 
+                  size="sm"
+                  onClick={() => handleUpdateOrderStatus(item.id, 'IN_PRODUCTION')}
+                >
+                  Start
+                </Button>
+              )}
+              {item.status === 'IN_PRODUCTION' && (
+                <Button 
+                  size="sm"
+                  onClick={() => handleUpdateOrderStatus(item.id, 'READY_FOR_QA')}
+                >
+                  Complete
+                </Button>
+              )}
+              <Button variant="outline" size="sm">
+                <Eye className="w-4 h-4" />
+              </Button>
+            </div>
+          )}
+        />
+      )}
+    </div>
+  );
+}
