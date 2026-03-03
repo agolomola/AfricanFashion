@@ -669,7 +669,7 @@ export default function Designs() {
         {showMobileFilters && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <div 
-              className="absolute inset-0 bg-black/50"
+              className="absolute inset-0 bg-black bg-opacity-50"
               onClick={() => setShowMobileFilters(false)}
             />
             <div className="absolute right-0 top-0 bottom-0 w-80 bg-white overflow-auto p-6">
