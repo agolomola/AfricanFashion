@@ -707,6 +707,12 @@ function FooterTable({ data, onEdit }: any) {
 
 // Modal Component
 function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item: any; onClose: () => void; onSave: () => void }) {
+  // Helper function to format section name (camelCase to Title Case)
+  const formatSectionName = (name: string) => {
+    return name.charAt(0).toUpperCase() + name.slice(1).replace(/([A-Z])/g, ' $1');
+  };
+
+
   const [formData, setFormData] = useState<any>(item || getDefaultFormData(type));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -1080,7 +1086,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
       <div className="bg-white rounded-xl shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
         <div className="flex items-center justify-between p-6 border-b border-gray-200">
           <h2 className="text-xl font-semibold text-gray-900">
-            {item ? 'Edit' : 'Add'} {type.charAt(0).toUpperCase() + type.slice(1).replace(/([A-Z])/g, ' $1')}
+            {item ? 'Edit' : 'Add'} {formatSectionName(type)}
           </h2>
           <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
             <X className="w-6 h-6" />
