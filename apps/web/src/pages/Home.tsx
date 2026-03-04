@@ -301,7 +301,7 @@ export default function Home() {
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${slide.image})` }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black via-black to-transparent" />
             </div>
             <div className="relative h-full flex items-center">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
@@ -312,7 +312,7 @@ export default function Home() {
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4 leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="text-lg md:text-xl text-white/90 mb-8">
+                  <p className="text-lg md:text-xl text-white mb-8">
                     {slide.subtitle}
                   </p>
                   <Link
@@ -331,13 +331,13 @@ export default function Home() {
         {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-white transition-all"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded text-white transition-all"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-white transition-all"
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded text-white transition-all"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
@@ -349,7 +349,7 @@ export default function Home() {
               key={index}
               onClick={() => setCurrentSlide(index)}
               className={`w-2 h-2 rounded-full transition-all ${
-                index === currentSlide ? 'bg-white w-6' : 'bg-white/50'
+                index === currentSlide ? 'bg-white w-6' : 'bg-white bg-opacity-50'
               }`}
             />
           ))}
@@ -370,11 +370,11 @@ export default function Home() {
                 alt={country.name}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
               <div className="absolute bottom-3 left-3 text-white">
                 <span className="text-xl">{country.flag}</span>
                 <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
-                <p className="text-xs text-white/70">{country.fabrics}</p>
+                <p className="text-xs text-white">{country.fabrics}</p>
               </div>
             </Link>
           ))}
@@ -426,10 +426,10 @@ export default function Home() {
                   alt={category.title}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-black to-transparent" />
                 <div className="absolute bottom-6 left-6 right-6 text-white">
                   <h3 className="text-2xl font-bold mb-2">{category.title}</h3>
-                  <p className="text-sm text-white/80 mb-4">{category.description}</p>
+                  <p className="text-sm text-white mb-4">{category.description}</p>
                   <span className="inline-flex items-center gap-2 text-sm font-semibold group-hover:gap-3 transition-all">
                     Shop Now <ArrowRight className="w-4 h-4" />
                   </span>
@@ -452,7 +452,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-navy-600/80" />
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
               <h2 className="text-3xl md:text-4xl font-bold mb-2">Trending Now</h2>
-              <p className="text-white/80 mb-6">The prints everyone is talking about this season.</p>
+              <p className="text-white mb-6">The prints everyone is talking about this season.</p>
               <div className="flex gap-4">
                 <Link
                   to="/ready-to-wear"
@@ -462,7 +462,7 @@ export default function Home() {
                 </Link>
                 <Link
                   to="/designs"
-                  className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white/10 transition-colors"
+                  className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white bg-opacity-10 transition-colors"
                 >
                   Explore Collections
                 </Link>
@@ -590,7 +590,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-navy-600/70" />
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
               <h2 className="text-3xl md:text-4xl font-bold mb-2">Fresh Drops</h2>
-              <p className="text-white/80 mb-6">New arrivals from the most talented designers across the continent.</p>
+              <p className="text-white mb-6">New arrivals from the most talented designers across the continent.</p>
               <div className="flex gap-4">
                 <Link
                   to="/ready-to-wear"
@@ -600,7 +600,7 @@ export default function Home() {
                 </Link>
                 <Link
                   to="/designs"
-                  className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white/10 transition-colors"
+                  className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white bg-opacity-10 transition-colors"
                 >
                   Explore Collections
                 </Link>
@@ -648,7 +648,7 @@ export default function Home() {
               <div className="p-6">
                 <p className="text-coral-500 text-sm font-semibold mb-2">HERITAGE</p>
                 <h3 className="text-2xl font-bold text-white mb-3">Rooted in Culture</h3>
-                <p className="text-white/80 mb-4">
+                <p className="text-white mb-4">
                   Every pattern carries meaning. From Kente's bold geometry to Ankara's intricate motifs, 
                   African textiles tell stories of history, identity, and tradition passed through generations.
                 </p>
@@ -669,24 +669,24 @@ export default function Home() {
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">What Our Customers Say</h2>
-            <p className="text-white/70">Join thousands of happy customers worldwide.</p>
+            <p className="text-white">Join thousands of happy customers worldwide.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((testimonial) => (
-              <div key={testimonial.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
+              <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm rounded-lg p-6">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-coral-500 text-coral-500" />
                   ))}
                 </div>
-                <p className="text-white/90 mb-6">"{testimonial.text}"</p>
+                <p className="text-white mb-6">"{testimonial.text}"</p>
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-coral-500 rounded flex items-center justify-center text-white font-semibold">
                     {testimonial.name.split(' ').map(n => n[0]).join('')}
                   </div>
                   <div>
                     <p className="font-semibold text-white">{testimonial.name}</p>
-                    <p className="text-sm text-white/60">{testimonial.location}</p>
+                    <p className="text-sm text-white">{testimonial.location}</p>
                   </div>
                 </div>
               </div>
@@ -702,7 +702,7 @@ export default function Home() {
             {/* Shop CTA */}
             <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Ready to Wear African Fashion?</h2>
-              <p className="text-white/90 mb-6">
+              <p className="text-white mb-6">
                 Join our community of fashion lovers and discover unique pieces from talented African designers.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -714,7 +714,7 @@ export default function Home() {
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white/10 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white bg-opacity-10 transition-colors"
                 >
                   Create Account
                 </Link>
@@ -724,7 +724,7 @@ export default function Home() {
             {/* Newsletter CTA */}
             <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Join the Movement</h2>
-              <p className="text-white/90 mb-6">
+              <p className="text-white mb-6">
                 Subscribe to our newsletter for exclusive offers, new arrivals, and stories from the continent.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
