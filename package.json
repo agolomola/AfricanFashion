@@ -6,7 +6,7 @@
   "packageManager": "npm@10.2.4",
   "scripts": {
     "dev": "cd apps/web && npm run dev",
-    "build": "cd apps/web && npm run build"
+    "build": "cd apps/web && npm install && npm run build"
   },
   "engines": {
     "node": ">=18.0.0"
