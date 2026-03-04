@@ -61,7 +61,7 @@ export default function MainLayout() {
                   className={`text-sm font-medium transition-colors relative group ${
                     isScrolled
                       ? 'text-gray-700 hover:text-coral-500'
-                      : 'text-white/90 hover:text-white'
+                      : 'text-white hover:text-white'
                   }`}
                 >
                   {link.label}
@@ -80,7 +80,7 @@ export default function MainLayout() {
                 className={`p-2 rounded-full transition-colors ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
+                    : 'hover:bg-white bg-opacity-10 text-white'
                 }`}
               >
                 <Search className="w-5 h-5" />
@@ -91,7 +91,7 @@ export default function MainLayout() {
                 className={`p-2 rounded-full transition-colors relative ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
+                    : 'hover:bg-white bg-opacity-10 text-white'
                 }`}
               >
                 <ShoppingBag className="w-5 h-5" />
@@ -108,7 +108,7 @@ export default function MainLayout() {
                     className={`p-2 rounded-full transition-colors ${
                       isScrolled
                         ? 'hover:bg-gray-100 text-gray-700'
-                        : 'hover:bg-white/10 text-white'
+                        : 'hover:bg-white bg-opacity-10 text-white'
                     }`}
                   >
                     <User className="w-5 h-5" />
@@ -142,7 +142,7 @@ export default function MainLayout() {
                   className={`hidden sm:inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     isScrolled
                       ? 'bg-navy-600 text-white hover:bg-navy-700'
-                      : 'bg-white text-navy-600 hover:bg-white/90'
+                      : 'bg-white text-navy-600 hover:bg-white bg-opacity-90'
                   }`}
                 >
                   Sign In
@@ -155,7 +155,7 @@ export default function MainLayout() {
                 className={`lg:hidden p-2 rounded-full transition-colors ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
+                    : 'hover:bg-white bg-opacity-10 text-white'
                 }`}
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -204,7 +204,7 @@ export default function MainLayout() {
             {/* Brand */}
             <div className="md:col-span-1">
               <h3 className="font-display text-xl font-bold mb-4">African Fashion</h3>
-              <p className="text-white/70 text-sm leading-relaxed">
+              <p className="text-white text-sm leading-relaxed">
                 Connecting African designers and fabric sellers with customers worldwide.
               </p>
             </div>
@@ -212,7 +212,7 @@ export default function MainLayout() {
             {/* Quick Links */}
             <div>
               <h4 className="font-semibold mb-4">Shop</h4>
-              <ul className="space-y-2 text-sm text-white/70">
+              <ul className="space-y-2 text-sm text-white">
                 <li><Link to="/designs" className="hover:text-white">Designs</Link></li>
                 <li><Link to="/fabrics" className="hover:text-white">Fabrics</Link></li>
                 <li><Link to="/ready-to-wear" className="hover:text-white">Ready to Wear</Link></li>
@@ -222,7 +222,7 @@ export default function MainLayout() {
             {/* Support */}
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-white/70">
+              <ul className="space-y-2 text-sm text-white">
                 <li><Link to="/" className="hover:text-white">How It Works</Link></li>
                 <li><Link to="/" className="hover:text-white">Shipping Info</Link></li>
                 <li><Link to="/" className="hover:text-white">Returns</Link></li>
@@ -232,14 +232,14 @@ export default function MainLayout() {
             {/* Contact */}
             <div>
               <h4 className="font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2 text-sm text-white/70">
+              <ul className="space-y-2 text-sm text-white">
                 <li>support@africanfashion.com</li>
                 <li>+1 (555) 123-4567</li>
               </ul>
             </div>
           </div>
 
-          <div className="border-t border-white/10 mt-12 pt-8 text-center text-sm text-white/50">
+          <div className="border-t border-white border-opacity-10 mt-12 pt-8 text-center text-sm text-white">
             © 2026 African Fashion. All rights reserved.
           </div>
         </div>
