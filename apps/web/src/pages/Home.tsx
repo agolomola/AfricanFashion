@@ -383,7 +383,7 @@ export default function Home() {
 
       {/* How It Works */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
             <p className="text-gray-500">Your journey to African fashion in 6 simple steps</p>
@@ -409,7 +409,7 @@ export default function Home() {
 
       {/* Shop by Category */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Shop by Category</h2>
             <p className="text-gray-500">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
@@ -442,7 +442,7 @@ export default function Home() {
 
       {/* Trending Now Banner */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="relative h-[300px] md:h-[350px] rounded-lg overflow-hidden">
             <img
               src="/images/trending-banner.jpg"
@@ -474,7 +474,7 @@ export default function Home() {
 
       {/* Featured Custom To Wear */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
@@ -504,7 +504,7 @@ export default function Home() {
 
       {/* Featured Ready To Wear */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
@@ -542,7 +542,7 @@ export default function Home() {
 
       {/* Featured Fabrics */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-8">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
@@ -580,7 +580,7 @@ export default function Home() {
 
       {/* Fresh Drops Banner */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="relative h-[250px] md:h-[300px] rounded-lg overflow-hidden">
             <img
               src="/images/fresh-drops-banner.jpg"
@@ -612,7 +612,7 @@ export default function Home() {
 
       {/* Designer Spotlight & Heritage */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Designer Spotlight */}
             <div className="bg-white rounded-lg overflow-hidden shadow-sm">
@@ -666,7 +666,7 @@ export default function Home() {
 
       {/* Testimonials */}
       <section className="py-16 bg-navy-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-12">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">What Our Customers Say</h2>
             <p className="text-white/70">Join thousands of happy customers worldwide.</p>
@@ -697,7 +697,7 @@ export default function Home() {
 
       {/* CTA Section */}
       <section className="py-16 bg-[#F5F5F0]">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Shop CTA */}
             <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
