@@ -325,7 +325,7 @@ export default function TryOn() {
                   </Canvas>
                   
                   {/* Controls Overlay */}
-                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white/90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
+                  <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 bg-white bg-opacity-90 backdrop-blur-sm rounded-full px-4 py-2 shadow-lg">
                     <button 
                       onClick={() => setRotation(r => r - 45)}
                       className="p-2 hover:bg-gray-100 rounded-full"
@@ -353,7 +353,7 @@ export default function TryOn() {
                   </div>
 
                   {/* View Mode Toggle */}
-                  <div className="absolute top-4 right-4 flex bg-white/90 backdrop-blur-sm rounded-lg p-1 shadow-lg">
+                  <div className="absolute top-4 right-4 flex bg-white bg-opacity-90 backdrop-blur-sm rounded-lg p-1 shadow-lg">
                     <button
                       onClick={() => setViewMode('3d')}
                       className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
