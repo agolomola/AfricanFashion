@@ -685,6 +685,6 @@ export default function ReadyToWear() {
       </div>
     </div>
   </div>
-}
+</div>
   );
 }
