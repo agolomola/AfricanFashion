@@ -729,7 +729,6 @@ export default function Designs() {
             )}
           </div>
         </div>
-
         {/* Mobile Filter Drawer */}
         {showMobileFilters && (
           <div className="fixed inset-0 z-50 lg:hidden">
