@@ -111,7 +111,7 @@ export default function FabricDetail() {
                 alt={fabric.name}
                 className="w-full h-full object-cover"
               />
-              <div className="absolute bottom-4 right-4 w-12 h-12 flex items-center justify-center bg-white/90 rounded-full">
+              <div className="absolute bottom-4 right-4 w-12 h-12 flex items-center justify-center bg-white bg-opacity-90 rounded-full">
                 <span className="text-3xl">{flag}</span>
               </div>
             </div>
