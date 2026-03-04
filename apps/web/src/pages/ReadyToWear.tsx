@@ -448,18 +448,18 @@ export default function ReadyToWear() {
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
                 Ready To Wear
               </h1>
-              <p className="text-base md:text-lg text-white/80 mb-6">
+              <p className="text-base md:text-lg text-white mb-6">
                 Stunning dresses, elegant sets, and chic separates — expertly crafted and ready to ship.
               </p>
               
               <div className="flex flex-wrap gap-2">
-                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
                   {pagination?.total || 0}+ Products
                 </Badge>
-                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
                   {countries.length}+ Countries
                 </Badge>
-                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
                   Ships in 3-5 Days
                 </Badge>
               </div>
@@ -483,7 +483,7 @@ export default function ReadyToWear() {
               <div className="absolute inset-0 flex flex-col justify-center p-6">
                 <span className="text-coral-400 text-sm font-semibold mb-1">CUSTOM DESIGNS</span>
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Made For You</h3>
-                <p className="text-white/80 text-sm mb-3">Get any design tailored to your measurements</p>
+                <p className="text-white text-sm mb-3">Get any design tailored to your measurements</p>
                 <span className="inline-flex items-center gap-2 text-white font-medium group-hover:gap-3 transition-all">
                   Explore <ArrowRight className="w-4 h-4" />
                 </span>
@@ -501,7 +501,7 @@ export default function ReadyToWear() {
               <div className="absolute inset-0 flex flex-col justify-center p-6">
                 <span className="text-white text-sm font-semibold mb-1">PREMIUM FABRICS</span>
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">By The Yard</h3>
-                <p className="text-white/80 text-sm mb-3">Authentic textiles from across Africa</p>
+                <p className="text-white text-sm mb-3">Authentic textiles from across Africa</p>
                 <span className="inline-flex items-center gap-2 text-white font-medium group-hover:gap-3 transition-all">
                   Shop <ArrowRight className="w-4 h-4" />
                 </span>
@@ -586,7 +586,7 @@ export default function ReadyToWear() {
                           </div>
                           {/* Heart button - top right */}
                           <button 
-                            className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
+                            className="absolute top-3 right-3 w-8 h-8 bg-white bg-opacity-90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
                             onClick={(e) => e.preventDefault()}
                           >
                             <Heart className="w-4 h-4" />
