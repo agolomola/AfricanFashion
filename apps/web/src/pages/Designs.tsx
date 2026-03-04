@@ -324,19 +324,15 @@ export default function Designs() {
     setFilters(newFilters);
     updateURLParams(newFilters);
   };
-
-  const updateURLParams = (newFilters: typeof filters) => {
-    const params = new URLSearchParams();
-    if (newFilters.search) params.set('search', newFilters.search);
+  if (newFilters.search) params.set('search', newFilters.search);
     if (newFilters.categoryId) params.set('category', newFilters.categoryId);
     if (newFilters.country) params.set('country', newFilters.country);
     if (newFilters.minPrice) params.set('minPrice', newFilters.minPrice);
     if (newFilters.maxPrice) params.set('maxPrice', newFilters.maxPrice);
-    if (newFilters.sortBy !== 'newest') params.set('sortBy', newFilters.sortBy);
-    if (newFilters.page > 1) params.set('page', newFilters.page.toString());
+    if (newFilters.sortBy) params.set('sortBy', newFilters.sortBy);
+    if (newFilters.page > 1) params.set('page', String(newFilters.page));
     setSearchParams(params);
   };
-
   const clearFilters = () => {
     const cleared = {
       search: '',
