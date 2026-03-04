@@ -2,7 +2,7 @@
 // Cache bust: v1772517303
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { Search, ChevronDown, Loader2, SlidersHorizontal, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { api } from '../services/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -687,8 +687,6 @@ export default function Designs() {
           </div>
         )}
       </div>
-      </div>
-    </div>
   );
 }
 
