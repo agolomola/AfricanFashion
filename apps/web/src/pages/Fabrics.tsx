@@ -128,7 +128,7 @@ export default function Fabrics() {
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
                 African Fabrics
               </h1>
-              <p className="text-lg text-white/80">
+              <p className="text-lg text-white text-opacity-80">
                 Premium textiles from across the continent. Kente, Ankara, Aso Oke, and more.
               </p>
             </div>
@@ -175,7 +175,7 @@ export default function Fabrics() {
                       <span className="text-2xl drop-shadow-lg">{fabric.flag}</span>
                     </div>
                     <button 
-                      className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
+                      className="absolute top-3 right-3 w-8 h-8 bg-white bg-opacity-90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
                       onClick={(e) => e.preventDefault()}
                     >
                       <Heart className="w-4 h-4" />
