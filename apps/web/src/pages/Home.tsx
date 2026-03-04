@@ -1,6 +1,6 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Sparkles, MapPin, Heart, Loader2 } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Heart, Loader2 } from 'lucide-react';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 
