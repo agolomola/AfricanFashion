@@ -461,7 +461,7 @@ export default function Designs() {
           alt="African Fashion Designs"
           className="w-full h-full object-cover"
         />
-        <div className="absolute inset-0 bg-gradient-to-r from-navy-900/80 via-navy-900/50 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-navy-900 via-navy-900 to-transparent" />
         <div className="absolute inset-0 flex items-center">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
             <div className="max-w-3xl">
