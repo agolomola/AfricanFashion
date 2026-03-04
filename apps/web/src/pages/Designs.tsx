@@ -1,7 +1,7 @@
 // Cache bust: v9103
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, ChevronDown, Loader2, SlidersHorizontal, X, ChevronLeft, ChevronRight, Heart, ArrowRight } from 'lucide-react';
+import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -486,20 +486,20 @@ export default function Designs() {
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
             <div className="max-w-3xl">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
-                Designer Collections
+                Custom To Wear
               </h1>
-              <p className="text-base md:text-lg text-white mb-6">
-                Discover unique African fashion designs from talented designers across the continent.
+              <p className="text-base md:text-lg text-white/80 mb-6">
+                Bespoke African fashion made to your measurements. Choose your design and we'll tailor it just for you.
               </p>
               
               <div className="flex flex-wrap gap-2">
-                <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   {pagination?.total || 0}+ Designs
                 </Badge>
-                <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   {countries.length}+ Countries
                 </Badge>
-                <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
+                <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   Custom Made
                 </Badge>
               </div>
@@ -523,7 +523,7 @@ export default function Designs() {
               <div className="absolute inset-0 flex flex-col justify-center p-6">
                 <span className="text-coral-400 text-sm font-semibold mb-1">NEW ARRIVALS</span>
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Fresh Styles</h3>
-                <p className="text-white text-sm mb-3">Discover the latest from top designers</p>
+                <p className="text-white/80 text-sm mb-3">Discover the latest from top designers</p>
                 <span className="inline-flex items-center gap-2 text-white font-medium group-hover:gap-3 transition-all">
                   Shop Now <ArrowRight className="w-4 h-4" />
                 </span>
@@ -541,7 +541,7 @@ export default function Designs() {
               <div className="absolute inset-0 flex flex-col justify-center p-6">
                 <span className="text-white text-sm font-semibold mb-1">PREMIUM FABRICS</span>
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">By The Yard</h3>
-                <p className="text-white text-sm mb-3">Authentic textiles from across Africa</p>
+                <p className="text-white/80 text-sm mb-3">Authentic textiles from across Africa</p>
                 <span className="inline-flex items-center gap-2 text-white font-medium group-hover:gap-3 transition-all">
                   Explore <ArrowRight className="w-4 h-4" />
                 </span>
@@ -626,7 +626,7 @@ export default function Designs() {
                           </div>
                           {/* Heart button - top right */}
                           <button 
-                            className="absolute top-3 right-3 w-8 h-8 bg-white bg-opacity-90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
+                            className="absolute top-3 right-3 w-8 h-8 bg-white/90 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-500 hover:text-white"
                             onClick={(e) => e.preventDefault()}
                           >
                             <Heart className="w-4 h-4" />
@@ -702,6 +702,7 @@ export default function Designs() {
               </>
             )}
           </div>
+        </div>
 
         {/* Mobile Filter Drawer */}
         {showMobileFilters && (
