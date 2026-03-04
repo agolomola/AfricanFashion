@@ -41,7 +41,7 @@ export default function MainLayout() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'bg-white/95 backdrop-blur-md shadow-sm'
+            ? 'bg-white bg-opacity-95 backdrop-blur-md shadow-sm'
             : 'bg-transparent'
         }`}
       >
@@ -66,7 +66,7 @@ export default function MainLayout() {
                   className={`text-sm font-medium transition-colors relative group ${
                     isScrolled
                       ? 'text-gray-700 hover:text-coral-500'
-                      : 'text-white/90 hover:text-white'
+                      : 'text-white hover:text-white'
                   }`}
                 >
                   {link.label}
@@ -85,7 +85,7 @@ export default function MainLayout() {
                 className={`p-2 rounded-full transition-colors ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
+                    : 'hover:bg-white bg-opacity-10 text-white'
                 }`}
               >
                 <Search className="w-5 h-5" />
@@ -96,7 +96,7 @@ export default function MainLayout() {
                 className={`p-2 rounded-full transition-colors relative ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
+                    : 'hover:bg-white bg-opacity-10 text-white'
                 }`}
               >
                 <ShoppingBag className="w-5 h-5" />
@@ -113,7 +113,7 @@ export default function MainLayout() {
                     className={`p-2 rounded-full transition-colors ${
                       isScrolled
                         ? 'hover:bg-gray-100 text-gray-700'
-                        : 'hover:bg-white/10 text-white'
+                        : 'hover:bg-white bg-opacity-10 text-white'
                     }`}
                   >
                     <User className="w-5 h-5" />
@@ -147,7 +147,7 @@ export default function MainLayout() {
                   className={`hidden sm:inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     isScrolled
                       ? 'bg-navy-600 text-white hover:bg-navy-700'
-                      : 'bg-white text-navy-600 hover:bg-white/90'
+                      : 'bg-white text-navy-600 hover:bg-white bg-opacity-90'
                   }`}
                 >
                   Sign In
@@ -160,7 +160,7 @@ export default function MainLayout() {
                 className={`lg:hidden p-2 rounded-full transition-colors ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
+                    : 'hover:bg-white bg-opacity-10 text-white'
                 }`}
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
