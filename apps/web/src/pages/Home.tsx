@@ -1,24 +1,51 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Star, Truck, Shield, Clock, Heart, Loader2 } from 'lucide-react';
+import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, MousePointer2, Box, CreditCard, CheckCircle, Truck } from 'lucide-react';
 import { api } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 
-// Static data that doesn't change
-const features = [
-  { icon: Truck, title: 'Fast Shipping', description: 'Delivered to your door in 7-14 days' },
-  { icon: Shield, title: 'Quality Guaranteed', description: 'Every piece inspected by our QA team' },
-  { icon: Clock, title: 'Custom Made', description: 'Tailored to your exact measurements' },
-];
-
 // Default countries as fallback
 const defaultCountries = [
-  { name: 'Ghana', flag: '🇬🇭', image: '/images/ghana-abstract.jpg', fabrics: 'Kente, Adinkra' },
-  { name: 'Nigeria', flag: '🇳🇬', image: '/images/nigeria-abstract.jpg', fabrics: 'Ankara, Aso Oke' },
-  { name: 'Kenya', flag: '🇰🇪', image: '/images/kenya-abstract.jpg', fabrics: 'Kitenge, Kikoy' },
-  { name: 'Senegal', flag: '🇸🇳', image: '/images/senegal-abstract.jpg', fabrics: 'Boubou, Lace' },
-  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/ethiopia-abstract.jpg', fabrics: 'Tibeb, Cotton' },
-  { name: 'Morocco', flag: '🇲🇦', image: '/images/morocco-abstract.jpg', fabrics: 'Caftan, Silk' },
+  { name: 'Ghana', flag: '🇬🇭', image: '/images/ghana-abstract.jpg', fabrics: 'Kente • Adinkra • Batik' },
+  { name: 'Nigeria', flag: '🇳🇬', image: '/images/nigeria-abstract.jpg', fabrics: 'Ankara • Aso Oke • Adire' },
+  { name: 'Kenya', flag: '🇰🇪', image: '/images/kenya-abstract.jpg', fabrics: 'Kitenge • Kikoy • Shuka' },
+  { name: 'Senegal', flag: '🇸🇳', image: '/images/senegal-abstract.jpg', fabrics: 'Bazin • Mud Cloth • Wax Print' },
+  { name: 'South Africa', flag: '🇿🇦', image: '/images/south-africa-abstract.jpg', fabrics: 'Shweshwe • Ndebele • Zulu' },
+  { name: 'Tanzania', flag: '🇹🇿', image: '/images/tanzania-abstract.jpg', fabrics: 'Kanga • Kitenge • Tie Dye' },
+  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/ethiopia-abstract.jpg', fabrics: 'Tibeb • Netela • Cotton' },
+  { name: 'Morocco', flag: '🇲🇦', image: '/images/morocco-abstract.jpg', fabrics: 'Caftan • Djellaba • Silk' },
+];
+
+// How It Works steps
+const howItWorksSteps = [
+  { icon: MousePointer2, title: 'SELECT YOUR', subtitle: 'DESIGN' },
+  { icon: Box, title: '3D-TRYON', subtitle: 'VIRTUALLY' },
+  { icon: Heart, title: 'CHOOSE YOUR', subtitle: 'FABRIC' },
+  { icon: CreditCard, title: 'PAY', subtitle: 'SECURELY' },
+  { icon: CheckCircle, title: 'QUALITY', subtitle: 'CHECK' },
+  { icon: Truck, title: 'FAST', subtitle: 'DELIVERY' },
+];
+
+// Shop by Category
+const shopCategories = [
+  {
+    title: 'Ready To Wear',
+    description: 'Stunning dresses, elegant sets, and chic separates — expertly crafted for immediate style.',
+    image: '/images/category-ready-to-wear.jpg',
+    link: '/ready-to-wear',
+  },
+  {
+    title: 'Custom To Wear',
+    description: 'Bespoke pieces tailored to your exact measurements — made just for you in 10-14 days.',
+    image: '/images/category-custom.jpg',
+    link: '/designs',
+  },
+  {
+    title: 'Fabrics To Buy',
+    description: 'Premium African textiles by the yard — Kente, Ankara, Kitenge and more direct from artisans.',
+    image: '/images/category-fabrics.jpg',
+    link: '/fabrics',
+  },
 ];
 
 // Default testimonials as fallback
@@ -29,7 +56,7 @@ const defaultTestimonials = [
     location: 'New York, USA',
     avatar: '/images/avatar-1.jpg',
     rating: 5,
-    text: 'The quality exceeded my expectations. My custom dress fits perfectly and the fabric is beautiful!',
+    text: 'The quality exceeded my expectations. My dress fits perfectly and the fabric is gorgeous.',
   },
   {
     id: '2',
@@ -37,25 +64,34 @@ const defaultTestimonials = [
     location: 'London, UK',
     avatar: '/images/avatar-2.jpg',
     rating: 5,
-    text: 'Amazing experience from start to finish. The virtual try-on feature helped me choose the perfect design.',
+    text: 'Amazing experience from start to finish. The custom tailoring service is a game changer!',
   },
   {
     id: '3',
-    name: 'Zainab Mohammed',
-    location: 'Toronto, Canada',
+    name: 'Fatima Mohammed',
+    location: 'Dubai, UAE',
     avatar: '/images/avatar-3.jpg',
     rating: 5,
-    text: 'Supporting African designers while getting unique pieces. This platform is a game changer!',
+    text: 'Supporting African designers while getting beautiful clothes—this platform is a gem.',
   },
 ];
+
+// Designer Spotlight
+const designerSpotlight = {
+  name: 'Amara Okafor',
+  quote: 'I design for the woman who wants to feel rooted and free at the same time. Every piece tells a story of heritage and modernity.',
+  description: 'Amara blends traditional African prints with modern silhouettes.',
+  image: '/images/designer-spotlight.jpg',
+};
 
 interface HeroSlide {
   id: string;
   title: string;
   subtitle: string;
+  badge: string;
   image: string;
-  ctaText: string | null;
-  ctaLink: string | null;
+  ctaText: string;
+  ctaLink: string;
 }
 
 interface FeaturedProduct {
@@ -67,6 +103,7 @@ interface FeaturedProduct {
   designer: string;
   country: string;
   productType: string;
+  badge?: string;
 }
 
 // Default hero slides as fallback
@@ -74,51 +111,51 @@ const defaultHeroSlides: HeroSlide[] = [
   {
     id: '1',
     image: '/images/hero-1.jpg',
-    title: 'Wear the Story',
-    subtitle: 'Discover authentic African fashion — from heritage prints to modern silhouettes',
+    badge: 'NEW COLLECTION',
+    title: 'Ready To Wear',
+    subtitle: 'Dresses, sets, and separates — tailored fits finished by hand',
     ctaText: 'Shop Now',
-    ctaLink: '/designs',
+    ctaLink: '/ready-to-wear',
   },
   {
     id: '2',
     image: '/images/hero-2.jpg',
-    title: 'Fresh Drops',
+    badge: 'FRESH DROPS',
+    title: 'New Arrivals',
     subtitle: 'New arrivals from the most talented designers across the continent',
     ctaText: 'Explore',
-    ctaLink: '/ready-to-wear',
+    ctaLink: '/designs',
   },
   {
     id: '3',
     image: '/images/hero-3.jpg',
-    title: 'Trending Now',
+    badge: 'TRENDING NOW',
+    title: 'Trending Styles',
     subtitle: 'The pieces everyone is talking about this season',
     ctaText: 'View Trending',
-    ctaLink: '/designs',
+    ctaLink: '/ready-to-wear',
   },
 ];
 
 // Default featured products as fallback
 const defaultFeaturedDesigns: FeaturedProduct[] = [
-  { id: '1', name: 'Royal Kente Gown', description: '', price: 299, image: '/images/design-1.jpg', designer: 'Amma Designs', country: 'Ghana', productType: 'DESIGN' },
-  { id: '2', name: 'Ankara Maxi Dress', description: '', price: 189, image: '/images/design-2.jpg', designer: 'Lagos Luxe', country: 'Nigeria', productType: 'DESIGN' },
-  { id: '3', name: 'Kitenge Two-Piece', description: '', price: 159, image: '/images/design-3.jpg', designer: 'Nairobi Styles', country: 'Kenya', productType: 'DESIGN' },
-  { id: '4', name: 'Boubou Silk Set', description: '', price: 349, image: '/images/design-4.jpg', designer: 'Dakar Elegance', country: 'Senegal', productType: 'DESIGN' },
-  { id: '5', name: 'Embroidered Dashiki', description: '', price: 219, image: '/images/design-5.jpg', designer: 'Accra Heritage', country: 'Ghana', productType: 'DESIGN' },
-  { id: '6', name: 'African Fusion Gown', description: '', price: 399, image: '/images/design-6.jpg', designer: 'Modern Africa', country: 'Nigeria', productType: 'DESIGN' },
+  { id: '1', name: 'Royal Kente Gown', description: '', price: 299, image: '/images/design-1.jpg', designer: 'Amara Designs', country: 'Ghana', productType: 'DESIGN', badge: 'NEW' },
+  { id: '2', name: 'Ankara Maxi Dress', description: '', price: 189, image: '/images/design-2.jpg', designer: 'Lagos Luxe', country: 'Nigeria', productType: 'DESIGN', badge: 'SALE' },
+  { id: '3', name: 'Kitenge Two-Piece', description: '', price: 159, image: '/images/design-3.jpg', designer: 'Nairobi Styles', country: 'Kenya', productType: 'DESIGN', badge: 'PROMO' },
 ];
 
-const defaultFeaturedFabrics: FeaturedProduct[] = [
-  { id: 'f1', name: 'Premium Kente Cloth', description: '', price: 45, image: '/images/fabric-1.jpg', designer: 'Ghana Textiles', country: 'Ghana', productType: 'FABRIC' },
-  { id: 'f2', name: 'Luxury Ankara Print', description: '', price: 35, image: '/images/fabric-2.jpg', designer: 'Nigerian Fabrics', country: 'Nigeria', productType: 'FABRIC' },
-  { id: 'f3', name: 'Authentic Mud Cloth', description: '', price: 55, image: '/images/fabric-3.jpg', designer: 'Mali Traditions', country: 'Mali', productType: 'FABRIC' },
-  { id: 'f4', name: 'Kitenge Wax Print', description: '', price: 30, image: '/images/fabric-4.jpg', designer: 'Kenya Fabrics', country: 'Kenya', productType: 'FABRIC' },
+const defaultReadyToWear: FeaturedProduct[] = [
+  { id: 'r1', name: 'Kente Midi Dress', description: '', price: 189, image: '/images/rtw-1.jpg', designer: 'Ghana • Ships in 3-5 days', country: 'Ghana', productType: 'READY_TO_WEAR', badge: 'BEST SELLER' },
+  { id: 'r2', name: 'Ankara Two-Piece Set', description: '', price: 145, image: '/images/rtw-2.jpg', designer: 'Nigeria • Ships in 2-4 days', country: 'Nigeria', productType: 'READY_TO_WEAR', badge: 'SALE' },
+  { id: 'r3', name: 'Batik Shift Dress', description: '', price: 120, image: '/images/rtw-3.jpg', designer: 'Senegal • Ships in 3-5 days', country: 'Senegal', productType: 'READY_TO_WEAR', badge: 'PROMO' },
+  { id: 'r4', name: 'Wax Print Midi', description: '', price: 135, image: '/images/rtw-4.jpg', designer: 'Kenya • Ships in 2-4 days', country: 'Kenya', productType: 'READY_TO_WEAR', badge: 'NEW' },
 ];
 
-const defaultFeaturedRTW: FeaturedProduct[] = [
-  { id: 'r1', name: 'Classic Ankara Blazer', description: '', price: 149, image: '/images/rtw-1.jpg', designer: 'Lagos Luxe', country: 'Nigeria', productType: 'READY_TO_WEAR' },
-  { id: 'r2', name: 'Kente Print Shirt', description: '', price: 89, image: '/images/rtw-2.jpg', designer: 'Accra Styles', country: 'Ghana', productType: 'READY_TO_WEAR' },
-  { id: 'r3', name: 'African Print Skirt', description: '', price: 119, image: '/images/rtw-3.jpg', designer: 'Nairobi Chic', country: 'Kenya', productType: 'READY_TO_WEAR' },
-  { id: 'r4', name: 'Boubou Style Top', description: '', price: 79, image: '/images/rtw-4.jpg', designer: 'Dakar Fashion', country: 'Senegal', productType: 'READY_TO_WEAR' },
+const defaultFabrics: FeaturedProduct[] = [
+  { id: 'f1', name: 'Premium Kente Cloth', description: '', price: 45, image: '/images/fabric-1.jpg', designer: 'Ghana Textiles', country: 'Ghana', productType: 'FABRIC', badge: 'SALE' },
+  { id: 'f2', name: 'Luxury Ankara Print', description: '', price: 35, image: '/images/fabric-2.jpg', designer: 'Nigerian Fabrics', country: 'Nigeria', productType: 'FABRIC', badge: 'PROMO' },
+  { id: 'f3', name: 'Authentic Mud Cloth', description: '', price: 55, image: '/images/fabric-3.jpg', designer: 'Mali Traditions', country: 'Mali', productType: 'FABRIC', badge: 'NEW' },
+  { id: 'f4', name: 'Kitenge Wax Print', description: '', price: 30, image: '/images/fabric-4.jpg', designer: 'Kenya Fabrics', country: 'Kenya', productType: 'FABRIC', badge: 'SALE' },
 ];
 
 // Country flag mapping
@@ -155,8 +192,8 @@ export default function Home() {
 
   const heroSlides = heroSlidesData || defaultHeroSlides;
   const featuredDesigns = featuredData?.FEATURED_DESIGNS || defaultFeaturedDesigns;
-  const featuredFabrics = featuredData?.FEATURED_FABRICS || defaultFeaturedFabrics;
-  const featuredRTW = featuredData?.FEATURED_READY_TO_WEAR || defaultFeaturedRTW;
+  const featuredFabrics = featuredData?.FEATURED_FABRICS || defaultFabrics;
+  const featuredRTW = featuredData?.FEATURED_READY_TO_WEAR || defaultReadyToWear;
 
   // Fetch countries dynamically
   const { data: countriesData } = useQuery({
@@ -222,11 +259,19 @@ export default function Home() {
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
-        <div className="absolute top-3 right-3 opacity-0 group-hover:opacity-100 transition-opacity">
-          <button className="p-2 bg-white rounded-full shadow-md hover:bg-coral-50">
-            <Heart className="w-4 h-4 text-gray-600" />
-          </button>
-        </div>
+        {product.badge && (
+          <div className={`absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded ${
+            product.badge === 'SALE' ? 'bg-red-500' : 
+            product.badge === 'NEW' ? 'bg-green-500' : 
+            product.badge === 'PROMO' ? 'bg-purple-500' : 
+            product.badge === 'BEST SELLER' ? 'bg-amber-500' : 'bg-coral-500'
+          }`}>
+            {product.badge}
+          </div>
+        )}
+        <button className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-50">
+          <Heart className="w-4 h-4 text-gray-600" />
+        </button>
         <div className="absolute bottom-3 right-3 text-2xl">
           {countryFlags[product.country] || '🌍'}
         </div>
@@ -236,13 +281,13 @@ export default function Home() {
           {product.name}
         </h3>
         <p className="text-sm text-gray-500 mt-1">{product.designer}</p>
-        <p className="font-bold text-coral-600 mt-2">${product.price}</p>
+        <p className="font-bold text-coral-600 mt-2">${product.price}{product.productType === 'FABRIC' && <span className="text-sm font-normal text-gray-500">/yard</span>}</p>
       </div>
     </Link>
   );
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-[#F5F5F0]">
       {/* Hero Carousel */}
       <section className="relative h-[500px] md:h-[600px] lg:h-[700px] overflow-hidden">
         {heroSlides.map((slide, index) => (
@@ -256,26 +301,27 @@ export default function Home() {
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${slide.image})` }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-black via-black to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
             </div>
             <div className="relative h-full flex items-center">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                 <div className="max-w-xl text-white">
+                  <span className="inline-block px-3 py-1 bg-coral-500 text-white text-xs font-semibold tracking-wider mb-4">
+                    {slide.badge}
+                  </span>
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4 leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="text-lg md:text-xl text-white mb-8">
+                  <p className="text-lg md:text-xl text-white/90 mb-8">
                     {slide.subtitle}
                   </p>
-                  {slide.ctaText && slide.ctaLink && (
-                    <Link
-                      to={slide.ctaLink}
-                      className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-8 py-4 rounded-full font-semibold transition-all hover:scale-105"
-                    >
-                      {slide.ctaText}
-                      <ArrowRight className="w-5 h-5" />
-                    </Link>
-                  )}
+                  <Link
+                    to={slide.ctaLink}
+                    className="inline-flex items-center gap-2 bg-white text-navy-600 px-8 py-4 rounded font-semibold transition-all hover:bg-gray-100"
+                  >
+                    {slide.ctaText}
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
                 </div>
               </div>
             </div>
@@ -285,13 +331,13 @@ export default function Home() {
         {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded-full text-white transition-all"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-white transition-all"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded-full text-white transition-all"
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded text-white transition-all"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
@@ -302,132 +348,184 @@ export default function Home() {
             <button
               key={index}
               onClick={() => setCurrentSlide(index)}
-              className={`w-3 h-3 rounded-full transition-all ${
-                index === currentSlide ? 'bg-white w-8' : 'bg-white bg-opacity-50'
+              className={`w-2 h-2 rounded-full transition-all ${
+                index === currentSlide ? 'bg-white w-6' : 'bg-white/50'
               }`}
             />
           ))}
         </div>
       </section>
 
-      {/* Features */}
-      <section className="py-16 bg-white">
+      {/* Countries Marquee */}
+      <section className="py-8 bg-[#F5F5F0] overflow-hidden">
+        <div className="flex animate-marquee">
+          {[...countries, ...countries].map((country, index) => (
+            <Link
+              key={`${country.name}-${index}`}
+              to={`/designs?country=${country.name}`}
+              className="group relative flex-shrink-0 w-64 h-40 mx-2 rounded-lg overflow-hidden"
+            >
+              <img
+                src={country.image}
+                alt={country.name}
+                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+              <div className="absolute bottom-3 left-3 text-white">
+                <span className="text-xl">{country.flag}</span>
+                <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
+                <p className="text-xs text-white/70">{country.fabrics}</p>
+              </div>
+            </Link>
+          ))}
+        </div>
+      </section>
+
+      {/* How It Works */}
+      <section className="py-16 bg-[#F5F5F0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {features.map((feature, index) => (
-              <div key={index} className="flex items-start gap-4">
-                <div className="p-3 bg-coral-50 rounded-xl">
-                  <feature.icon className="w-6 h-6 text-coral-500" />
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
+            <p className="text-gray-500">Your journey to African fashion in 6 simple steps</p>
+          </div>
+          <div className="flex flex-wrap justify-center items-center gap-4 md:gap-8">
+            {howItWorksSteps.map((step, index) => (
+              <div key={index} className="flex items-center">
+                <div className="flex flex-col items-center">
+                  <div className="w-16 h-16 bg-coral-500 rounded flex items-center justify-center mb-2">
+                    <step.icon className="w-8 h-8 text-white" />
+                  </div>
+                  <p className="text-xs font-semibold text-gray-900 text-center">{step.title}</p>
+                  <p className="text-xs font-semibold text-gray-900 text-center">{step.subtitle}</p>
                 </div>
-                <div>
-                  <h3 className="font-semibold text-gray-900">{feature.title}</h3>
-                  <p className="text-gray-500 text-sm mt-1">{feature.description}</p>
-                </div>
+                {index < howItWorksSteps.length - 1 && (
+                  <ChevronRight className="w-5 h-5 text-coral-500 mx-2 hidden md:block" />
+                )}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* Featured Designs */}
-      <section className="py-16 bg-gray-50">
+      {/* Shop by Category */}
+      <section className="py-16 bg-[#F5F5F0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between mb-8">
-            <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Featured Designs</h2>
-              <p className="text-gray-500 mt-1">Handpicked custom designs from top African designers</p>
-            </div>
-            <Link
-              to="/designs"
-              className="hidden sm:inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Shop by Category</h2>
+            <p className="text-gray-500">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
           </div>
-
-          {featuredLoading ? (
-            <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 md:gap-6">
-              {featuredDesigns.slice(0, 6).map((product) => (
-                <ProductCard key={product.id} product={product} />
-              ))}
-            </div>
-          )}
-
-          <div className="mt-6 text-center sm:hidden">
-            <Link
-              to="/designs"
-              className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All Designs
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {shopCategories.map((category, index) => (
+              <Link
+                key={index}
+                to={category.link}
+                className="group relative h-[400px] md:h-[500px] rounded-lg overflow-hidden"
+              >
+                <img
+                  src={category.image}
+                  alt={category.title}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/20 to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6 text-white">
+                  <h3 className="text-2xl font-bold mb-2">{category.title}</h3>
+                  <p className="text-sm text-white/80 mb-4">{category.description}</p>
+                  <span className="inline-flex items-center gap-2 text-sm font-semibold group-hover:gap-3 transition-all">
+                    Shop Now <ArrowRight className="w-4 h-4" />
+                  </span>
+                </div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Featured Fabrics */}
-      <section className="py-16 bg-white">
+      {/* Trending Now Banner */}
+      <section className="py-16 bg-[#F5F5F0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative h-[300px] md:h-[350px] rounded-lg overflow-hidden">
+            <img
+              src="/images/trending-banner.jpg"
+              alt="Trending Now"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-navy-600/80" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">Trending Now</h2>
+              <p className="text-white/80 mb-6">The prints everyone is talking about this season.</p>
+              <div className="flex gap-4">
+                <Link
+                  to="/ready-to-wear"
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+                >
+                  Shop New Arrivals
+                </Link>
+                <Link
+                  to="/designs"
+                  className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white/10 transition-colors"
+                >
+                  Explore Collections
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Featured Custom To Wear */}
+      <section className="py-16 bg-[#F5F5F0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Featured Fabrics</h2>
-              <p className="text-gray-500 mt-1">Premium African textiles from verified sellers</p>
+              <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Custom To Wear</h2>
+              <p className="text-gray-500 mt-1">Made To Fit by an African with Love</p>
             </div>
             <Link
-              to="/fabrics"
-              className="hidden sm:inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
+              to="/designs"
+              className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium"
             >
-              View All
-              <ArrowRight className="w-4 h-4" />
+              View All <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-
           {featuredLoading ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
-              {featuredFabrics.slice(0, 4).map((product) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-6">
+              {featuredDesigns.slice(0, 3).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
           )}
-
-          <div className="mt-6 text-center sm:hidden">
-            <Link
-              to="/fabrics"
-              className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All Fabrics
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </div>
         </div>
       </section>
 
       {/* Featured Ready To Wear */}
-      <section className="py-16 bg-gray-50">
+      <section className="py-16 bg-[#F5F5F0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
+              <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Ready To Wear</h2>
-              <p className="text-gray-500 mt-1">Stunning pieces ready to ship</p>
+              <p className="text-gray-500 mt-1">Made To Standard sizes for all</p>
             </div>
-            <Link
-              to="/ready-to-wear"
-              className="hidden sm:inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <Link
+                to="/ready-to-wear"
+                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
+              >
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
-
           {featuredLoading ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
@@ -439,46 +537,129 @@ export default function Home() {
               ))}
             </div>
           )}
+        </div>
+      </section>
 
-          <div className="mt-6 text-center sm:hidden">
-            <Link
-              to="/ready-to-wear"
-              className="inline-flex items-center gap-2 text-coral-600 hover:text-coral-700 font-medium"
-            >
-              View All Ready To Wear
-              <ArrowRight className="w-4 h-4" />
-            </Link>
+      {/* Featured Fabrics */}
+      <section className="py-16 bg-[#F5F5F0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-8">
+            <div>
+              <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Fabrics To Buy</h2>
+              <p className="text-gray-500 mt-1">Fabrics from all across the edges of Africa</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <Link
+                to="/fabrics"
+                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
+              >
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+          {featuredLoading ? (
+            <div className="flex items-center justify-center h-64">
+              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {featuredFabrics.slice(0, 4).map((product) => (
+                <ProductCard key={product.id} product={product} />
+              ))}
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Fresh Drops Banner */}
+      <section className="py-16 bg-[#F5F5F0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative h-[250px] md:h-[300px] rounded-lg overflow-hidden">
+            <img
+              src="/images/fresh-drops-banner.jpg"
+              alt="Fresh Drops"
+              className="w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-navy-600/70" />
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">Fresh Drops</h2>
+              <p className="text-white/80 mb-6">New arrivals from the most talented designers across the continent.</p>
+              <div className="flex gap-4">
+                <Link
+                  to="/ready-to-wear"
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+                >
+                  Shop New Arrivals
+                </Link>
+                <Link
+                  to="/designs"
+                  className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white/10 transition-colors"
+                >
+                  Explore Collections
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Countries */}
-      <section className="py-16 bg-white">
+      {/* Designer Spotlight & Heritage */}
+      <section className="py-16 bg-[#F5F5F0]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Explore by Country</h2>
-            <p className="text-gray-500 mt-2">Discover unique styles from across Africa</p>
-          </div>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {countries.map((country) => (
-              <Link
-                key={country.name}
-                to={`/designs?country=${country.name}`}
-                className="group relative aspect-square rounded-xl overflow-hidden"
-              >
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Designer Spotlight */}
+            <div className="bg-white rounded-lg overflow-hidden shadow-sm">
+              <div className="h-[250px] overflow-hidden">
                 <img
-                  src={country.image}
-                  alt={country.name}
-                  className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                  src={designerSpotlight.image}
+                  alt={designerSpotlight.name}
+                  className="w-full h-full object-cover"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
-                <div className="absolute bottom-4 left-4 text-white">
-                  <span className="text-2xl">{country.flag}</span>
-                  <h3 className="font-semibold mt-1">{country.name}</h3>
-                  <p className="text-xs text-white">{country.fabrics}</p>
-                </div>
-              </Link>
-            ))}
+              </div>
+              <div className="p-6">
+                <p className="text-coral-500 text-sm font-semibold mb-2">DESIGNER SPOTLIGHT</p>
+                <h3 className="text-2xl font-bold text-gray-900 mb-3">Meet {designerSpotlight.name}</h3>
+                <p className="text-gray-600 mb-4">"{designerSpotlight.quote}" {designerSpotlight.description}</p>
+                <Link
+                  to="/designers"
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+                >
+                  Meet All Designers
+                </Link>
+              </div>
+            </div>
+
+            {/* Heritage */}
+            <div className="bg-navy-600 rounded-lg overflow-hidden">
+              <div className="h-[250px] overflow-hidden">
+                <img
+                  src="/images/heritage.jpg"
+                  alt="Heritage"
+                  className="w-full h-full object-cover"
+                />
+              </div>
+              <div className="p-6">
+                <p className="text-coral-500 text-sm font-semibold mb-2">HERITAGE</p>
+                <h3 className="text-2xl font-bold text-white mb-3">Rooted in Culture</h3>
+                <p className="text-white/80 mb-4">
+                  Every pattern carries meaning. From Kente's bold geometry to Ankara's intricate motifs, 
+                  African textiles tell stories of history, identity, and tradition passed through generations.
+                </p>
+                <Link
+                  to="/about"
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+                >
+                  Read Our Story
+                </Link>
+              </div>
+            </div>
           </div>
         </div>
       </section>
@@ -487,27 +668,25 @@ export default function Home() {
       <section className="py-16 bg-navy-600">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
-            <h2 className="text-2xl md:text-3xl font-bold text-white">What Our Customers Say</h2>
-            <p className="text-white mt-2">Join thousands of happy customers worldwide</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">What Our Customers Say</h2>
+            <p className="text-white/70">Join thousands of happy customers worldwide.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((testimonial) => (
-              <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6">
+              <div key={testimonial.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-6">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                    <Star key={i} className="w-4 h-4 fill-coral-500 text-coral-500" />
                   ))}
                 </div>
-                <p className="text-white mb-6">"{testimonial.text}"</p>
+                <p className="text-white/90 mb-6">"{testimonial.text}"</p>
                 <div className="flex items-center gap-3">
-                  <img
-                    src={testimonial.avatar}
-                    alt={testimonial.name}
-                    className="w-10 h-10 rounded-full object-cover"
-                  />
+                  <div className="w-10 h-10 bg-coral-500 rounded flex items-center justify-center text-white font-semibold">
+                    {testimonial.name.split(' ').map(n => n[0]).join('')}
+                  </div>
                   <div>
                     <p className="font-semibold text-white">{testimonial.name}</p>
-                    <p className="text-sm text-white">{testimonial.location}</p>
+                    <p className="text-sm text-white/60">{testimonial.location}</p>
                   </div>
                 </div>
               </div>
@@ -517,28 +696,48 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-coral-500">
-        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
-            Ready to Wear African Fashion?
-          </h2>
-          <p className="text-white text-lg mb-8">
-            Join our community of fashion lovers and discover unique pieces from talented African designers
-          </p>
-          <div className="flex flex-col sm:flex-row gap-4 justify-center">
-            <Link
-              to="/designs"
-              className="inline-flex items-center justify-center gap-2 bg-white text-coral-600 px-8 py-4 rounded-full font-semibold hover:bg-gray-100 transition-colors"
-            >
-              Shop Now
-              <ArrowRight className="w-5 h-5" />
-            </Link>
-            <Link
-              to="/register"
-              className="inline-flex items-center justify-center gap-2 bg-coral-600 text-white border-2 border-white px-8 py-4 rounded-full font-semibold hover:bg-coral-700 transition-colors"
-            >
-              Create Account
-            </Link>
+      <section className="py-16 bg-[#F5F5F0]">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Shop CTA */}
+            <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">Ready to Wear African Fashion?</h2>
+              <p className="text-white/90 mb-6">
+                Join our community of fashion lovers and discover unique pieces from talented African designers.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link
+                  to="/designs"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-coral-600 px-6 py-3 rounded font-semibold hover:bg-gray-100 transition-colors"
+                >
+                  Shop Now
+                </Link>
+                <Link
+                  to="/register"
+                  className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white/10 transition-colors"
+                >
+                  Create Account
+                </Link>
+              </div>
+            </div>
+
+            {/* Newsletter CTA */}
+            <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">Join the Movement</h2>
+              <p className="text-white/90 mb-6">
+                Subscribe to our newsletter for exclusive offers, new arrivals, and stories from the continent.
+              </p>
+              <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
+                <input
+                  type="email"
+                  placeholder="Enter your email"
+                  className="flex-1 px-4 py-3 rounded text-gray-900"
+                />
+                <button className="px-6 py-3 bg-navy-600 text-white rounded font-semibold hover:bg-navy-700 transition-colors">
+                  Subscribe
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </section>
