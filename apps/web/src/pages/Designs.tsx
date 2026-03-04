@@ -541,7 +541,7 @@ export default function Designs() {
                 alt="Premium Fabrics"
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
-              <div className="absolute inset-0 bg-gradient-to-r from-coral-600/70 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-coral-600 to-transparent" />
               <div className="absolute inset-0 flex flex-col justify-center p-6">
                 <span className="text-white text-sm font-semibold mb-1">PREMIUM FABRICS</span>
                 <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">By The Yard</h3>
