@@ -707,27 +707,6 @@ export default function Designs() {
         {/* Mobile Filter Drawer */}
         {showMobileFilters && (
           <div className="fixed inset-0 z-50 lg:hidden">
-            <div 
-              className="absolute inset-0 bg-black bg-opacity-50"
-              onClick={() => setShowMobileFilters(false)}
-            />
-            <div className="absolute right-0 top-0 bottom-0 w-80 bg-white overflow-auto p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-lg font-semibold">Filters</h2>
-                <button onClick={() => setShowMobileFilters(false)}>
-                  <X className="w-6 h-6" />
-                </button>
-              </div>
-              <div className="space-y-4">
-                <FilterBar />
-              </div>
-             </>
-            )}
-          </div>
-        </div>
-        {/* Mobile Filter Drawer */}
-        {showMobileFilters && (
-          <div className="fixed inset-0 z-50 lg:hidden">
             <div
               className="absolute inset-0 bg-black bg-opacity-50"
               onClick={() => setShowMobileFilters(false)}
