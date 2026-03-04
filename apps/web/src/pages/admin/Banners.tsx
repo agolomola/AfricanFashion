@@ -270,19 +270,19 @@ export default function AdminBanners() {
               
               {/* Overlay with text preview */}
               {(banner.title || banner.subtitle) && (
-                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent flex flex-col justify-end p-4">
+                <div className="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end p-4">
                   {banner.title && (
                     <h3 className="text-white font-bold text-lg">{banner.title}</h3>
                   )}
                   {banner.subtitle && (
-                    <p className="text-white/80 text-sm">{banner.subtitle}</p>
+                    <p className="text-white text-sm">{banner.subtitle}</p>
                   )}
                 </div>
               )}
 
               {/* Image count badge */}
               {banner.images.length > 1 && (
-                <div className="absolute top-3 right-3 bg-black/50 text-white px-2 py-1 rounded-full text-xs">
+                <div className="absolute top-3 right-3 bg-black bg-opacity-50 text-white px-2 py-1 rounded-full text-xs">
                   {banner.images.length} images
                 </div>
               )}
@@ -365,7 +365,7 @@ export default function AdminBanners() {
 
       {/* Create/Edit Modal */}
       {showModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-auto">
             <div className="p-6 border-b flex items-center justify-between">
               <h2 className="text-xl font-bold text-gray-900">
