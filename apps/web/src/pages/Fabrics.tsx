@@ -668,5 +668,9 @@ export default function Fabrics() {
         )}
       </div>
     </div>
+  </div>
+</div>
+</div>
+</div>
   );
 }
