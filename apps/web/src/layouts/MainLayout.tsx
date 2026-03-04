@@ -26,9 +26,13 @@ export default function MainLayout() {
   };
 
   const navLinks = [
-    { label: 'Designs', href: '/designs' },
-    { label: 'Fabrics', href: '/fabrics' },
-    { label: 'Ready to Wear', href: '/ready-to-wear' },
+    { label: 'Home', href: '/' },
+    { label: 'Shop', href: '/ready-to-wear' },
+    { label: 'Fabrics To Buy', href: '/fabrics' },
+    { label: 'Ready To Wear', href: '/ready-to-wear' },
+    { label: 'Custom To Wear', href: '/designs' },
+    { label: 'About Us', href: '/about' },
+    { label: 'Contact', href: '/contact' },
   ];
 
   return (
