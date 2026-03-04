@@ -2,3 +2,6 @@ node_modules
 apps/api
 packages
 turbo.json
+
+# Explicitly include apps/web
+!apps/web
