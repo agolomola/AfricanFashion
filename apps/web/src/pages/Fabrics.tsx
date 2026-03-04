@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, ChevronDown, Loader2, SlidersHorizontal, X, Heart } from 'lucide-react';
+import { Search, Loader2, Heart } from 'lucide-react';
 import { api } from '../services/api';
 import Button from '../components/ui/Button';
 
