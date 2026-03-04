@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { ShoppingBag, User, Menu, X, Search, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
+import Footer from '../components/Footer';
 
 export default function MainLayout() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -36,7 +37,7 @@ export default function MainLayout() {
       <header
         className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
           isScrolled
-            ? 'bg-white bg-opacity-95 backdrop-blur-md shadow-sm'
+            ? 'bg-white/95 backdrop-blur-md shadow-sm'
             : 'bg-transparent'
         }`}
       >
@@ -61,7 +62,7 @@ export default function MainLayout() {
                   className={`text-sm font-medium transition-colors relative group ${
                     isScrolled
                       ? 'text-gray-700 hover:text-coral-500'
-                      : 'text-white hover:text-white'
+                      : 'text-white/90 hover:text-white'
                   }`}
                 >
                   {link.label}
@@ -80,7 +81,7 @@ export default function MainLayout() {
                 className={`p-2 rounded-full transition-colors ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white bg-opacity-10 text-white'
+                    : 'hover:bg-white/10 text-white'
                 }`}
               >
                 <Search className="w-5 h-5" />
@@ -91,7 +92,7 @@ export default function MainLayout() {
                 className={`p-2 rounded-full transition-colors relative ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white bg-opacity-10 text-white'
+                    : 'hover:bg-white/10 text-white'
                 }`}
               >
                 <ShoppingBag className="w-5 h-5" />
@@ -108,7 +109,7 @@ export default function MainLayout() {
                     className={`p-2 rounded-full transition-colors ${
                       isScrolled
                         ? 'hover:bg-gray-100 text-gray-700'
-                        : 'hover:bg-white bg-opacity-10 text-white'
+                        : 'hover:bg-white/10 text-white'
                     }`}
                   >
                     <User className="w-5 h-5" />
@@ -142,7 +143,7 @@ export default function MainLayout() {
                   className={`hidden sm:inline-flex items-center px-4 py-2 rounded-full text-sm font-medium transition-colors ${
                     isScrolled
                       ? 'bg-navy-600 text-white hover:bg-navy-700'
-                      : 'bg-white text-navy-600 hover:bg-white bg-opacity-90'
+                      : 'bg-white text-navy-600 hover:bg-white/90'
                   }`}
                 >
                   Sign In
@@ -155,7 +156,7 @@ export default function MainLayout() {
                 className={`lg:hidden p-2 rounded-full transition-colors ${
                   isScrolled
                     ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white bg-opacity-10 text-white'
+                    : 'hover:bg-white/10 text-white'
                 }`}
               >
                 {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
@@ -198,52 +199,7 @@ export default function MainLayout() {
       </main>
 
       {/* Footer */}
-      <footer className="bg-navy-600 text-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            {/* Brand */}
-            <div className="md:col-span-1">
-              <h3 className="font-display text-xl font-bold mb-4">African Fashion</h3>
-              <p className="text-white text-sm leading-relaxed">
-                Connecting African designers and fabric sellers with customers worldwide.
-              </p>
-            </div>
-
-            {/* Quick Links */}
-            <div>
-              <h4 className="font-semibold mb-4">Shop</h4>
-              <ul className="space-y-2 text-sm text-white">
-                <li><Link to="/designs" className="hover:text-white">Designs</Link></li>
-                <li><Link to="/fabrics" className="hover:text-white">Fabrics</Link></li>
-                <li><Link to="/ready-to-wear" className="hover:text-white">Ready to Wear</Link></li>
-              </ul>
-            </div>
-
-            {/* Support */}
-            <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-sm text-white">
-                <li><Link to="/" className="hover:text-white">How It Works</Link></li>
-                <li><Link to="/" className="hover:text-white">Shipping Info</Link></li>
-                <li><Link to="/" className="hover:text-white">Returns</Link></li>
-              </ul>
-            </div>
-
-            {/* Contact */}
-            <div>
-              <h4 className="font-semibold mb-4">Contact</h4>
-              <ul className="space-y-2 text-sm text-white">
-                <li>support@africanfashion.com</li>
-                <li>+1 (555) 123-4567</li>
-              </ul>
-            </div>
-          </div>
-
-          <div className="border-t border-white border-opacity-10 mt-12 pt-8 text-center text-sm text-white">
-            © 2026 African Fashion. All rights reserved.
-          </div>
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }
