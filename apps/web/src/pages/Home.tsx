@@ -256,7 +256,7 @@ export default function Home() {
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${slide.image})` }}
             >
-              <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/40 to-transparent" />
+              <div className="absolute inset-0 bg-gradient-to-r from-black via-black to-transparent" />
             </div>
             <div className="relative h-full flex items-center">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
@@ -264,7 +264,7 @@ export default function Home() {
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4 leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="text-lg md:text-xl text-white/90 mb-8">
+                  <p className="text-lg md:text-xl text-white mb-8">
                     {slide.subtitle}
                   </p>
                   {slide.ctaText && slide.ctaLink && (
@@ -285,13 +285,13 @@ export default function Home() {
         {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full text-white transition-all"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded-full text-white transition-all"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white/20 hover:bg-white/30 backdrop-blur-sm rounded-full text-white transition-all"
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded-full text-white transition-all"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
@@ -303,7 +303,7 @@ export default function Home() {
               key={index}
               onClick={() => setCurrentSlide(index)}
               className={`w-3 h-3 rounded-full transition-all ${
-                index === currentSlide ? 'bg-white w-8' : 'bg-white/50'
+                index === currentSlide ? 'bg-white w-8' : 'bg-white bg-opacity-50'
               }`}
             />
           ))}
@@ -471,11 +471,11 @@ export default function Home() {
                   alt={country.name}
                   className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 to-transparent" />
+                <div className="absolute inset-0 bg-gradient-to-t from-black to-transparent" />
                 <div className="absolute bottom-4 left-4 text-white">
                   <span className="text-2xl">{country.flag}</span>
                   <h3 className="font-semibold mt-1">{country.name}</h3>
-                  <p className="text-xs text-white/70">{country.fabrics}</p>
+                  <p className="text-xs text-white">{country.fabrics}</p>
                 </div>
               </Link>
             ))}
@@ -488,17 +488,17 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-2xl md:text-3xl font-bold text-white">What Our Customers Say</h2>
-            <p className="text-white/70 mt-2">Join thousands of happy customers worldwide</p>
+            <p className="text-white mt-2">Join thousands of happy customers worldwide</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {testimonials.map((testimonial) => (
-              <div key={testimonial.id} className="bg-white/10 backdrop-blur-sm rounded-xl p-6">
+              <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm rounded-xl p-6">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-yellow-400 text-yellow-400" />
                   ))}
                 </div>
-                <p className="text-white/90 mb-6">"{testimonial.text}"</p>
+                <p className="text-white mb-6">"{testimonial.text}"</p>
                 <div className="flex items-center gap-3">
                   <img
                     src={testimonial.avatar}
@@ -507,7 +507,7 @@ export default function Home() {
                   />
                   <div>
                     <p className="font-semibold text-white">{testimonial.name}</p>
-                    <p className="text-sm text-white/60">{testimonial.location}</p>
+                    <p className="text-sm text-white">{testimonial.location}</p>
                   </div>
                 </div>
               </div>
@@ -522,7 +522,7 @@ export default function Home() {
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Ready to Wear African Fashion?
           </h2>
-          <p className="text-white/90 text-lg mb-8">
+          <p className="text-white text-lg mb-8">
             Join our community of fashion lovers and discover unique pieces from talented African designers
           </p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
