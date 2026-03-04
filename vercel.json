@@ -1,6 +1,6 @@
 {
-  "buildCommand": "npm install --prefix apps/web && npm run build --prefix apps/web",
+  "buildCommand": "pwd && ls -la && npm install --prefix ./apps/web && npm run build --prefix ./apps/web",
   "outputDirectory": "apps/web/dist",
-  "installCommand": "npm install",
+  "installCommand": "echo 'Skipping root install'",
   "framework": "vite"
 }
