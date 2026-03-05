@@ -86,7 +86,7 @@ router.get('/materials', async (req, res, next) => {
 // Get fabrics with filters
 router.get('/fabrics', async (req, res, next) => {
   try {
-    const { country, materialTypeId, search, page, limit } = req.query;
+    const { country, materialTypeId, sellerUserId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -95,6 +95,9 @@ router.get('/fabrics', async (req, res, next) => {
 
     if (country) {
       where.seller = { country: country as string };
+    }
+    if (sellerUserId) {
+      where.seller = { ...(where.seller || {}), userId: sellerUserId as string };
     }
 
     if (materialTypeId) {
@@ -210,7 +213,7 @@ router.get('/fabrics/:id', async (req, res, next) => {
 // Get designs with filters
 router.get('/designs', async (req, res, next) => {
   try {
-    const { categoryId, country, designerId, search, page, limit } = req.query;
+    const { categoryId, country, designerId, designerUserId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -218,8 +221,9 @@ router.get('/designs', async (req, res, next) => {
     };
 
     if (categoryId) where.categoryId = categoryId as string;
-    if (country) where.designer = { country: country as string };
+    if (country) where.designer = { ...(where.designer || {}), country: country as string };
     if (designerId) where.designerId = designerId as string;
+    if (designerUserId) where.designer = { ...(where.designer || {}), userId: designerUserId as string };
 
     if (search) {
       where.OR = [
@@ -361,7 +365,7 @@ router.get('/designs/:id', async (req, res, next) => {
 // Get ready-to-wear with filters
 router.get('/ready-to-wear', async (req, res, next) => {
   try {
-    const { categoryId, country, designerId, search, page, limit } = req.query;
+    const { categoryId, country, designerId, designerUserId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -369,8 +373,9 @@ router.get('/ready-to-wear', async (req, res, next) => {
     };
 
     if (categoryId) where.categoryId = categoryId as string;
-    if (country) where.designer = { country: country as string };
+    if (country) where.designer = { ...(where.designer || {}), country: country as string };
     if (designerId) where.designerId = designerId as string;
+    if (designerUserId) where.designer = { ...(where.designer || {}), userId: designerUserId as string };
 
     if (search) {
       where.OR = [
@@ -470,6 +475,125 @@ router.get('/ready-to-wear/:id', async (req, res, next) => {
         ...product,
         isFeatured: featuredSections.length > 0,
         featuredSections,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/vendor/:role/:userId', async (req, res, next) => {
+  try {
+    const role = String(req.params.role || '').toLowerCase();
+    const userId = String(req.params.userId || '');
+    if (!['seller', 'designer'].includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid vendor role.',
+      });
+    }
+
+    if (role === 'seller') {
+      const seller = await prisma.fabricSellerProfile.findFirst({
+        where: { userId },
+        include: {
+          user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+        },
+      });
+      if (!seller) {
+        return res.status(404).json({ success: false, message: 'Vendor not found.' });
+      }
+
+      const fabrics = await prisma.fabric.findMany({
+        where: {
+          sellerId: seller.id,
+          status: ProductStatus.APPROVED,
+          isAvailable: true,
+        },
+        include: {
+          images: { orderBy: { sortOrder: 'asc' } },
+          materialType: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+
+      return res.json({
+        success: true,
+        data: {
+          vendor: {
+            role: 'seller',
+            userId: seller.user.id,
+            profileId: seller.id,
+            businessName:
+              seller.businessName ||
+              `${seller.user.firstName || ''} ${seller.user.lastName || ''}`.trim(),
+            country: seller.country,
+            city: seller.city,
+            logo: seller.user.avatar || null,
+            bio: '',
+          },
+          products: fabrics,
+        },
+      });
+    }
+
+    const designer = await prisma.designerProfile.findFirst({
+      where: { userId },
+      include: {
+        user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
+      },
+    });
+    if (!designer) {
+      return res.status(404).json({ success: false, message: 'Vendor not found.' });
+    }
+
+    const [designs, readyToWear] = await Promise.all([
+      prisma.design.findMany({
+        where: {
+          designerId: designer.id,
+          status: ProductStatus.APPROVED,
+          isAvailable: true,
+        },
+        include: {
+          images: { orderBy: { sortOrder: 'asc' } },
+          category: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      prisma.readyToWear.findMany({
+        where: {
+          designerId: designer.id,
+          status: ProductStatus.APPROVED,
+          isAvailable: true,
+        },
+        include: {
+          images: { orderBy: { sortOrder: 'asc' } },
+          category: true,
+          sizeVariations: true,
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        vendor: {
+          role: 'designer',
+          userId: designer.user.id,
+          profileId: designer.id,
+          businessName:
+            designer.businessName ||
+            `${designer.user.firstName || ''} ${designer.user.lastName || ''}`.trim(),
+          country: designer.country,
+          city: designer.city,
+          logo: designer.user.avatar || null,
+          bio: designer.bio || '',
+        },
+        products: {
+          designs,
+          readyToWear,
+        },
       },
     });
   } catch (error) {

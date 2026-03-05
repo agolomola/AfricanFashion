@@ -9,6 +9,9 @@ const router = Router();
 router.use(authenticate);
 router.use(authorizePermissions(Permissions.SELLER_ACCESS));
 
+const FABRIC_IMAGE_MIN = 3;
+const FABRIC_IMAGE_MAX = 4;
+
 function percentageChange(currentValue: number, previousValue: number) {
   if (previousValue === 0) {
     return currentValue > 0 ? 100 : 0;
@@ -20,6 +23,33 @@ async function getSellerProfile(userId: string) {
   return prisma.fabricSellerProfile.findFirst({
     where: { userId },
   });
+}
+
+async function computeFinalFabricPrice(sellerPrice: number, country: string) {
+  let finalPrice = sellerPrice;
+  const markupRule = await prisma.pricingRule.findFirst({
+    where: {
+      ruleType: 'GLOBAL_MARKUP',
+      isActive: true,
+    },
+  });
+
+  if (markupRule && markupRule.adjustmentType === 'PERCENTAGE_MARKUP') {
+    finalPrice = sellerPrice * (1 + Number(markupRule.value) / 100);
+  }
+
+  const countryRule = await prisma.pricingRule.findFirst({
+    where: {
+      ruleType: 'COUNTRY_MARKUP',
+      country,
+      isActive: true,
+    },
+  });
+
+  if (countryRule && countryRule.adjustmentType === 'PERCENTAGE_MARKUP') {
+    finalPrice = finalPrice * (1 + Number(countryRule.value) / 100);
+  }
+  return finalPrice;
 }
 
 // Get seller dashboard
@@ -222,10 +252,15 @@ router.post('/fabrics', async (req, res, next) => {
       sellerPrice: z.number().positive(),
       minYards: z.number().min(1),
       stockYards: z.number().min(0),
-      images: z.array(z.object({
-        url: z.string().url(),
-        alt: z.string().optional(),
-      })),
+      images: z
+        .array(
+          z.object({
+            url: z.string().url(),
+            alt: z.string().optional(),
+          })
+        )
+        .min(FABRIC_IMAGE_MIN)
+        .max(FABRIC_IMAGE_MAX),
     });
 
     const data = schema.parse(req.body);
@@ -239,31 +274,7 @@ router.post('/fabrics', async (req, res, next) => {
       });
     }
 
-    // Apply global markup to get final price
-    const markupRule = await prisma.pricingRule.findFirst({
-      where: {
-        ruleType: 'GLOBAL_MARKUP',
-        isActive: true,
-      },
-    });
-
-    let finalPrice = data.sellerPrice;
-    if (markupRule && markupRule.adjustmentType === 'PERCENTAGE_MARKUP') {
-      finalPrice = data.sellerPrice * (1 + Number(markupRule.value) / 100);
-    }
-
-    // Check for country-specific markup
-    const countryRule = await prisma.pricingRule.findFirst({
-      where: {
-        ruleType: 'COUNTRY_MARKUP',
-        country: profile.country,
-        isActive: true,
-      },
-    });
-
-    if (countryRule && countryRule.adjustmentType === 'PERCENTAGE_MARKUP') {
-      finalPrice = finalPrice * (1 + Number(countryRule.value) / 100);
-    }
+    const finalPrice = await computeFinalFabricPrice(data.sellerPrice, profile.country);
 
     const fabric = await prisma.fabric.create({
       data: {
@@ -300,6 +311,93 @@ router.post('/fabrics', async (req, res, next) => {
       success: true,
       message: 'Fabric submitted for review.',
       data: fabric,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Edit owned fabric product (re-approval required on edits)
+router.patch('/fabrics/:id', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(2).optional(),
+      description: z.string().min(10).optional(),
+      materialTypeId: z.string().uuid().optional(),
+      sellerPrice: z.number().positive().optional(),
+      minYards: z.number().int().min(1).optional(),
+      stockYards: z.number().int().min(0).optional(),
+      images: z
+        .array(
+          z.object({
+            url: z.string().url(),
+            alt: z.string().optional(),
+          })
+        )
+        .min(FABRIC_IMAGE_MIN)
+        .max(FABRIC_IMAGE_MAX)
+        .optional(),
+    });
+    const payload = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getSellerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Seller profile not found.',
+      });
+    }
+
+    const existing = await prisma.fabric.findFirst({
+      where: { id, sellerId: profile.id },
+      select: { id: true, sellerPrice: true },
+    });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Fabric not found.',
+      });
+    }
+
+    const effectiveSellerPrice = payload.sellerPrice ?? Number(existing.sellerPrice);
+    const finalPrice = await computeFinalFabricPrice(effectiveSellerPrice, profile.country);
+
+    const updated = await prisma.fabric.update({
+      where: { id },
+      data: {
+        name: payload.name,
+        description: payload.description,
+        materialTypeId: payload.materialTypeId,
+        sellerPrice: payload.sellerPrice,
+        finalPrice,
+        minYards: payload.minYards,
+        stockYards: payload.stockYards,
+        status: ProductStatus.PENDING_REVIEW,
+        isAvailable: false,
+      },
+      include: {
+        materialType: true,
+        images: true,
+      },
+    });
+
+    if (payload.images) {
+      await prisma.fabricImage.deleteMany({ where: { fabricId: id } });
+      await prisma.fabricImage.createMany({
+        data: payload.images.map((img, idx) => ({
+          fabricId: id,
+          url: img.url,
+          alt: img.alt || updated.name,
+          sortOrder: idx,
+        })),
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Fabric updated and sent for re-approval.',
+      data: updated,
     });
   } catch (error) {
     next(error);

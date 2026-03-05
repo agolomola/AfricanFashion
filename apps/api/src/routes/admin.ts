@@ -24,6 +24,20 @@ function percentageChange(currentValue: number, previousValue: number) {
 
 const adminProductTypeSchema = z.nativeEnum(ProductType);
 const featuredSectionSchema = z.nativeEnum(FeaturedSection);
+const measurementTemplateSchema = z.object({
+  name: z.string().min(1),
+  unit: z.string().min(1).default('cm'),
+  isRequired: z.boolean().default(true),
+  instructions: z.string().optional().default(''),
+  minValue: z.coerce.number().optional(),
+  maxValue: z.coerce.number().optional(),
+});
+
+const productImageRules: Record<ProductType, { min: number; max: number }> = {
+  [ProductType.FABRIC]: { min: 3, max: 4 },
+  [ProductType.DESIGN]: { min: 4, max: 6 },
+  [ProductType.READY_TO_WEAR]: { min: 4, max: 6 },
+};
 
 const pricingRuleCreateSchema = z.object({
   name: z.string().min(2),
@@ -86,7 +100,7 @@ const adminProductCreateSchema = z.object({
   finalPrice: z.coerce.number().positive().optional(),
   minYards: z.coerce.number().int().min(1).optional(),
   stockYards: z.coerce.number().int().min(0).optional(),
-  image: z.string().url().optional(),
+  images: z.array(z.string().url()).optional(),
 });
 
 const adminProductUpdateSchema = z.object({
@@ -100,7 +114,7 @@ const adminProductUpdateSchema = z.object({
   finalPrice: z.coerce.number().positive().optional(),
   minYards: z.coerce.number().int().min(1).optional(),
   stockYards: z.coerce.number().int().min(0).optional(),
-  image: z.string().url().optional(),
+  images: z.array(z.string().url()).optional(),
 });
 
 const bulkModerationSchema = z.object({
@@ -137,6 +151,36 @@ const parseDateValue = (value: string | Date | null | undefined) => {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+const defaultMeasurementTemplates = [
+  { name: 'Bust', unit: 'cm', isRequired: true, instructions: '' },
+  { name: 'Waist', unit: 'cm', isRequired: true, instructions: '' },
+  { name: 'Hip', unit: 'cm', isRequired: true, instructions: '' },
+  { name: 'Shoulder Width', unit: 'cm', isRequired: true, instructions: '' },
+  { name: 'Sleeve Length', unit: 'cm', isRequired: false, instructions: '' },
+  { name: 'Garment Length', unit: 'cm', isRequired: true, instructions: '' },
+];
+
+function validateProductImageCount(type: ProductType, images: string[]) {
+  const rule = productImageRules[type];
+  if (!rule) return;
+  if (images.length < rule.min || images.length > rule.max) {
+    throw new Error(
+      `Invalid image count for ${type}. Required ${rule.min}-${rule.max} images.`
+    );
+  }
+}
+
+async function getMeasurementTemplates() {
+  const latest = await prisma.activityLog.findFirst({
+    where: { action: 'MEASUREMENT_TEMPLATES_UPDATED' },
+    orderBy: { createdAt: 'desc' },
+  });
+  const templates = Array.isArray((latest?.details as any)?.templates)
+    ? (latest?.details as any).templates
+    : defaultMeasurementTemplates;
+  return z.array(measurementTemplateSchema).parse(templates);
+}
 
 async function resolveOwnerProfileId(type: ProductType, ownerUserId: string) {
   if (type === ProductType.FABRIC) {
@@ -434,6 +478,199 @@ router.get('/dashboard', async (req, res, next) => {
         ],
         range,
         recentOrders,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/traffic-report', async (req, res, next) => {
+  try {
+    const querySchema = z.object({
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      productType: adminProductTypeSchema.optional(),
+      vendorUserId: z.string().uuid().optional(),
+      page: z.string().optional(),
+    });
+    const filters = querySchema.parse(req.query);
+
+    const where: any = {};
+    const startDate = parseDateValue(filters.startDate);
+    const endDate = parseDateValue(filters.endDate);
+    if (startDate || endDate) {
+      where.createdAt = {};
+      if (startDate) where.createdAt.gte = startDate;
+      if (endDate) where.createdAt.lte = endDate;
+    }
+
+    const orders = await prisma.order.findMany({
+      where,
+      include: {
+        designOrder: {
+          include: {
+            design: {
+              select: {
+                id: true,
+                name: true,
+                designer: { select: { userId: true, businessName: true } },
+              },
+            },
+          },
+        },
+        fabricOrder: {
+          include: {
+            fabric: {
+              select: {
+                id: true,
+                name: true,
+                seller: { select: { userId: true, businessName: true } },
+              },
+            },
+          },
+        },
+        readyToWearItems: {
+          include: {
+            readyToWear: {
+              select: {
+                id: true,
+                name: true,
+                designer: { select: { userId: true, businessName: true } },
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    type Entry = {
+      orderId: string;
+      productId: string;
+      productName: string;
+      productType: ProductType;
+      page: string;
+      vendorUserId: string;
+      vendorName: string;
+      vendorRole: 'FABRIC_SELLER' | 'FASHION_DESIGNER';
+      revenue: number;
+    };
+
+    const entries: Entry[] = [];
+    for (const order of orders) {
+      if (order.designOrder?.design?.designer?.userId) {
+        entries.push({
+          orderId: order.id,
+          productId: order.designOrder.design.id,
+          productName: order.designOrder.design.name,
+          productType: ProductType.DESIGN,
+          page: `/designs/${order.designOrder.design.id}`,
+          vendorUserId: order.designOrder.design.designer.userId,
+          vendorName: order.designOrder.design.designer.businessName || 'Designer',
+          vendorRole: 'FASHION_DESIGNER',
+          revenue: Number(order.designOrder.price || 0),
+        });
+      }
+      if (order.fabricOrder?.fabric?.seller?.userId) {
+        entries.push({
+          orderId: order.id,
+          productId: order.fabricOrder.fabric.id,
+          productName: order.fabricOrder.fabric.name,
+          productType: ProductType.FABRIC,
+          page: `/fabrics/${order.fabricOrder.fabric.id}`,
+          vendorUserId: order.fabricOrder.fabric.seller.userId,
+          vendorName: order.fabricOrder.fabric.seller.businessName || 'Fabric Seller',
+          vendorRole: 'FABRIC_SELLER',
+          revenue: Number(order.fabricOrder.totalPrice || 0),
+        });
+      }
+      for (const item of order.readyToWearItems || []) {
+        if (!item.readyToWear?.designer?.userId) continue;
+        entries.push({
+          orderId: order.id,
+          productId: item.readyToWear.id,
+          productName: item.readyToWear.name,
+          productType: ProductType.READY_TO_WEAR,
+          page: `/ready-to-wear/${item.readyToWear.id}`,
+          vendorUserId: item.readyToWear.designer.userId,
+          vendorName: item.readyToWear.designer.businessName || 'Designer',
+          vendorRole: 'FASHION_DESIGNER',
+          revenue: Number(item.price || 0) * Number(item.quantity || 1),
+        });
+      }
+    }
+
+    const filtered = entries.filter((entry) => {
+      if (filters.productType && entry.productType !== filters.productType) return false;
+      if (filters.vendorUserId && entry.vendorUserId !== filters.vendorUserId) return false;
+      if (filters.page && entry.page !== filters.page) return false;
+      return true;
+    });
+
+    const vendors = new Map<string, any>();
+    const products = new Map<string, any>();
+    const pages = new Map<string, any>();
+    const uniqueOrders = new Set<string>();
+    let totalRevenue = 0;
+
+    for (const entry of filtered) {
+      uniqueOrders.add(entry.orderId);
+      totalRevenue += entry.revenue;
+
+      const vendorKey = `${entry.vendorRole}:${entry.vendorUserId}`;
+      const vendorAgg = vendors.get(vendorKey) || {
+        vendorUserId: entry.vendorUserId,
+        vendorName: entry.vendorName,
+        vendorRole: entry.vendorRole,
+        orderCount: 0,
+        revenue: 0,
+      };
+      vendorAgg.orderCount += 1;
+      vendorAgg.revenue += entry.revenue;
+      vendors.set(vendorKey, vendorAgg);
+
+      const productKey = `${entry.productType}:${entry.productId}`;
+      const productAgg = products.get(productKey) || {
+        productId: entry.productId,
+        productName: entry.productName,
+        productType: entry.productType,
+        page: entry.page,
+        orderCount: 0,
+        revenue: 0,
+      };
+      productAgg.orderCount += 1;
+      productAgg.revenue += entry.revenue;
+      products.set(productKey, productAgg);
+
+      const pageAgg = pages.get(entry.page) || {
+        page: entry.page,
+        orderCount: 0,
+        revenue: 0,
+      };
+      pageAgg.orderCount += 1;
+      pageAgg.revenue += entry.revenue;
+      pages.set(entry.page, pageAgg);
+    }
+
+    res.json({
+      success: true,
+      data: {
+        filters: {
+          startDate: startDate?.toISOString() || null,
+          endDate: endDate?.toISOString() || null,
+          productType: filters.productType || null,
+          vendorUserId: filters.vendorUserId || null,
+          page: filters.page || null,
+        },
+        summary: {
+          totalOrders: uniqueOrders.size,
+          totalLineItems: filtered.length,
+          totalRevenue,
+        },
+        vendors: Array.from(vendors.values()).sort((a, b) => b.revenue - a.revenue),
+        products: Array.from(products.values()).sort((a, b) => b.orderCount - a.orderCount),
+        pages: Array.from(pages.values()).sort((a, b) => b.orderCount - a.orderCount),
       },
     });
   } catch (error) {
@@ -1061,6 +1298,8 @@ router.get('/products/:productType/:id', async (req, res, next) => {
 router.post('/products', async (req, res, next) => {
   try {
     const payload = adminProductCreateSchema.parse(req.body);
+    const images = payload.images || [];
+    validateProductImageCount(payload.type, images);
     const ownerProfileId = await resolveOwnerProfileId(payload.type, payload.ownerUserId);
     if (!ownerProfileId) {
       return res.status(400).json({
@@ -1088,15 +1327,13 @@ router.post('/products', async (req, res, next) => {
           stockYards: payload.stockYards ?? 0,
           status: payload.status,
           isAvailable: payload.isAvailable,
-          images: payload.image
+          images: images.length
             ? {
-                create: [
-                  {
-                    url: payload.image,
-                    alt: payload.name,
-                    sortOrder: 0,
-                  },
-                ],
+                create: images.map((url, idx) => ({
+                  url,
+                  alt: payload.name,
+                  sortOrder: idx,
+                })),
               }
             : undefined,
         },
@@ -1118,15 +1355,13 @@ router.post('/products', async (req, res, next) => {
           finalPrice: payload.finalPrice ?? payload.basePrice,
           status: payload.status,
           isAvailable: payload.isAvailable,
-          images: payload.image
+          images: images.length
             ? {
-                create: [
-                  {
-                    url: payload.image,
-                    alt: payload.name,
-                    sortOrder: 0,
-                  },
-                ],
+                create: images.map((url, idx) => ({
+                  url,
+                  alt: payload.name,
+                  sortOrder: idx,
+                })),
               }
             : undefined,
         },
@@ -1146,21 +1381,32 @@ router.post('/products', async (req, res, next) => {
         basePrice: payload.basePrice,
         status: payload.status,
         isAvailable: payload.isAvailable,
-        images: payload.image
+        images: images.length
           ? {
-              create: [
-                {
-                  url: payload.image,
-                  alt: payload.name,
-                  sortOrder: 0,
-                },
-              ],
+              create: images.map((url, idx) => ({
+                url,
+                alt: payload.name,
+                sortOrder: idx,
+              })),
             }
           : undefined,
       },
     });
     res.status(201).json({ success: true, message: 'Ready-to-wear product created.', data: created });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product payload.',
+        errors: error.issues,
+      });
+    }
+    if (error instanceof Error && error.message.startsWith('Invalid image count')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
     next(error);
   }
 });
@@ -1170,6 +1416,9 @@ router.patch('/products/:productType/:id', async (req, res, next) => {
     const productType = adminProductTypeSchema.parse(req.params.productType);
     const { id } = req.params;
     const payload = adminProductUpdateSchema.parse(req.body);
+    if (payload.images) {
+      validateProductImageCount(productType, payload.images);
+    }
 
     if (productType === ProductType.FABRIC) {
       const updated = await prisma.fabric.update({
@@ -1186,22 +1435,16 @@ router.patch('/products/:productType/:id', async (req, res, next) => {
           stockYards: payload.stockYards,
         },
       });
-      if (payload.image) {
-        const existingImage = await prisma.fabricImage.findFirst({
-          where: { fabricId: id },
-          orderBy: { sortOrder: 'asc' },
-          select: { id: true },
+      if (payload.images) {
+        await prisma.fabricImage.deleteMany({ where: { fabricId: id } });
+        await prisma.fabricImage.createMany({
+          data: payload.images.map((url, idx) => ({
+            fabricId: id,
+            url,
+            alt: payload.name || updated.name,
+            sortOrder: idx,
+          })),
         });
-        if (existingImage) {
-          await prisma.fabricImage.update({
-            where: { id: existingImage.id },
-            data: { url: payload.image, alt: payload.name },
-          });
-        } else {
-          await prisma.fabricImage.create({
-            data: { fabricId: id, url: payload.image, alt: payload.name, sortOrder: 0 },
-          });
-        }
       }
       return res.json({ success: true, message: 'Fabric updated successfully.', data: updated });
     }
@@ -1219,22 +1462,16 @@ router.patch('/products/:productType/:id', async (req, res, next) => {
           finalPrice: payload.finalPrice,
         },
       });
-      if (payload.image) {
-        const existingImage = await prisma.designImage.findFirst({
-          where: { designId: id },
-          orderBy: { sortOrder: 'asc' },
-          select: { id: true },
+      if (payload.images) {
+        await prisma.designImage.deleteMany({ where: { designId: id } });
+        await prisma.designImage.createMany({
+          data: payload.images.map((url, idx) => ({
+            designId: id,
+            url,
+            alt: payload.name || updated.name,
+            sortOrder: idx,
+          })),
         });
-        if (existingImage) {
-          await prisma.designImage.update({
-            where: { id: existingImage.id },
-            data: { url: payload.image, alt: payload.name },
-          });
-        } else {
-          await prisma.designImage.create({
-            data: { designId: id, url: payload.image, alt: payload.name, sortOrder: 0 },
-          });
-        }
       }
       return res.json({ success: true, message: 'Design updated successfully.', data: updated });
     }
@@ -1250,25 +1487,32 @@ router.patch('/products/:productType/:id', async (req, res, next) => {
         basePrice: payload.basePrice,
       },
     });
-    if (payload.image) {
-      const existingImage = await prisma.readyToWearImage.findFirst({
-        where: { readyToWearId: id },
-        orderBy: { sortOrder: 'asc' },
-        select: { id: true },
+    if (payload.images) {
+      await prisma.readyToWearImage.deleteMany({ where: { readyToWearId: id } });
+      await prisma.readyToWearImage.createMany({
+        data: payload.images.map((url, idx) => ({
+          readyToWearId: id,
+          url,
+          alt: payload.name || updated.name,
+          sortOrder: idx,
+        })),
       });
-      if (existingImage) {
-        await prisma.readyToWearImage.update({
-          where: { id: existingImage.id },
-          data: { url: payload.image, alt: payload.name },
-        });
-      } else {
-        await prisma.readyToWearImage.create({
-          data: { readyToWearId: id, url: payload.image, alt: payload.name, sortOrder: 0 },
-        });
-      }
     }
     res.json({ success: true, message: 'Ready-to-wear updated successfully.', data: updated });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid product payload.',
+        errors: error.issues,
+      });
+    }
+    if (error instanceof Error && error.message.startsWith('Invalid image count')) {
+      return res.status(400).json({
+        success: false,
+        message: error.message,
+      });
+    }
     next(error);
   }
 });
@@ -1734,6 +1978,53 @@ router.delete('/materials/:id', async (req, res, next) => {
     res.json({
       success: true,
       message: 'Material type deleted successfully.',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// ==================== MEASUREMENT TEMPLATES ====================
+
+router.get('/measurement-templates', async (req, res, next) => {
+  try {
+    const templates = await getMeasurementTemplates();
+    res.json({
+      success: true,
+      data: templates,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/measurement-templates', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      templates: z.array(measurementTemplateSchema).min(1),
+    });
+    const payload = schema.parse(req.body);
+    const templates = payload.templates.map((item) => ({
+      ...item,
+      name: item.name.trim(),
+      unit: item.unit.trim(),
+      instructions: item.instructions?.trim() || '',
+    }));
+
+    await prisma.activityLog.create({
+      data: {
+        userId: req.user!.id,
+        action: 'MEASUREMENT_TEMPLATES_UPDATED',
+        details: {
+          templates,
+        },
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Measurement templates updated successfully.',
+      data: templates,
     });
   } catch (error) {
     next(error);

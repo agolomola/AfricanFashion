@@ -114,7 +114,7 @@ const productsApi = {
   getMaterials: () =>
     apiService.get<{ success: boolean; data: any[] }>('/products/materials'),
 
-  getFabrics: async (params?: { country?: string; materialTypeId?: string; search?: string; page?: number; limit?: number }) => {
+  getFabrics: async (params?: { country?: string; materialTypeId?: string; sellerUserId?: string; search?: string; page?: number; limit?: number }) => {
     const response = await apiService.get<{ success: boolean; data: { fabrics: any[]; pagination: any } }>('/products/fabrics', { params });
     if (!response.success) {
       return response;
@@ -161,7 +161,7 @@ const productsApi = {
 
   getFabricById: (id: string) => productsApi.getFabric(id),
 
-  getDesigns: async (params?: { categoryId?: string; country?: string; search?: string; page?: number; limit?: number }) => {
+  getDesigns: async (params?: { categoryId?: string; country?: string; designerId?: string; designerUserId?: string; search?: string; page?: number; limit?: number }) => {
     const response = await apiService.get<{ success: boolean; data: { designs: any[]; pagination: any } }>('/products/designs', { params });
     if (!response.success) {
       return response;
@@ -230,7 +230,7 @@ const productsApi = {
 
   getDesignById: (id: string) => productsApi.getDesign(id),
 
-  getReadyToWear: async (params?: { categoryId?: string; country?: string; search?: string; page?: number; limit?: number }) => {
+  getReadyToWear: async (params?: { categoryId?: string; country?: string; designerId?: string; designerUserId?: string; search?: string; page?: number; limit?: number }) => {
     const response = await apiService.get<{ success: boolean; data: { products: any[]; pagination: any } }>('/products/ready-to-wear', { params });
     if (!response.success) {
       return response;
@@ -284,6 +284,9 @@ const productsApi = {
 
   getFeatured: () =>
     apiService.get<{ success: boolean; data: any }>('/products/featured'),
+
+  getVendorStore: async (role: 'seller' | 'designer', userId: string) =>
+    apiService.get<{ success: boolean; data: any }>(`/products/vendor/${role}/${userId}`),
 };
 
 // Orders API
@@ -341,6 +344,14 @@ const customerApi = {
 const adminApi = {
   getDashboard: () =>
     apiService.get<{ success: boolean; data: any }>('/admin/dashboard'),
+
+  getTrafficReport: (params?: {
+    startDate?: string;
+    endDate?: string;
+    productType?: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR';
+    vendorUserId?: string;
+    page?: string;
+  }) => apiService.get<{ success: boolean; data: any }>('/admin/traffic-report', { params }),
 
   getDashboardStats: async (range: '24h' | '7d' | '30d' | '90d' = '7d') => {
     const response = await apiService.get<{ success: boolean; data: any }>('/admin/dashboard', {
@@ -463,6 +474,12 @@ const adminApi = {
   deleteMaterial: (id: string) =>
     apiService.delete(`/admin/materials/${id}`),
 
+  getMeasurementTemplates: () =>
+    apiService.get<{ success: boolean; data: any[] }>('/admin/measurement-templates'),
+
+  updateMeasurementTemplates: (templates: any[]) =>
+    apiService.put<{ success: boolean; data: any[] }>('/admin/measurement-templates', { templates }),
+
   getPricingRules: () =>
     apiService.get<{ success: boolean; data: any[] }>('/admin/pricing-rules'),
 
@@ -500,13 +517,18 @@ const adminApi = {
   getProductDetails: async (productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR', productId: string) => {
     const response = await apiService.get<{ success: boolean; data: any }>(`/admin/products/${productType}/${productId}`);
     if (!response.success) return response;
+    const imageRows = (response.data?.images || []).map((item: any) => ({
+      ...item,
+      url: resolveAssetUrl(item?.url),
+    }));
     return {
       success: true,
       data: {
         ...response.data,
         basePrice: Number(response.data?.basePrice || 0),
         finalPrice: Number(response.data?.finalPrice || 0),
-        image: resolveAssetUrl(response.data?.images?.[0]?.url),
+        image: imageRows?.[0]?.url,
+        images: imageRows,
       },
     };
   },
@@ -652,6 +674,9 @@ const sellerApi = {
   createFabric: (data: any) =>
     apiService.post<{ success: boolean; data: any }>('/fabric-seller/fabrics', data),
 
+  updateFabric: (fabricId: string, data: any) =>
+    apiService.patch<{ success: boolean; data: any }>(`/fabric-seller/fabrics/${fabricId}`, data),
+
   getOrders: async () => {
     const response = await apiService.get<{ success: boolean; data: any[] }>('/fabric-seller/orders');
     if (!response.success) {
@@ -739,6 +764,12 @@ const designerApi = {
   createDesign: (data: any) =>
     apiService.post<{ success: boolean; data: any }>('/designer/designs', data),
 
+  updateDesign: (designId: string, data: any) =>
+    apiService.patch<{ success: boolean; data: any }>(`/designer/designs/${designId}`, data),
+
+  getMeasurementTemplates: () =>
+    apiService.get<{ success: boolean; data: any[] }>('/designer/measurement-templates'),
+
   getReadyToWear: async () => {
     const response = await apiService.get<{ success: boolean; data: any[] }>('/designer/ready-to-wear');
     if (!response.success) {
@@ -758,6 +789,12 @@ const designerApi = {
 
   createReadyToWear: (data: any) =>
     apiService.post<{ success: boolean; data: any }>('/designer/ready-to-wear', data),
+
+  updateReadyToWear: (id: string, data: any) =>
+    apiService.patch<{ success: boolean; data: any }>(`/designer/ready-to-wear/${id}`, data),
+
+  updateReadyToWearStock: (id: string, sizes: Array<{ id: string; stock: number }>) =>
+    apiService.patch<{ success: boolean; data: any }>(`/designer/ready-to-wear/${id}/stock`, { sizes }),
 
   getOrders: async () => {
     const response = await apiService.get<{ success: boolean; data: any[] }>('/designer/orders');

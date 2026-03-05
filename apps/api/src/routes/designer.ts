@@ -9,6 +9,11 @@ const router = Router();
 router.use(authenticate);
 router.use(authorizePermissions(Permissions.DESIGNER_ACCESS));
 
+const DESIGN_IMAGE_MIN = 4;
+const DESIGN_IMAGE_MAX = 6;
+const RTW_IMAGE_MIN = 4;
+const RTW_IMAGE_MAX = 6;
+
 function percentageChange(currentValue: number, previousValue: number) {
   if (previousValue === 0) {
     return currentValue > 0 ? 100 : 0;
@@ -20,6 +25,23 @@ async function getDesignerProfile(userId: string) {
   return prisma.designerProfile.findFirst({
     where: { userId },
   });
+}
+
+async function getMeasurementTemplatesForDesigner() {
+  const latest = await prisma.activityLog.findFirst({
+    where: { action: 'MEASUREMENT_TEMPLATES_UPDATED' },
+    orderBy: { createdAt: 'desc' },
+  });
+  return Array.isArray((latest?.details as any)?.templates)
+    ? (latest?.details as any).templates
+    : [
+        { name: 'Bust', unit: 'cm', isRequired: true, instructions: '' },
+        { name: 'Waist', unit: 'cm', isRequired: true, instructions: '' },
+        { name: 'Hip', unit: 'cm', isRequired: true, instructions: '' },
+        { name: 'Shoulder Width', unit: 'cm', isRequired: true, instructions: '' },
+        { name: 'Sleeve Length', unit: 'cm', isRequired: false, instructions: '' },
+        { name: 'Garment Length', unit: 'cm', isRequired: true, instructions: '' },
+      ];
 }
 
 // Get designer dashboard
@@ -228,6 +250,18 @@ router.get('/designs', async (req, res, next) => {
   }
 });
 
+router.get('/measurement-templates', async (req, res, next) => {
+  try {
+    const templates = await getMeasurementTemplatesForDesigner();
+    res.json({
+      success: true,
+      data: templates,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Create design
 router.post('/designs', async (req, res, next) => {
   try {
@@ -245,11 +279,11 @@ router.post('/designs', async (req, res, next) => {
         unit: z.string().default('cm'),
         isRequired: z.boolean().default(true),
         instructions: z.string().optional(),
-      })),
+      })).min(1),
       images: z.array(z.object({
         url: z.string().url(),
         alt: z.string().optional(),
-      })),
+      })).min(DESIGN_IMAGE_MIN).max(DESIGN_IMAGE_MAX),
     });
 
     const data = schema.parse(req.body);
@@ -327,6 +361,130 @@ router.post('/designs', async (req, res, next) => {
   }
 });
 
+router.patch('/designs/:id', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(2).optional(),
+      description: z.string().min(10).optional(),
+      categoryId: z.string().uuid().optional(),
+      basePrice: z.number().positive().optional(),
+      suitableFabricIds: z
+        .array(
+          z.object({
+            fabricId: z.string().uuid(),
+            yardsNeeded: z.number().min(1),
+          })
+        )
+        .optional(),
+      measurementVariables: z
+        .array(
+          z.object({
+            name: z.string(),
+            unit: z.string().default('cm'),
+            isRequired: z.boolean().default(true),
+            instructions: z.string().optional(),
+          })
+        )
+        .min(1)
+        .optional(),
+      images: z
+        .array(
+          z.object({
+            url: z.string().url(),
+            alt: z.string().optional(),
+          })
+        )
+        .min(DESIGN_IMAGE_MIN)
+        .max(DESIGN_IMAGE_MAX)
+        .optional(),
+    });
+    const payload = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getDesignerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Designer profile not found.',
+      });
+    }
+
+    const existing = await prisma.design.findFirst({
+      where: { id, designerId: profile.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Design not found.',
+      });
+    }
+
+    const updated = await prisma.design.update({
+      where: { id },
+      data: {
+        name: payload.name,
+        description: payload.description,
+        categoryId: payload.categoryId,
+        basePrice: payload.basePrice,
+        finalPrice: payload.basePrice,
+        status: ProductStatus.PENDING_REVIEW,
+        isAvailable: false,
+      },
+      include: {
+        category: true,
+        images: true,
+        measurementVariables: true,
+      },
+    });
+
+    if (payload.suitableFabricIds) {
+      await prisma.designFabric.deleteMany({ where: { designId: id } });
+      await prisma.designFabric.createMany({
+        data: payload.suitableFabricIds.map((row) => ({
+          designId: id,
+          fabricId: row.fabricId,
+          yardsNeeded: row.yardsNeeded,
+        })),
+      });
+    }
+
+    if (payload.measurementVariables) {
+      await prisma.designMeasurementVariable.deleteMany({ where: { designId: id } });
+      await prisma.designMeasurementVariable.createMany({
+        data: payload.measurementVariables.map((row, idx) => ({
+          designId: id,
+          name: row.name,
+          unit: row.unit || 'cm',
+          isRequired: row.isRequired ?? true,
+          instructions: row.instructions || '',
+          sortOrder: idx,
+        })),
+      });
+    }
+
+    if (payload.images) {
+      await prisma.designImage.deleteMany({ where: { designId: id } });
+      await prisma.designImage.createMany({
+        data: payload.images.map((img, idx) => ({
+          designId: id,
+          url: img.url,
+          alt: img.alt || updated.name,
+          sortOrder: idx,
+        })),
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Design updated and sent for re-approval.',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get ready-to-wear products
 router.get('/ready-to-wear', async (req, res, next) => {
   try {
@@ -371,11 +529,11 @@ router.post('/ready-to-wear', async (req, res, next) => {
         size: z.string(),
         price: z.number().positive(),
         stock: z.number().min(0),
-      })),
+      })).min(1),
       images: z.array(z.object({
         url: z.string().url(),
         alt: z.string().optional(),
-      })),
+      })).min(RTW_IMAGE_MIN).max(RTW_IMAGE_MAX),
     });
 
     const data = schema.parse(req.body);
@@ -419,6 +577,177 @@ router.post('/ready-to-wear', async (req, res, next) => {
       success: true,
       message: 'Ready-to-wear product submitted for review.',
       data: product,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/ready-to-wear/:id', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      name: z.string().min(2).optional(),
+      description: z.string().min(10).optional(),
+      categoryId: z.string().uuid().optional(),
+      basePrice: z.number().positive().optional(),
+      sizes: z
+        .array(
+          z.object({
+            size: z.string(),
+            price: z.number().positive(),
+            stock: z.number().int().min(0),
+          })
+        )
+        .min(1)
+        .optional(),
+      images: z
+        .array(
+          z.object({
+            url: z.string().url(),
+            alt: z.string().optional(),
+          })
+        )
+        .min(RTW_IMAGE_MIN)
+        .max(RTW_IMAGE_MAX)
+        .optional(),
+    });
+    const payload = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getDesignerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Designer profile not found.',
+      });
+    }
+
+    const existing = await prisma.readyToWear.findFirst({
+      where: { id, designerId: profile.id },
+      select: { id: true },
+    });
+    if (!existing) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ready-to-wear product not found.',
+      });
+    }
+
+    const updated = await prisma.readyToWear.update({
+      where: { id },
+      data: {
+        name: payload.name,
+        description: payload.description,
+        categoryId: payload.categoryId,
+        basePrice: payload.basePrice,
+        status: ProductStatus.PENDING_REVIEW,
+        isAvailable: false,
+      },
+      include: {
+        category: true,
+        images: true,
+        sizeVariations: true,
+      },
+    });
+
+    if (payload.sizes) {
+      await prisma.readyToWearSize.deleteMany({ where: { readyToWearId: id } });
+      await prisma.readyToWearSize.createMany({
+        data: payload.sizes.map((size) => ({
+          readyToWearId: id,
+          size: size.size,
+          price: size.price,
+          stock: size.stock,
+        })),
+      });
+    }
+
+    if (payload.images) {
+      await prisma.readyToWearImage.deleteMany({ where: { readyToWearId: id } });
+      await prisma.readyToWearImage.createMany({
+        data: payload.images.map((img, idx) => ({
+          readyToWearId: id,
+          url: img.url,
+          alt: img.alt || updated.name,
+          sortOrder: idx,
+        })),
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Ready-to-wear updated and sent for re-approval.',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/ready-to-wear/:id/stock', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      sizes: z.array(
+        z.object({
+          id: z.string().uuid(),
+          stock: z.number().int().min(0),
+        })
+      ),
+    });
+    const payload = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getDesignerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Designer profile not found.',
+      });
+    }
+
+    const product = await prisma.readyToWear.findFirst({
+      where: { id, designerId: profile.id },
+      select: { id: true },
+    });
+    if (!product) {
+      return res.status(404).json({
+        success: false,
+        message: 'Ready-to-wear product not found.',
+      });
+    }
+
+    const targetSizeIds = payload.sizes.map((row) => row.id);
+    const validSizeCount = await prisma.readyToWearSize.count({
+      where: {
+        id: { in: targetSizeIds },
+        readyToWearId: id,
+      },
+    });
+    if (validSizeCount !== targetSizeIds.length) {
+      return res.status(400).json({
+        success: false,
+        message: 'One or more size rows are invalid for this product.',
+      });
+    }
+
+    await prisma.$transaction(
+      payload.sizes.map((row) =>
+        prisma.readyToWearSize.update({
+          where: { id: row.id },
+          data: { stock: row.stock },
+        })
+      )
+    );
+
+    const sizes = await prisma.readyToWearSize.findMany({
+      where: { readyToWearId: id },
+      orderBy: { size: 'asc' },
+    });
+
+    res.json({
+      success: true,
+      message: 'Stock updated successfully.',
+      data: sizes,
     });
   } catch (error) {
     next(error);
