@@ -6,22 +6,56 @@ import { Permissions } from '../rbac';
 
 const router = Router();
 
+const slugify = (value: string) =>
+  value
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48);
+
+const deriveInitials = (name: string) =>
+  name
+    .split(' ')
+    .filter(Boolean)
+    .map((part) => part[0]?.toUpperCase())
+    .join('')
+    .slice(0, 3) || 'AF';
+
+const parseSocialLinks = (value?: string | null) => {
+  if (!value) return [];
+  try {
+    const parsed = JSON.parse(value);
+    if (Array.isArray(parsed)) return parsed;
+    return [];
+  } catch {
+    return [];
+  }
+};
+
+const validationError = (res: any, error: z.ZodError) =>
+  res.status(400).json({
+    success: false,
+    message: 'Validation failed',
+    errors: error.issues,
+  });
+
 const countryCreateSchema = z.object({
   name: z.string().min(1),
   flag: z.string().min(1),
   fabrics: z.string().min(1),
   image: z.string().min(1),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 const countryUpdateSchema = countryCreateSchema.partial();
 
 const howItWorksCreateSchema = z.object({
-  stepNumber: z.number().int().positive(),
+  stepNumber: z.coerce.number().int().positive(),
   title: z.string().min(1),
   subtitle: z.string().min(1),
   icon: z.string().min(1),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 const howItWorksUpdateSchema = howItWorksCreateSchema.partial();
@@ -33,7 +67,7 @@ const shopCategoryCreateSchema = z.object({
   image: z.string().min(1),
   ctaText: z.string().min(1),
   ctaLink: z.string().min(1),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 const shopCategoryUpdateSchema = shopCategoryCreateSchema.partial();
@@ -43,7 +77,7 @@ const designerSpotlightCreateSchema = z.object({
   quote: z.string().min(1),
   bio: z.string().min(1),
   image: z.string().min(1),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 const designerSpotlightUpdateSchema = designerSpotlightCreateSchema.partial();
@@ -54,7 +88,7 @@ const heritageCreateSchema = z.object({
   image: z.string().min(1),
   ctaText: z.string().optional(),
   ctaLink: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 const heritageUpdateSchema = heritageCreateSchema.partial();
@@ -65,7 +99,7 @@ const testimonialCreateSchema = z.object({
   location: z.string().min(1),
   quote: z.string().min(1),
   avatar: z.string().optional(),
-  displayOrder: z.number().int().min(0).optional(),
+  displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
 const testimonialUpdateSchema = testimonialCreateSchema.partial();
@@ -80,6 +114,115 @@ const footerCreateSchema = z.object({
   copyright: z.string().optional(),
 });
 const footerUpdateSchema = footerCreateSchema;
+
+const normalizeHowItWorksInput = (payload: any) => ({
+  ...payload,
+  subtitle: payload.subtitle ?? payload.description,
+});
+
+const normalizeCategoryInput = (payload: any) => ({
+  ...payload,
+  key: payload.key || (payload.title ? slugify(payload.title) : undefined),
+  description: payload.description ?? payload.subtitle,
+  ctaText: payload.ctaText ?? 'Shop Now',
+  ctaLink: payload.ctaLink ?? payload.link,
+});
+
+const normalizeDesignerSpotlightInput = (payload: any) => ({
+  ...payload,
+  quote: payload.quote ?? payload.headline,
+  bio: payload.bio ?? payload.description,
+});
+
+const normalizeHeritageInput = (payload: any) => ({
+  ...payload,
+  subtitle: payload.subtitle ?? payload.description,
+});
+
+const normalizeTestimonialInput = (payload: any) => ({
+  ...payload,
+  initials: payload.initials || (payload.name ? deriveInitials(payload.name) : undefined),
+  quote: payload.quote ?? payload.text,
+});
+
+const normalizeFooterInput = (payload: any) => ({
+  companyName: payload.companyName ?? payload.title,
+  tagline: payload.tagline ?? payload.column,
+  email: payload.email,
+  phone: payload.phone,
+  address: payload.address,
+  socialLinks:
+    typeof payload.socialLinks === 'string'
+      ? payload.socialLinks
+      : Array.isArray(payload.links)
+        ? JSON.stringify(payload.links)
+        : undefined,
+  copyright: payload.copyright,
+});
+
+const serializeHowItWorksStep = (step: any) => ({
+  ...step,
+  description: step.subtitle,
+});
+
+const serializeShopCategory = (category: any) => ({
+  ...category,
+  subtitle: category.description,
+  link: category.ctaLink,
+});
+
+const serializeDesignerSpotlight = (spotlight: any) => ({
+  ...spotlight,
+  headline: spotlight.quote,
+  description: spotlight.bio,
+});
+
+const serializeHeritage = (heritage: any) => ({
+  ...heritage,
+  description: heritage.subtitle,
+  stats: [],
+});
+
+const serializeTestimonial = (testimonial: any) => ({
+  ...testimonial,
+  text: testimonial.quote,
+  rating: 5,
+});
+
+const serializeFooter = (footer: any) => ({
+  ...footer,
+  column: footer?.tagline || 'company',
+  title: footer?.companyName || '',
+  links: parseSocialLinks(footer?.socialLinks),
+});
+
+const getSpotlightsWithDesigners = async (isActiveOnly = true) => {
+  const spotlights = await prisma.designerSpotlight.findMany({
+    where: isActiveOnly ? { isActive: true } : undefined,
+    orderBy: { displayOrder: 'asc' },
+  });
+
+  if (spotlights.length === 0) {
+    return [];
+  }
+
+  const designerIds = spotlights.map((spotlight) => spotlight.designerId);
+  const designers = await prisma.designerProfile.findMany({
+    where: { id: { in: designerIds } },
+    select: {
+      id: true,
+      businessName: true,
+      country: true,
+      bio: true,
+    },
+  });
+  const designersById = new Map(designers.map((designer) => [designer.id, designer]));
+
+  return spotlights.map((spotlight) => ({
+    ...serializeDesignerSpotlight(spotlight),
+    designer: designersById.get(spotlight.designerId) || null,
+  }));
+};
 
 // ==================== PUBLIC ENDPOINTS ====================
 
@@ -114,7 +257,7 @@ router.get('/how-it-works', async (req, res) => {
 
     res.json({
       success: true,
-      data: steps,
+      data: steps.map(serializeHowItWorksStep),
     });
   } catch (error) {
     console.error('Error fetching how it works steps:', error);
@@ -135,7 +278,7 @@ router.get('/categories', async (req, res) => {
 
     res.json({
       success: true,
-      data: categories,
+      data: categories.map(serializeShopCategory),
     });
   } catch (error) {
     console.error('Error fetching categories:', error);
@@ -149,10 +292,8 @@ router.get('/categories', async (req, res) => {
 // Get active designer spotlight
 router.get('/designer-spotlight', async (req, res) => {
   try {
-    const spotlight = await prisma.designerSpotlight.findFirst({
-      where: { isActive: true },
-      orderBy: { displayOrder: 'asc' },
-    });
+    const spotlights = await getSpotlightsWithDesigners(true);
+    const spotlight = spotlights[0] || null;
 
     if (!spotlight) {
       return res.json({
@@ -161,28 +302,32 @@ router.get('/designer-spotlight', async (req, res) => {
       });
     }
 
-    const designer = await prisma.designerProfile.findUnique({
-      where: { id: spotlight.designerId },
-      select: {
-        id: true,
-        businessName: true,
-        country: true,
-        bio: true,
-      },
-    });
-
     res.json({
       success: true,
-      data: {
-        ...spotlight,
-        designer,
-      },
+      data: spotlight,
     });
   } catch (error) {
     console.error('Error fetching designer spotlight:', error);
     res.status(500).json({
       success: false,
       message: 'Failed to fetch designer spotlight',
+    });
+  }
+});
+
+// Get all active designer spotlights (for rotating sections)
+router.get('/designer-spotlights', async (req, res) => {
+  try {
+    const spotlights = await getSpotlightsWithDesigners(true);
+    res.json({
+      success: true,
+      data: spotlights,
+    });
+  } catch (error) {
+    console.error('Error fetching designer spotlights:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch designer spotlights',
     });
   }
 });
@@ -197,7 +342,7 @@ router.get('/heritage', async (req, res) => {
 
     res.json({
       success: true,
-      data: heritage,
+      data: heritage ? serializeHeritage(heritage) : null,
     });
   } catch (error) {
     console.error('Error fetching heritage section:', error);
@@ -218,7 +363,7 @@ router.get('/testimonials', async (req, res) => {
 
     res.json({
       success: true,
-      data: testimonials,
+      data: testimonials.map(serializeTestimonial),
     });
   } catch (error) {
     console.error('Error fetching testimonials:', error);
@@ -236,7 +381,7 @@ router.get('/footer', async (req, res) => {
 
     res.json({
       success: true,
-      data: footer,
+      data: footer ? serializeFooter(footer) : null,
     });
   } catch (error) {
     console.error('Error fetching footer content:', error);
@@ -248,6 +393,72 @@ router.get('/footer', async (req, res) => {
 });
 
 // ==================== ADMIN ENDPOINTS ====================
+
+// Get all homepage content in one response (admin dashboard orchestration)
+router.get('/admin/frontpage', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const [
+      heroSlides,
+      featuredProducts,
+      countries,
+      howItWorks,
+      categories,
+      spotlights,
+      heritage,
+      testimonials,
+      footer,
+      banners,
+    ] = await Promise.all([
+      prisma.heroSlide.findMany({ orderBy: { displayOrder: 'asc' } }),
+      prisma.featuredProduct.findMany({ orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }] }),
+      prisma.countryMarquee.findMany({ orderBy: { displayOrder: 'asc' } }),
+      prisma.howItWorksStep.findMany({ orderBy: { stepNumber: 'asc' } }),
+      prisma.shopCategory.findMany({ orderBy: { displayOrder: 'asc' } }),
+      getSpotlightsWithDesigners(false),
+      prisma.heritageSection.findMany({ orderBy: { displayOrder: 'asc' } }),
+      prisma.testimonial.findMany({ orderBy: { displayOrder: 'asc' } }),
+      prisma.footerContent.findFirst(),
+      prisma.banner.findMany({ orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }] }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        heroSlides,
+        featuredProducts,
+        countries,
+        howItWorks: howItWorks.map(serializeHowItWorksStep),
+        categories: categories.map(serializeShopCategory),
+        designerSpotlights: spotlights,
+        heritage: heritage.map(serializeHeritage),
+        testimonials: testimonials.map(serializeTestimonial),
+        footer: footer ? serializeFooter(footer) : null,
+        banners,
+      },
+    });
+  } catch (error) {
+    console.error('Error fetching frontpage admin data:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch frontpage data' });
+  }
+});
+
+router.get('/admin/designers', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const designers = await prisma.designerProfile.findMany({
+      select: {
+        id: true,
+        businessName: true,
+        country: true,
+        isVerified: true,
+      },
+      orderBy: { businessName: 'asc' },
+    });
+    res.json({ success: true, data: designers });
+  } catch (error) {
+    console.error('Error fetching designers for spotlight:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch designers' });
+  }
+});
 
 // Country Marquee Admin
 router.get('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
@@ -267,6 +478,10 @@ router.post('/admin/countries', authenticate, authorizePermissions(Permissions.H
     const country = await prisma.countryMarquee.create({ data });
     res.status(201).json({ success: true, data: country });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating country:', error);
     res.status(500).json({ success: false, message: 'Failed to create country' });
   }
 });
@@ -280,6 +495,26 @@ router.put('/admin/countries/:id', authenticate, authorizePermissions(Permission
     });
     res.json({ success: true, data: country });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating country:', error);
+    res.status(500).json({ success: false, message: 'Failed to update country' });
+  }
+});
+router.patch('/admin/countries/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = countryUpdateSchema.parse(req.body);
+    const country = await prisma.countryMarquee.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ success: true, data: country });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching country:', error);
     res.status(500).json({ success: false, message: 'Failed to update country' });
   }
 });
@@ -299,31 +534,56 @@ router.get('/admin/how-it-works', authenticate, authorizePermissions(Permissions
     const steps = await prisma.howItWorksStep.findMany({
       orderBy: { stepNumber: 'asc' },
     });
-    res.json({ success: true, data: steps });
+    res.json({ success: true, data: steps.map(serializeHowItWorksStep) });
   } catch (error) {
+    console.error('Error fetching how-it-works:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch steps' });
   }
 });
 
 router.post('/admin/how-it-works', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = howItWorksCreateSchema.parse(req.body);
+    const data = howItWorksCreateSchema.parse(normalizeHowItWorksInput(req.body));
     const step = await prisma.howItWorksStep.create({ data });
-    res.status(201).json({ success: true, data: step });
+    res.status(201).json({ success: true, data: serializeHowItWorksStep(step) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating how-it-works step:', error);
     res.status(500).json({ success: false, message: 'Failed to create step' });
   }
 });
 
 router.put('/admin/how-it-works/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = howItWorksUpdateSchema.parse(req.body);
+    const data = howItWorksUpdateSchema.parse(normalizeHowItWorksInput(req.body));
     const step = await prisma.howItWorksStep.update({
       where: { id: req.params.id },
       data,
     });
-    res.json({ success: true, data: step });
+    res.json({ success: true, data: serializeHowItWorksStep(step) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating how-it-works step:', error);
+    res.status(500).json({ success: false, message: 'Failed to update step' });
+  }
+});
+router.patch('/admin/how-it-works/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = howItWorksUpdateSchema.parse(normalizeHowItWorksInput(req.body));
+    const step = await prisma.howItWorksStep.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ success: true, data: serializeHowItWorksStep(step) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching how-it-works step:', error);
     res.status(500).json({ success: false, message: 'Failed to update step' });
   }
 });
@@ -343,31 +603,56 @@ router.get('/admin/categories', authenticate, authorizePermissions(Permissions.H
     const categories = await prisma.shopCategory.findMany({
       orderBy: { displayOrder: 'asc' },
     });
-    res.json({ success: true, data: categories });
+    res.json({ success: true, data: categories.map(serializeShopCategory) });
   } catch (error) {
+    console.error('Error fetching categories:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch categories' });
   }
 });
 
 router.post('/admin/categories', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = shopCategoryCreateSchema.parse(req.body);
+    const data = shopCategoryCreateSchema.parse(normalizeCategoryInput(req.body));
     const category = await prisma.shopCategory.create({ data });
-    res.status(201).json({ success: true, data: category });
+    res.status(201).json({ success: true, data: serializeShopCategory(category) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating category:', error);
     res.status(500).json({ success: false, message: 'Failed to create category' });
   }
 });
 
 router.put('/admin/categories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = shopCategoryUpdateSchema.parse(req.body);
+    const data = shopCategoryUpdateSchema.parse(normalizeCategoryInput(req.body));
     const category = await prisma.shopCategory.update({
       where: { id: req.params.id },
       data,
     });
-    res.json({ success: true, data: category });
+    res.json({ success: true, data: serializeShopCategory(category) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating category:', error);
+    res.status(500).json({ success: false, message: 'Failed to update category' });
+  }
+});
+router.patch('/admin/categories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = shopCategoryUpdateSchema.parse(normalizeCategoryInput(req.body));
+    const category = await prisma.shopCategory.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ success: true, data: serializeShopCategory(category) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching category:', error);
     res.status(500).json({ success: false, message: 'Failed to update category' });
   }
 });
@@ -384,50 +669,60 @@ router.delete('/admin/categories/:id', authenticate, authorizePermissions(Permis
 // Designer Spotlight Admin
 router.get('/admin/designer-spotlight', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const spotlights = await prisma.designerSpotlight.findMany({
-      orderBy: { displayOrder: 'asc' },
-    });
-    const designerIds = spotlights.map((spotlight) => spotlight.designerId);
-    const designers = await prisma.designerProfile.findMany({
-      where: { id: { in: designerIds } },
-      select: {
-        id: true,
-        businessName: true,
-        country: true,
-      },
-    });
-
-    const designersById = new Map(designers.map((designer) => [designer.id, designer]));
-    const data = spotlights.map((spotlight) => ({
-      ...spotlight,
-      designer: designersById.get(spotlight.designerId) || null,
-    }));
-
+    const data = await getSpotlightsWithDesigners(false);
     res.json({ success: true, data });
   } catch (error) {
+    console.error('Error fetching designer spotlights:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch spotlights' });
   }
 });
 
 router.post('/admin/designer-spotlight', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = designerSpotlightCreateSchema.parse(req.body);
+    const data = designerSpotlightCreateSchema.parse(normalizeDesignerSpotlightInput(req.body));
     const spotlight = await prisma.designerSpotlight.create({ data });
-    res.status(201).json({ success: true, data: spotlight });
+    const withDesigner = (await getSpotlightsWithDesigners(false)).find((entry) => entry.id === spotlight.id);
+    res.status(201).json({ success: true, data: withDesigner || serializeDesignerSpotlight(spotlight) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating designer spotlight:', error);
     res.status(500).json({ success: false, message: 'Failed to create spotlight' });
   }
 });
 
 router.put('/admin/designer-spotlight/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = designerSpotlightUpdateSchema.parse(req.body);
+    const data = designerSpotlightUpdateSchema.parse(normalizeDesignerSpotlightInput(req.body));
     const spotlight = await prisma.designerSpotlight.update({
       where: { id: req.params.id },
       data,
     });
-    res.json({ success: true, data: spotlight });
+    const withDesigner = (await getSpotlightsWithDesigners(false)).find((entry) => entry.id === spotlight.id);
+    res.json({ success: true, data: withDesigner || serializeDesignerSpotlight(spotlight) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating designer spotlight:', error);
+    res.status(500).json({ success: false, message: 'Failed to update spotlight' });
+  }
+});
+router.patch('/admin/designer-spotlight/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = designerSpotlightUpdateSchema.parse(normalizeDesignerSpotlightInput(req.body));
+    const spotlight = await prisma.designerSpotlight.update({
+      where: { id: req.params.id },
+      data,
+    });
+    const withDesigner = (await getSpotlightsWithDesigners(false)).find((entry) => entry.id === spotlight.id);
+    res.json({ success: true, data: withDesigner || serializeDesignerSpotlight(spotlight) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching designer spotlight:', error);
     res.status(500).json({ success: false, message: 'Failed to update spotlight' });
   }
 });
@@ -447,31 +742,56 @@ router.get('/admin/heritage', authenticate, authorizePermissions(Permissions.HOM
     const heritage = await prisma.heritageSection.findMany({
       orderBy: { displayOrder: 'asc' },
     });
-    res.json({ success: true, data: heritage });
+    res.json({ success: true, data: heritage.map(serializeHeritage) });
   } catch (error) {
+    console.error('Error fetching heritage:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch heritage' });
   }
 });
 
 router.post('/admin/heritage', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = heritageCreateSchema.parse(req.body);
+    const data = heritageCreateSchema.parse(normalizeHeritageInput(req.body));
     const heritage = await prisma.heritageSection.create({ data });
-    res.status(201).json({ success: true, data: heritage });
+    res.status(201).json({ success: true, data: serializeHeritage(heritage) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating heritage:', error);
     res.status(500).json({ success: false, message: 'Failed to create heritage' });
   }
 });
 
 router.put('/admin/heritage/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = heritageUpdateSchema.parse(req.body);
+    const data = heritageUpdateSchema.parse(normalizeHeritageInput(req.body));
     const heritage = await prisma.heritageSection.update({
       where: { id: req.params.id },
       data,
     });
-    res.json({ success: true, data: heritage });
+    res.json({ success: true, data: serializeHeritage(heritage) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating heritage:', error);
+    res.status(500).json({ success: false, message: 'Failed to update heritage' });
+  }
+});
+router.patch('/admin/heritage/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = heritageUpdateSchema.parse(normalizeHeritageInput(req.body));
+    const heritage = await prisma.heritageSection.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ success: true, data: serializeHeritage(heritage) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching heritage:', error);
     res.status(500).json({ success: false, message: 'Failed to update heritage' });
   }
 });
@@ -491,31 +811,56 @@ router.get('/admin/testimonials', authenticate, authorizePermissions(Permissions
     const testimonials = await prisma.testimonial.findMany({
       orderBy: { displayOrder: 'asc' },
     });
-    res.json({ success: true, data: testimonials });
+    res.json({ success: true, data: testimonials.map(serializeTestimonial) });
   } catch (error) {
+    console.error('Error fetching testimonials:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch testimonials' });
   }
 });
 
 router.post('/admin/testimonials', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = testimonialCreateSchema.parse(req.body);
+    const data = testimonialCreateSchema.parse(normalizeTestimonialInput(req.body));
     const testimonial = await prisma.testimonial.create({ data });
-    res.status(201).json({ success: true, data: testimonial });
+    res.status(201).json({ success: true, data: serializeTestimonial(testimonial) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating testimonial:', error);
     res.status(500).json({ success: false, message: 'Failed to create testimonial' });
   }
 });
 
 router.put('/admin/testimonials/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = testimonialUpdateSchema.parse(req.body);
+    const data = testimonialUpdateSchema.parse(normalizeTestimonialInput(req.body));
     const testimonial = await prisma.testimonial.update({
       where: { id: req.params.id },
       data,
     });
-    res.json({ success: true, data: testimonial });
+    res.json({ success: true, data: serializeTestimonial(testimonial) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating testimonial:', error);
+    res.status(500).json({ success: false, message: 'Failed to update testimonial' });
+  }
+});
+router.patch('/admin/testimonials/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = testimonialUpdateSchema.parse(normalizeTestimonialInput(req.body));
+    const testimonial = await prisma.testimonial.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ success: true, data: serializeTestimonial(testimonial) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching testimonial:', error);
     res.status(500).json({ success: false, message: 'Failed to update testimonial' });
   }
 });
@@ -533,31 +878,59 @@ router.delete('/admin/testimonials/:id', authenticate, authorizePermissions(Perm
 router.get('/admin/footer', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const footer = await prisma.footerContent.findFirst();
-    res.json({ success: true, data: footer });
+    res.json({ success: true, data: footer ? serializeFooter(footer) : null });
   } catch (error) {
+    console.error('Error fetching footer:', error);
     res.status(500).json({ success: false, message: 'Failed to fetch footer' });
   }
 });
 
 router.post('/admin/footer', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = footerCreateSchema.parse(req.body);
-    const footer = await prisma.footerContent.create({ data });
-    res.status(201).json({ success: true, data: footer });
+    const data = footerCreateSchema.parse(normalizeFooterInput(req.body));
+    const existing = await prisma.footerContent.findFirst();
+    const footer = existing
+      ? await prisma.footerContent.update({ where: { id: existing.id }, data })
+      : await prisma.footerContent.create({ data });
+    res.status(existing ? 200 : 201).json({ success: true, data: serializeFooter(footer) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating footer:', error);
     res.status(500).json({ success: false, message: 'Failed to create footer' });
   }
 });
 
 router.put('/admin/footer/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = footerUpdateSchema.parse(req.body);
+    const data = footerUpdateSchema.parse(normalizeFooterInput(req.body));
     const footer = await prisma.footerContent.update({
       where: { id: req.params.id },
       data,
     });
-    res.json({ success: true, data: footer });
+    res.json({ success: true, data: serializeFooter(footer) });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating footer:', error);
+    res.status(500).json({ success: false, message: 'Failed to update footer' });
+  }
+});
+router.patch('/admin/footer/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const data = footerUpdateSchema.parse(normalizeFooterInput(req.body));
+    const footer = await prisma.footerContent.update({
+      where: { id: req.params.id },
+      data,
+    });
+    res.json({ success: true, data: serializeFooter(footer) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching footer:', error);
     res.status(500).json({ success: false, message: 'Failed to update footer' });
   }
 });

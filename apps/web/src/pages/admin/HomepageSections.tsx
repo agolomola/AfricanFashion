@@ -140,7 +140,8 @@ export default function HomepageSections() {
           break;
         case 'footer':
           const footerRes = await api.homepageSections.getAdminFooter();
-          if (footerRes.success) setFooterContents([footerRes.data]);
+          if (footerRes.success && footerRes.data) setFooterContents([footerRes.data]);
+          else setFooterContents([]);
           break;
       }
     } catch (error) {
