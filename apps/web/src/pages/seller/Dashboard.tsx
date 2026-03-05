@@ -22,6 +22,7 @@ import DataTable from '../../components/dashboard/DataTable';
 import { BarChart, LineChart } from '../../components/dashboard/SimpleChart';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface SellerStats {
   totalFabrics: number;
@@ -68,6 +69,7 @@ interface Activity {
 }
 
 export default function SellerDashboard() {
+  const toast = useToast();
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [fabrics, setFabrics] = useState<Fabric[]>([]);
   const [orders, setOrders] = useState<FabricOrder[]>([]);
@@ -98,11 +100,11 @@ export default function SellerDashboard() {
   }, []);
 
   useEffect(() => {
-    if (location.pathname === '/seller/fabrics') {
+    if (location.pathname.startsWith('/seller/fabrics')) {
       setActiveTab('fabrics');
       return;
     }
-    if (location.pathname === '/seller/orders') {
+    if (location.pathname.startsWith('/seller/orders')) {
       setActiveTab('orders');
       return;
     }
@@ -119,22 +121,37 @@ export default function SellerDashboard() {
         }
       } catch (error) {
         console.error('Failed to load material types:', error);
+        toast.error('Failed to load material types.');
       }
     })();
-  }, [showCreateModal]);
+  }, [showCreateModal, toast]);
 
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, fabricsRes, ordersRes] = await Promise.all([
+      const [statsRes, fabricsRes, ordersRes] = await Promise.allSettled([
         api.seller.getStats(),
         api.seller.getFabrics(),
         api.seller.getOrders()
       ]);
-      
-      if (statsRes.success) setStats(statsRes.data);
-      if (fabricsRes.success) setFabrics(fabricsRes.data);
-      if (ordersRes.success) setOrders(ordersRes.data);
+
+      if (statsRes.status === 'fulfilled' && statsRes.value.success) {
+        setStats(statsRes.value.data);
+      }
+      if (fabricsRes.status === 'fulfilled' && fabricsRes.value.success) {
+        setFabrics(fabricsRes.value.data);
+      }
+      if (ordersRes.status === 'fulfilled' && ordersRes.value.success) {
+        setOrders(ordersRes.value.data);
+      }
+
+      if (
+        statsRes.status === 'rejected' ||
+        fabricsRes.status === 'rejected' ||
+        ordersRes.status === 'rejected'
+      ) {
+        toast.error('Some dashboard data failed to load. Please refresh.');
+      }
       
       // Mock activities
       setActivities([
@@ -169,6 +186,7 @@ export default function SellerDashboard() {
       ]);
     } catch (error) {
       console.error('Failed to fetch dashboard data:', error);
+      toast.error('Failed to load seller dashboard.');
     } finally {
       setLoading(false);
     }
@@ -180,8 +198,10 @@ export default function SellerDashboard() {
       setShowStockModal(false);
       setSelectedFabric(null);
       fetchDashboardData();
-    } catch (error) {
+      toast.success('Stock updated successfully.');
+    } catch (error: any) {
       console.error('Failed to update stock:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update stock.');
     }
   };
 
@@ -193,8 +213,10 @@ export default function SellerDashboard() {
     try {
       await api.seller.updateOrderStatus(orderId, status, options);
       fetchDashboardData();
-    } catch (error) {
+      toast.success('Order status updated.');
+    } catch (error: any) {
       console.error('Failed to update order status:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update order status.');
     }
   };
 
@@ -279,9 +301,11 @@ export default function SellerDashboard() {
       resetCreateFabricForm();
       fetchDashboardData();
       navigateToTab('fabrics');
+      toast.success('Fabric submitted successfully.');
     } catch (error: any) {
       console.error('Failed to create fabric:', error);
       setModalError(error?.response?.data?.message || 'Failed to create fabric.');
+      toast.error(error?.response?.data?.message || 'Failed to create fabric.');
     } finally {
       setCreatingFabric(false);
     }

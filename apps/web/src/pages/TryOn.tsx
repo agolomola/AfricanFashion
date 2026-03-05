@@ -17,8 +17,11 @@ import {
 } from 'lucide-react';
 import { api } from '../services/api';
 import { useCartStore } from '../store/cartStore';
+import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { useToast } from '../components/ui/ToastProvider';
+import { getHomeRouteForRole, isCustomerRole } from '../auth/rbac';
 
 // 3D Avatar Component
 function Avatar({ measurements, garmentUrl, fabricColor }: { 
@@ -143,7 +146,9 @@ export default function TryOn() {
   const { id } = useParams<{ id: string }>;
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const { items, addItem } = useCartStore();
+  const { addItem } = useCartStore();
+  const { user } = useAuthStore();
+  const toast = useToast();
   
   const fabricId = searchParams.get('fabric');
   const [design, setDesign] = useState<any>(null);
@@ -156,6 +161,7 @@ export default function TryOn() {
   const [rotation, setRotation] = useState(0);
   const [zoom, setZoom] = useState(1);
   const canvasRef = useRef<any>(null);
+  const shoppingBlockedForRole = Boolean(user && !isCustomerRole(user.role));
 
   useEffect(() => {
     fetchData();
@@ -192,6 +198,15 @@ export default function TryOn() {
 
   const handleAddToCart = () => {
     if (!design || !fabric) return;
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    if (!isCustomerRole(user.role)) {
+      toast.error('Only customer accounts can shop. Please use a customer account.');
+      navigate(getHomeRouteForRole(user.role), { replace: true });
+      return;
+    }
     
     const cartItem = {
       designId: design.id,
@@ -472,11 +487,16 @@ export default function TryOn() {
               <Button 
                 className="w-full"
                 onClick={handleAddToCart}
-                disabled={!avatarGenerated}
+                disabled={!avatarGenerated || shoppingBlockedForRole}
               >
                 <ShoppingBag className="w-4 h-4 mr-2" />
                 Add to Cart
               </Button>
+              {shoppingBlockedForRole && (
+                <p className="text-sm text-red-600 text-center">
+                  Shopping is only available for customer accounts.
+                </p>
+              )}
               <Button 
                 variant="outline" 
                 className="w-full"

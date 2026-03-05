@@ -18,6 +18,8 @@ import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { useToast } from '../components/ui/ToastProvider';
+import { getHomeRouteForRole, isCustomerRole } from '../auth/rbac';
 
 interface Design {
   id: string;
@@ -65,6 +67,7 @@ export default function DesignDetail() {
   const navigate = useNavigate();
   const { user } = useAuthStore();
   const { addItem } = useCartStore();
+  const toast = useToast();
   
   const [design, setDesign] = useState<Design | null>(null);
   const [loading, setLoading] = useState(true);
@@ -75,6 +78,7 @@ export default function DesignDetail() {
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'fabrics' | 'measurements'>('details');
+  const shoppingBlockedForRole = Boolean(user && !isCustomerRole(user.role));
 
   useEffect(() => {
     fetchDesign();
@@ -153,6 +157,11 @@ export default function DesignDetail() {
       navigate('/login');
       return;
     }
+    if (!isCustomerRole(user.role)) {
+      toast.error('Only customer accounts can shop. Please use a customer account.');
+      navigate(getHomeRouteForRole(user.role), { replace: true });
+      return;
+    }
 
     const fabric = design?.suitableFabrics.find(sf => sf.fabric.id === selectedFabric);
     if (!fabric || !design) return;
@@ -184,6 +193,11 @@ export default function DesignDetail() {
     }
     if (!user) {
       navigate('/login');
+      return;
+    }
+    if (!isCustomerRole(user.role)) {
+      toast.error('Only customer accounts can shop. Please use a customer account.');
+      navigate(getHomeRouteForRole(user.role), { replace: true });
       return;
     }
     navigate(`/try-on/${id}?fabric=${selectedFabric}`);
@@ -509,7 +523,7 @@ export default function DesignDetail() {
                 variant="outline"
                 className="flex-1"
                 onClick={handleTryOn}
-                disabled={!selectedFabric}
+                disabled={!selectedFabric || shoppingBlockedForRole}
               >
                 <Eye className="w-4 h-4 mr-2" />
                 Virtual Try-On
@@ -517,7 +531,7 @@ export default function DesignDetail() {
               <Button
                 className="flex-1"
                 onClick={handleAddToCart}
-                disabled={!selectedFabric}
+                disabled={!selectedFabric || shoppingBlockedForRole}
               >
                 <ShoppingBag className="w-4 h-4 mr-2" />
                 Add to Cart
@@ -527,6 +541,11 @@ export default function DesignDetail() {
             {!selectedFabric && (
               <p className="text-sm text-amber-600 text-center">
                 Please select a fabric to continue
+              </p>
+            )}
+            {shoppingBlockedForRole && (
+              <p className="text-sm text-red-600 text-center">
+                Shopping is only available for customer accounts.
               </p>
             )}
           </div>

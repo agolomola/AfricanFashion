@@ -26,7 +26,7 @@ export default function Login() {
       const response = await api.auth.login(formData.email, formData.password);
       if (response.success) {
         login(response.data.user, response.data.token);
-        const homeRoute = response.data?.access?.homeRoute || getHomeRouteForRole(response.data.user.role);
+        const homeRoute = getHomeRouteForRole(response.data.user?.role) || response.data?.access?.homeRoute || '/';
         navigate(homeRoute, { replace: true });
       }
     } catch (err: any) {

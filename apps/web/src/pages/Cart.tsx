@@ -11,14 +11,33 @@ import {
   Shield
 } from 'lucide-react';
 import { useCartStore } from '../store/cartStore';
+import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { getHomeRouteForRole, isCustomerRole } from '../auth/rbac';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const { user } = useAuthStore();
   const { items, removeItem, updateItem, clearCart, totalPrice } = useCartStore();
   const [promoCode, setPromoCode] = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
+
+  if (user && !isCustomerRole(user.role)) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="max-w-lg text-center p-8 bg-white rounded-xl border shadow-sm">
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Shopping is customer-only</h2>
+          <p className="text-gray-600 mb-6">
+            Vendor, QA, and admin accounts cannot use the shopping cart. Please switch to a customer account.
+          </p>
+          <Button onClick={() => navigate(getHomeRouteForRole(user.role), { replace: true })}>
+            Go to my dashboard
+          </Button>
+        </div>
+      </div>
+    );
+  }
 
   const handleApplyPromo = () => {
     if (promoCode.trim()) {
