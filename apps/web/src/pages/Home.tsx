@@ -278,9 +278,9 @@ export default function Home() {
   });
 
   const heroSlides = heroSlidesData || defaultHeroSlides;
-  const featuredDesigns = featuredData?.FEATURED_DESIGNS || defaultFeaturedDesigns;
-  const featuredFabrics = featuredData?.FEATURED_FABRICS || defaultFabrics;
-  const featuredRTW = featuredData?.FEATURED_READY_TO_WEAR || defaultReadyToWear;
+  const featuredDesigns = Array.isArray(featuredData?.FEATURED_DESIGNS) ? featuredData.FEATURED_DESIGNS : [];
+  const featuredFabrics = Array.isArray(featuredData?.FEATURED_FABRICS) ? featuredData.FEATURED_FABRICS : [];
+  const featuredRTW = Array.isArray(featuredData?.FEATURED_READY_TO_WEAR) ? featuredData.FEATURED_READY_TO_WEAR : [];
   const fashionCountryImageMap = useMemo(() => {
     const map = new Map<string, string>();
     const candidates = [...featuredDesigns, ...featuredRTW, ...featuredFabrics];

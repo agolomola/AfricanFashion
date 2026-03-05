@@ -508,38 +508,60 @@ router.get('/countries', async (req, res, next) => {
 // Get featured products
 router.get('/featured', async (req, res, next) => {
   try {
-    const [fabrics, designs, readyToWear] = await Promise.all([
+    const [featuredRows, fabricsPool, designsPool, rtwPool] = await Promise.all([
+      prisma.featuredProduct.findMany({
+        where: { isActive: true },
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+      }),
       prisma.fabric.findMany({
         where: { status: ProductStatus.APPROVED, isAvailable: true },
-        take: 4,
         include: {
           materialType: true,
           images: { take: 1 },
           seller: { select: { country: true } },
         },
-        orderBy: { totalSold: 'desc' },
       }),
       prisma.design.findMany({
         where: { status: ProductStatus.APPROVED, isAvailable: true },
-        take: 4,
         include: {
           category: true,
           images: { take: 1 },
           designer: { select: { businessName: true, country: true } },
         },
-        orderBy: { totalOrders: 'desc' },
       }),
       prisma.readyToWear.findMany({
         where: { status: ProductStatus.APPROVED, isAvailable: true },
-        take: 4,
         include: {
           category: true,
           images: { take: 1 },
           designer: { select: { businessName: true, country: true } },
         },
-        orderBy: { totalSold: 'desc' },
       }),
     ]);
+
+    const fabricsById = new Map(fabricsPool.map((item) => [item.id, item]));
+    const designsById = new Map(designsPool.map((item) => [item.id, item]));
+    const readyToWearById = new Map(rtwPool.map((item) => [item.id, item]));
+
+    const fabrics: any[] = [];
+    const designs: any[] = [];
+    const readyToWear: any[] = [];
+
+    for (const row of featuredRows) {
+      if (row.productType === ProductType.FABRIC) {
+        const item = fabricsById.get(row.productId);
+        if (item && fabrics.length < 4) fabrics.push(item);
+      } else if (row.productType === ProductType.DESIGN) {
+        const item = designsById.get(row.productId);
+        if (item && designs.length < 4) designs.push(item);
+      } else if (row.productType === ProductType.READY_TO_WEAR) {
+        const item = readyToWearById.get(row.productId);
+        if (item && readyToWear.length < 4) readyToWear.push(item);
+      }
+      if (fabrics.length >= 4 && designs.length >= 4 && readyToWear.length >= 4) {
+        break;
+      }
+    }
 
     res.json({
       success: true,
