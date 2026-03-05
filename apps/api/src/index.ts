@@ -30,10 +30,28 @@ import paymentRoutes from './routes/payments';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
+const configuredOrigins = (process.env.FRONTEND_URL || '')
+  .split(',')
+  .map((value) => value.trim())
+  .filter(Boolean);
+const defaultAllowedOrigins = [
+  'http://localhost:5173',
+  'http://localhost:4173',
+  'https://african-fashion-web.onrender.com',
+];
+const allowedOrigins = new Set([...defaultAllowedOrigins, ...configuredOrigins]);
 
 // Middleware
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: (origin, callback) => {
+    if (!origin) {
+      return callback(null, true);
+    }
+    if (allowedOrigins.has(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('CORS origin not allowed'));
+  },
   credentials: true,
 }));
 app.use(express.json());

@@ -1,7 +1,11 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001/api';
+const defaultApiUrl =
+  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
+    ? 'https://african-fashion-api.onrender.com/api'
+    : 'http://localhost:3001/api';
+const API_URL = import.meta.env.VITE_API_URL || defaultApiUrl;
 
 // Create axios instance
 const httpClient = axios.create({
@@ -60,10 +64,10 @@ const apiService = {
 // Auth API
 const authApi = {
   login: (email: string, password: string) =>
-    apiService.post<{ success: boolean; data: { user: any; token: string } }>('/auth/login', { email, password }),
+    apiService.post<{ success: boolean; data: { user: any; token: string | null } }>('/auth/login', { email, password }),
 
   register: (data: any) =>
-    apiService.post<{ success: boolean; data: { user: any; token: string } }>('/auth/register', data),
+    apiService.post<{ success: boolean; data: { user: any; token: string | null } }>('/auth/register', data),
 
   getMe: () =>
     apiService.get<{ success: boolean; data: any }>('/auth/me'),

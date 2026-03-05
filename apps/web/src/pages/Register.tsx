@@ -54,10 +54,12 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -88,8 +90,13 @@ export default function Register() {
       });
 
       if (response.success) {
-        login(response.data.user, response.data.token);
-        navigate('/');
+        if (response.data.user?.status === 'ACTIVE' && response.data.token) {
+          login(response.data.user, response.data.token);
+          navigate('/');
+        } else {
+          setNotice('Account created successfully. Your account is pending admin approval before login.');
+          navigate('/login');
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
@@ -136,6 +143,12 @@ export default function Register() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
             {error}
+          </div>
+        )}
+
+        {notice && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 text-sm">
+            {notice}
           </div>
         )}
 
