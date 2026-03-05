@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { AdjustmentType, FeaturedSection, PricingRuleType, ProductTypeForPricing } from '@prisma/client';
 import { prisma, UserRole, UserStatus, ProductStatus, OrderStatus, ProductType } from '../db';
@@ -41,6 +42,25 @@ const pricingRuleCreateSchema = z.object({
 
 const pricingRuleUpdateSchema = pricingRuleCreateSchema.partial();
 
+const adminUserCreateSchema = z.object({
+  email: z.string().email(),
+  firstName: z.string().min(1),
+  lastName: z.string().min(1),
+  role: z.nativeEnum(UserRole),
+  status: z.nativeEnum(UserStatus).optional().default(UserStatus.ACTIVE),
+  password: z.string().min(8),
+  phone: z.string().optional(),
+});
+
+const adminUserUpdateSchema = z.object({
+  email: z.string().email().optional(),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  role: z.nativeEnum(UserRole).optional(),
+  status: z.nativeEnum(UserStatus).optional(),
+  phone: z.string().optional().nullable(),
+});
+
 const productModerationSchema = z.object({
   action: z.enum(['APPROVE', 'REJECT', 'REQUEST_CHANGES', 'SUSPEND', 'PUBLISH', 'UNPUBLISH']),
   message: z.string().trim().min(1).optional(),
@@ -51,6 +71,36 @@ const productFeaturedSchema = z.object({
   isFeatured: z.boolean(),
   section: featuredSectionSchema.optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),
+});
+
+const adminProductCreateSchema = z.object({
+  type: adminProductTypeSchema,
+  ownerUserId: z.string().uuid(),
+  name: z.string().min(2),
+  description: z.string().min(10),
+  status: z.nativeEnum(ProductStatus).optional().default(ProductStatus.PENDING_REVIEW),
+  isAvailable: z.boolean().optional().default(false),
+  materialTypeId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().optional(),
+  basePrice: z.coerce.number().positive(),
+  finalPrice: z.coerce.number().positive().optional(),
+  minYards: z.coerce.number().int().min(1).optional(),
+  stockYards: z.coerce.number().int().min(0).optional(),
+  image: z.string().url().optional(),
+});
+
+const adminProductUpdateSchema = z.object({
+  name: z.string().min(2).optional(),
+  description: z.string().min(10).optional(),
+  status: z.nativeEnum(ProductStatus).optional(),
+  isAvailable: z.boolean().optional(),
+  materialTypeId: z.string().uuid().optional(),
+  categoryId: z.string().uuid().optional(),
+  basePrice: z.coerce.number().positive().optional(),
+  finalPrice: z.coerce.number().positive().optional(),
+  minYards: z.coerce.number().int().min(1).optional(),
+  stockYards: z.coerce.number().int().min(0).optional(),
+  image: z.string().url().optional(),
 });
 
 const bulkModerationSchema = z.object({
@@ -87,6 +137,22 @@ const parseDateValue = (value: string | Date | null | undefined) => {
   const date = value instanceof Date ? value : new Date(value);
   return Number.isNaN(date.getTime()) ? null : date;
 };
+
+async function resolveOwnerProfileId(type: ProductType, ownerUserId: string) {
+  if (type === ProductType.FABRIC) {
+    const sellerProfile = await prisma.fabricSellerProfile.findFirst({
+      where: { userId: ownerUserId },
+      select: { id: true },
+    });
+    return sellerProfile?.id || null;
+  }
+
+  const designerProfile = await prisma.designerProfile.findFirst({
+    where: { userId: ownerUserId },
+    select: { id: true },
+  });
+  return designerProfile?.id || null;
+}
 
 async function getProductOwner(type: ProductType, id: string) {
   if (type === ProductType.FABRIC) {
@@ -441,6 +507,90 @@ router.get('/users', async (req, res, next) => {
   }
 });
 
+router.post('/users', async (req, res, next) => {
+  try {
+    const data = adminUserCreateSchema.parse(req.body);
+    const password = await bcrypt.hash(data.password, 10);
+
+    const user = await prisma.user.create({
+      data: {
+        email: data.email.toLowerCase().trim(),
+        firstName: data.firstName.trim(),
+        lastName: data.lastName.trim(),
+        password,
+        role: data.role,
+        status: data.status,
+        phone: data.phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully.',
+      data: user,
+    });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email already exists.',
+      });
+    }
+    next(error);
+  }
+});
+
+router.patch('/users/:id', async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const data = adminUserUpdateSchema.parse(req.body);
+
+    const updated = await prisma.user.update({
+      where: { id },
+      data: {
+        ...data,
+        email: data.email ? data.email.toLowerCase().trim() : undefined,
+        firstName: data.firstName?.trim(),
+        lastName: data.lastName?.trim(),
+        phone: data.phone === null ? null : data.phone,
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        role: true,
+        status: true,
+        createdAt: true,
+        lastLogin: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'User updated successfully.',
+      data: updated,
+    });
+  } catch (error: any) {
+    if (error?.code === 'P2002') {
+      return res.status(409).json({
+        success: false,
+        message: 'A user with this email already exists.',
+      });
+    }
+    next(error);
+  }
+});
+
 // Get pending approvals
 router.get('/users/pending', async (req, res, next) => {
   try {
@@ -656,8 +806,10 @@ router.get('/products', async (req, res, next) => {
           id: item.id,
           type: ProductType.FABRIC,
           name: item.name,
+          description: item.description,
           status: item.status,
           isAvailable: item.isAvailable,
+          materialTypeId: item.materialTypeId,
           basePrice: Number(item.sellerPrice || 0),
           finalPrice: Number(item.finalPrice || 0),
           category: item.materialType?.name || 'Material',
@@ -681,8 +833,10 @@ router.get('/products', async (req, res, next) => {
           id: item.id,
           type: ProductType.DESIGN,
           name: item.name,
+          description: item.description,
           status: item.status,
           isAvailable: item.isAvailable,
+          categoryId: item.categoryId,
           basePrice: Number(item.basePrice || 0),
           finalPrice: Number(item.finalPrice || 0),
           category: item.category?.name || 'Design',
@@ -706,8 +860,10 @@ router.get('/products', async (req, res, next) => {
           id: item.id,
           type: ProductType.READY_TO_WEAR,
           name: item.name,
+          description: item.description,
           status: item.status,
           isAvailable: item.isAvailable,
+          categoryId: item.categoryId,
           basePrice: Number(item.basePrice || 0),
           finalPrice: Number(item.basePrice || 0),
           category: item.category?.name || 'Ready To Wear',
@@ -744,6 +900,374 @@ router.get('/products', async (req, res, next) => {
         },
       },
     });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/products/:productType/:id', async (req, res, next) => {
+  try {
+    const productType = adminProductTypeSchema.parse(req.params.productType);
+    const { id } = req.params;
+
+    if (productType === ProductType.FABRIC) {
+      const product = await prisma.fabric.findUnique({
+        where: { id },
+        include: {
+          images: { orderBy: { sortOrder: 'asc' } },
+          materialType: { select: { id: true, name: true } },
+          seller: {
+            select: {
+              userId: true,
+              businessName: true,
+              country: true,
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      });
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found.' });
+      }
+      const featuredRows = await prisma.featuredProduct.findMany({
+        where: { productId: id, productType, isActive: true },
+        select: { section: true },
+      });
+      return res.json({
+        success: true,
+        data: {
+          id: product.id,
+          type: productType,
+          name: product.name,
+          description: product.description,
+          status: product.status,
+          isAvailable: product.isAvailable,
+          materialTypeId: product.materialTypeId,
+          materialTypeName: product.materialType?.name || 'Material',
+          ownerUserId: product.seller.userId,
+          ownerName:
+            product.seller.businessName ||
+            `${product.seller.user?.firstName || ''} ${product.seller.user?.lastName || ''}`.trim() ||
+            'Unknown',
+          ownerCountry: product.seller.country,
+          basePrice: Number(product.sellerPrice || 0),
+          finalPrice: Number(product.finalPrice || 0),
+          minYards: product.minYards,
+          stockYards: product.stockYards,
+          images: product.images,
+          featuredSections: featuredRows.map((row) => row.section),
+        },
+      });
+    }
+
+    if (productType === ProductType.DESIGN) {
+      const product = await prisma.design.findUnique({
+        where: { id },
+        include: {
+          images: { orderBy: { sortOrder: 'asc' } },
+          category: { select: { id: true, name: true } },
+          designer: {
+            select: {
+              userId: true,
+              businessName: true,
+              country: true,
+              user: { select: { firstName: true, lastName: true } },
+            },
+          },
+        },
+      });
+      if (!product) {
+        return res.status(404).json({ success: false, message: 'Product not found.' });
+      }
+      const featuredRows = await prisma.featuredProduct.findMany({
+        where: { productId: id, productType, isActive: true },
+        select: { section: true },
+      });
+      return res.json({
+        success: true,
+        data: {
+          id: product.id,
+          type: productType,
+          name: product.name,
+          description: product.description,
+          status: product.status,
+          isAvailable: product.isAvailable,
+          categoryId: product.categoryId,
+          categoryName: product.category?.name || 'Design',
+          ownerUserId: product.designer.userId,
+          ownerName:
+            product.designer.businessName ||
+            `${product.designer.user?.firstName || ''} ${product.designer.user?.lastName || ''}`.trim() ||
+            'Unknown',
+          ownerCountry: product.designer.country,
+          basePrice: Number(product.basePrice || 0),
+          finalPrice: Number(product.finalPrice || 0),
+          images: product.images,
+          featuredSections: featuredRows.map((row) => row.section),
+        },
+      });
+    }
+
+    const product = await prisma.readyToWear.findUnique({
+      where: { id },
+      include: {
+        images: { orderBy: { sortOrder: 'asc' } },
+        category: { select: { id: true, name: true } },
+        designer: {
+          select: {
+            userId: true,
+            businessName: true,
+            country: true,
+            user: { select: { firstName: true, lastName: true } },
+          },
+        },
+      },
+    });
+    if (!product) {
+      return res.status(404).json({ success: false, message: 'Product not found.' });
+    }
+    const featuredRows = await prisma.featuredProduct.findMany({
+      where: { productId: id, productType, isActive: true },
+      select: { section: true },
+    });
+    res.json({
+      success: true,
+      data: {
+        id: product.id,
+        type: productType,
+        name: product.name,
+        description: product.description,
+        status: product.status,
+        isAvailable: product.isAvailable,
+        categoryId: product.categoryId,
+        categoryName: product.category?.name || 'Ready To Wear',
+        ownerUserId: product.designer.userId,
+        ownerName:
+          product.designer.businessName ||
+          `${product.designer.user?.firstName || ''} ${product.designer.user?.lastName || ''}`.trim() ||
+          'Unknown',
+        ownerCountry: product.designer.country,
+        basePrice: Number(product.basePrice || 0),
+        finalPrice: Number(product.basePrice || 0),
+        images: product.images,
+        featuredSections: featuredRows.map((row) => row.section),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.post('/products', async (req, res, next) => {
+  try {
+    const payload = adminProductCreateSchema.parse(req.body);
+    const ownerProfileId = await resolveOwnerProfileId(payload.type, payload.ownerUserId);
+    if (!ownerProfileId) {
+      return res.status(400).json({
+        success: false,
+        message:
+          payload.type === ProductType.FABRIC
+            ? 'Selected owner is not a fabric seller.'
+            : 'Selected owner is not a fashion designer.',
+      });
+    }
+
+    if (payload.type === ProductType.FABRIC) {
+      if (!payload.materialTypeId) {
+        return res.status(400).json({ success: false, message: 'materialTypeId is required for fabrics.' });
+      }
+      const created = await prisma.fabric.create({
+        data: {
+          sellerId: ownerProfileId,
+          name: payload.name,
+          description: payload.description,
+          materialTypeId: payload.materialTypeId,
+          sellerPrice: payload.basePrice,
+          finalPrice: payload.finalPrice ?? payload.basePrice,
+          minYards: payload.minYards ?? 1,
+          stockYards: payload.stockYards ?? 0,
+          status: payload.status,
+          isAvailable: payload.isAvailable,
+          images: payload.image
+            ? {
+                create: [
+                  {
+                    url: payload.image,
+                    alt: payload.name,
+                    sortOrder: 0,
+                  },
+                ],
+              }
+            : undefined,
+        },
+      });
+      return res.status(201).json({ success: true, message: 'Fabric product created.', data: created });
+    }
+
+    if (payload.type === ProductType.DESIGN) {
+      if (!payload.categoryId) {
+        return res.status(400).json({ success: false, message: 'categoryId is required for designs.' });
+      }
+      const created = await prisma.design.create({
+        data: {
+          designerId: ownerProfileId,
+          name: payload.name,
+          description: payload.description,
+          categoryId: payload.categoryId,
+          basePrice: payload.basePrice,
+          finalPrice: payload.finalPrice ?? payload.basePrice,
+          status: payload.status,
+          isAvailable: payload.isAvailable,
+          images: payload.image
+            ? {
+                create: [
+                  {
+                    url: payload.image,
+                    alt: payload.name,
+                    sortOrder: 0,
+                  },
+                ],
+              }
+            : undefined,
+        },
+      });
+      return res.status(201).json({ success: true, message: 'Design product created.', data: created });
+    }
+
+    if (!payload.categoryId) {
+      return res.status(400).json({ success: false, message: 'categoryId is required for ready-to-wear.' });
+    }
+    const created = await prisma.readyToWear.create({
+      data: {
+        designerId: ownerProfileId,
+        name: payload.name,
+        description: payload.description,
+        categoryId: payload.categoryId,
+        basePrice: payload.basePrice,
+        status: payload.status,
+        isAvailable: payload.isAvailable,
+        images: payload.image
+          ? {
+              create: [
+                {
+                  url: payload.image,
+                  alt: payload.name,
+                  sortOrder: 0,
+                },
+              ],
+            }
+          : undefined,
+      },
+    });
+    res.status(201).json({ success: true, message: 'Ready-to-wear product created.', data: created });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/products/:productType/:id', async (req, res, next) => {
+  try {
+    const productType = adminProductTypeSchema.parse(req.params.productType);
+    const { id } = req.params;
+    const payload = adminProductUpdateSchema.parse(req.body);
+
+    if (productType === ProductType.FABRIC) {
+      const updated = await prisma.fabric.update({
+        where: { id },
+        data: {
+          name: payload.name,
+          description: payload.description,
+          status: payload.status,
+          isAvailable: payload.isAvailable,
+          materialTypeId: payload.materialTypeId,
+          sellerPrice: payload.basePrice,
+          finalPrice: payload.finalPrice,
+          minYards: payload.minYards,
+          stockYards: payload.stockYards,
+        },
+      });
+      if (payload.image) {
+        const existingImage = await prisma.fabricImage.findFirst({
+          where: { fabricId: id },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true },
+        });
+        if (existingImage) {
+          await prisma.fabricImage.update({
+            where: { id: existingImage.id },
+            data: { url: payload.image, alt: payload.name },
+          });
+        } else {
+          await prisma.fabricImage.create({
+            data: { fabricId: id, url: payload.image, alt: payload.name, sortOrder: 0 },
+          });
+        }
+      }
+      return res.json({ success: true, message: 'Fabric updated successfully.', data: updated });
+    }
+
+    if (productType === ProductType.DESIGN) {
+      const updated = await prisma.design.update({
+        where: { id },
+        data: {
+          name: payload.name,
+          description: payload.description,
+          status: payload.status,
+          isAvailable: payload.isAvailable,
+          categoryId: payload.categoryId,
+          basePrice: payload.basePrice,
+          finalPrice: payload.finalPrice,
+        },
+      });
+      if (payload.image) {
+        const existingImage = await prisma.designImage.findFirst({
+          where: { designId: id },
+          orderBy: { sortOrder: 'asc' },
+          select: { id: true },
+        });
+        if (existingImage) {
+          await prisma.designImage.update({
+            where: { id: existingImage.id },
+            data: { url: payload.image, alt: payload.name },
+          });
+        } else {
+          await prisma.designImage.create({
+            data: { designId: id, url: payload.image, alt: payload.name, sortOrder: 0 },
+          });
+        }
+      }
+      return res.json({ success: true, message: 'Design updated successfully.', data: updated });
+    }
+
+    const updated = await prisma.readyToWear.update({
+      where: { id },
+      data: {
+        name: payload.name,
+        description: payload.description,
+        status: payload.status,
+        isAvailable: payload.isAvailable,
+        categoryId: payload.categoryId,
+        basePrice: payload.basePrice,
+      },
+    });
+    if (payload.image) {
+      const existingImage = await prisma.readyToWearImage.findFirst({
+        where: { readyToWearId: id },
+        orderBy: { sortOrder: 'asc' },
+        select: { id: true },
+      });
+      if (existingImage) {
+        await prisma.readyToWearImage.update({
+          where: { id: existingImage.id },
+          data: { url: payload.image, alt: payload.name },
+        });
+      } else {
+        await prisma.readyToWearImage.create({
+          data: { readyToWearId: id, url: payload.image, alt: payload.name, sortOrder: 0 },
+        });
+      }
+    }
+    res.json({ success: true, message: 'Ready-to-wear updated successfully.', data: updated });
   } catch (error) {
     next(error);
   }

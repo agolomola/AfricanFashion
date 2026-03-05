@@ -417,6 +417,28 @@ const adminApi = {
   updateUserStatus: (id: string, status: string, reason?: string) =>
     apiService.patch(`/admin/users/${id}/status`, { status, reason }),
 
+  createUser: (data: {
+    email: string;
+    firstName: string;
+    lastName: string;
+    role: 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM' | 'ADMINISTRATOR';
+    status?: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
+    password: string;
+    phone?: string;
+  }) => apiService.post<{ success: boolean; data: any }>('/admin/users', data),
+
+  updateUser: (
+    id: string,
+    data: {
+      email?: string;
+      firstName?: string;
+      lastName?: string;
+      role?: 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM' | 'ADMINISTRATOR';
+      status?: 'PENDING' | 'ACTIVE' | 'SUSPENDED' | 'REJECTED';
+      phone?: string | null;
+    }
+  ) => apiService.patch<{ success: boolean; data: any }>(`/admin/users/${id}`, data),
+
   getCategories: () =>
     apiService.get<{ success: boolean; data: any[] }>('/admin/categories'),
 
@@ -474,6 +496,26 @@ const adminApi = {
       },
     };
   },
+
+  getProductDetails: async (productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR', productId: string) => {
+    const response = await apiService.get<{ success: boolean; data: any }>(`/admin/products/${productType}/${productId}`);
+    if (!response.success) return response;
+    return {
+      success: true,
+      data: {
+        ...response.data,
+        basePrice: Number(response.data?.basePrice || 0),
+        finalPrice: Number(response.data?.finalPrice || 0),
+        image: resolveAssetUrl(response.data?.images?.[0]?.url),
+      },
+    };
+  },
+
+  createProduct: (data: any) =>
+    apiService.post<{ success: boolean; data: any }>('/admin/products', data),
+
+  updateProduct: (productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR', productId: string, data: any) =>
+    apiService.patch<{ success: boolean; data: any }>(`/admin/products/${productType}/${productId}`, data),
 
   moderateProduct: (
     productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR',

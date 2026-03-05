@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Filter, Mail, Search, UserCheck, UserX, XCircle } from 'lucide-react';
+import { Edit2, Filter, Plus, Search, UserCheck, UserX, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -25,6 +25,18 @@ export default function AdminUsers() {
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState<'activate' | 'suspend' | 'reject' | null>(null);
+  const [showUserModal, setShowUserModal] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [savingUser, setSavingUser] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [userForm, setUserForm] = useState({
+    firstName: '',
+    lastName: '',
+    email: '',
+    role: 'CUSTOMER',
+    status: 'ACTIVE',
+    password: '',
+  });
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
@@ -93,6 +105,76 @@ export default function AdminUsers() {
     setShowActionModal(true);
   };
 
+  const openCreateUserModal = () => {
+    setEditingUser(null);
+    setFormError('');
+    setUserForm({
+      firstName: '',
+      lastName: '',
+      email: '',
+      role: 'CUSTOMER',
+      status: 'ACTIVE',
+      password: '',
+    });
+    setShowUserModal(true);
+  };
+
+  const openEditUserModal = (user: User) => {
+    const [firstName, ...rest] = user.fullName.split(' ');
+    setEditingUser(user);
+    setFormError('');
+    setUserForm({
+      firstName: firstName || '',
+      lastName: rest.join(' ') || '',
+      email: user.email,
+      role: user.role,
+      status: user.status,
+      password: '',
+    });
+    setShowUserModal(true);
+  };
+
+  const handleSaveUser = async () => {
+    try {
+      setSavingUser(true);
+      setFormError('');
+      if (!userForm.firstName.trim() || !userForm.lastName.trim() || !userForm.email.trim()) {
+        setFormError('Please fill first name, last name, and email.');
+        return;
+      }
+
+      if (editingUser) {
+        await api.admin.updateUser(editingUser.id, {
+          firstName: userForm.firstName.trim(),
+          lastName: userForm.lastName.trim(),
+          email: userForm.email.trim(),
+          role: userForm.role as any,
+          status: userForm.status as any,
+        });
+      } else {
+        if (!userForm.password || userForm.password.length < 8) {
+          setFormError('Password must be at least 8 characters for new users.');
+          return;
+        }
+        await api.admin.createUser({
+          firstName: userForm.firstName.trim(),
+          lastName: userForm.lastName.trim(),
+          email: userForm.email.trim(),
+          role: userForm.role as any,
+          status: userForm.status as any,
+          password: userForm.password,
+        });
+      }
+
+      setShowUserModal(false);
+      await fetchUsers();
+    } catch (error: any) {
+      setFormError(error?.response?.data?.message || 'Failed to save user.');
+    } finally {
+      setSavingUser(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -105,9 +187,9 @@ export default function AdminUsers() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">User Management</h1>
-        <Button>
-          <Mail className="w-4 h-4 mr-2" />
-          Send Bulk Email
+        <Button onClick={openCreateUserModal}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add User
         </Button>
       </div>
 
@@ -216,6 +298,13 @@ export default function AdminUsers() {
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => openEditUserModal(user)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Edit user"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                       {user.status !== 'ACTIVE' && (
                         <button
                           onClick={() => openActionModal(user, 'activate')}
@@ -229,7 +318,7 @@ export default function AdminUsers() {
                         <button
                           onClick={() => openActionModal(user, 'suspend')}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Suspend"
+                          title="Suspend/Inactivate"
                         >
                           <UserX className="w-4 h-4" />
                         </button>
@@ -314,6 +403,79 @@ export default function AdminUsers() {
                 {actionType === 'suspend' && <UserX className="w-4 h-4 mr-2" />}
                 {actionType === 'reject' && <XCircle className="w-4 h-4 mr-2" />}
                 Confirm
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showUserModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full p-6 space-y-4">
+            <h3 className="text-xl font-bold">{editingUser ? 'Edit User' : 'Add User'}</h3>
+            {formError && (
+              <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+                {formError}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={userForm.firstName}
+                onChange={(e) => setUserForm({ ...userForm, firstName: e.target.value })}
+                placeholder="First name"
+                className="px-3 py-2 border rounded-lg"
+              />
+              <input
+                value={userForm.lastName}
+                onChange={(e) => setUserForm({ ...userForm, lastName: e.target.value })}
+                placeholder="Last name"
+                className="px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <input
+              value={userForm.email}
+              onChange={(e) => setUserForm({ ...userForm, email: e.target.value })}
+              placeholder="Email"
+              className="w-full px-3 py-2 border rounded-lg"
+            />
+            {!editingUser && (
+              <input
+                type="password"
+                value={userForm.password}
+                onChange={(e) => setUserForm({ ...userForm, password: e.target.value })}
+                placeholder="Password (min 8 chars)"
+                className="w-full px-3 py-2 border rounded-lg"
+              />
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={userForm.role}
+                onChange={(e) => setUserForm({ ...userForm, role: e.target.value })}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="CUSTOMER">Customer</option>
+                <option value="FABRIC_SELLER">Fabric Seller</option>
+                <option value="FASHION_DESIGNER">Designer</option>
+                <option value="QA_TEAM">QA Team</option>
+                <option value="ADMINISTRATOR">Administrator</option>
+              </select>
+              <select
+                value={userForm.status}
+                onChange={(e) => setUserForm({ ...userForm, status: e.target.value })}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="ACTIVE">Active</option>
+                <option value="SUSPENDED">Suspended / Inactive</option>
+                <option value="PENDING">Pending</option>
+                <option value="REJECTED">Rejected</option>
+              </select>
+            </div>
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowUserModal(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleSaveUser} disabled={savingUser}>
+                {savingUser ? 'Saving...' : editingUser ? 'Update User' : 'Create User'}
               </Button>
             </div>
           </div>

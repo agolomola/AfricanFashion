@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { CheckCircle, Filter, Package, Scissors, Search, Star, XCircle } from 'lucide-react';
+import { CheckCircle, Edit2, Filter, Package, Scissors, Search, Star, Upload, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -11,8 +11,12 @@ interface Product {
   id: string;
   type: ProductType;
   name: string;
+  description?: string;
   status: 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
   isAvailable: boolean;
+  ownerUserId?: string;
+  materialTypeId?: string;
+  categoryId?: string;
   basePrice: number;
   finalPrice: number;
   ownerName: string;
@@ -24,6 +28,42 @@ interface Product {
   featuredSections: string[];
   createdAt: string;
 }
+
+interface ProductFormState {
+  type: ProductType;
+  ownerUserId: string;
+  name: string;
+  description: string;
+  status: Product['status'];
+  isAvailable: boolean;
+  materialTypeId: string;
+  categoryId: string;
+  basePrice: number;
+  finalPrice: number;
+  minYards: number;
+  stockYards: number;
+  image: string;
+  isFeatured: boolean;
+  featuredSection: string;
+}
+
+const EMPTY_FORM: ProductFormState = {
+  type: 'FABRIC',
+  ownerUserId: '',
+  name: '',
+  description: '',
+  status: 'PENDING_REVIEW',
+  isAvailable: false,
+  materialTypeId: '',
+  categoryId: '',
+  basePrice: 0,
+  finalPrice: 0,
+  minYards: 1,
+  stockYards: 0,
+  image: '',
+  isFeatured: false,
+  featuredSection: '',
+};
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -39,6 +79,16 @@ export default function AdminProducts() {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [bulkAction, setBulkAction] = useState<ModerationAction>('REQUEST_CHANGES');
   const [submitting, setSubmitting] = useState(false);
+  const [showProductModal, setShowProductModal] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [savingProduct, setSavingProduct] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [productForm, setProductForm] = useState<ProductFormState>(EMPTY_FORM);
+  const [formError, setFormError] = useState('');
+  const [materials, setMaterials] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [sellerUsers, setSellerUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
+  const [designerUsers, setDesignerUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
 
   useEffect(() => {
     void fetchProducts();
@@ -77,6 +127,138 @@ export default function AdminProducts() {
     }
   };
 
+  const loadProductFormOptions = async () => {
+    try {
+      const [materialsRes, categoriesRes, sellerUsersRes, designerUsersRes] = await Promise.all([
+        api.admin.getMaterials(),
+        api.admin.getCategories(),
+        api.admin.getUsers({ role: 'FABRIC_SELLER', limit: 100 }),
+        api.admin.getUsers({ role: 'FASHION_DESIGNER', limit: 100 }),
+      ]);
+      if (materialsRes.success) setMaterials(materialsRes.data || []);
+      if (categoriesRes.success) setCategories(categoriesRes.data || []);
+      if (sellerUsersRes.success) setSellerUsers(sellerUsersRes.data.users || []);
+      if (designerUsersRes.success) setDesignerUsers(designerUsersRes.data.users || []);
+    } catch (error) {
+      console.error('Failed to load product form options:', error);
+    }
+  };
+
+  const openCreateProductModal = async () => {
+    await loadProductFormOptions();
+    setEditingProduct(null);
+    setProductForm(EMPTY_FORM);
+    setFormError('');
+    setShowProductModal(true);
+  };
+
+  const openEditProductModal = async (product: Product) => {
+    await loadProductFormOptions();
+    try {
+      setSubmitting(true);
+      const details = await api.admin.getProductDetails(product.type, product.id);
+      if (details.success) {
+        setEditingProduct(product);
+        setProductForm({
+          type: details.data.type,
+          ownerUserId: details.data.ownerUserId || '',
+          name: details.data.name || '',
+          description: details.data.description || '',
+          status: details.data.status || 'PENDING_REVIEW',
+          isAvailable: Boolean(details.data.isAvailable),
+          materialTypeId: details.data.materialTypeId || '',
+          categoryId: details.data.categoryId || '',
+          basePrice: Number(details.data.basePrice || 0),
+          finalPrice: Number(details.data.finalPrice || 0),
+          minYards: Number(details.data.minYards || 1),
+          stockYards: Number(details.data.stockYards || 0),
+          image: details.data.image || '',
+          isFeatured: (details.data.featuredSections || []).length > 0,
+          featuredSection: details.data.featuredSections?.[0] || '',
+        });
+        setFormError('');
+        setShowProductModal(true);
+      }
+    } catch (error) {
+      console.error('Failed to load product details:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const uploadProductImage = async (file: File) => {
+    try {
+      setUploadingImage(true);
+      const data = new FormData();
+      data.append('image', file);
+      const response = await api.upload.image(data);
+      if (response.success) {
+        setProductForm((prev) => ({ ...prev, image: response.data.url }));
+      }
+    } catch (error) {
+      console.error('Failed to upload image:', error);
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
+  const saveProduct = async () => {
+    try {
+      setSavingProduct(true);
+      setFormError('');
+      if (!productForm.name || !productForm.description || !productForm.ownerUserId) {
+        setFormError('Please fill owner, name, and description.');
+        return;
+      }
+      if (productForm.type === 'FABRIC' && !productForm.materialTypeId) {
+        setFormError('Please select a material type for fabric.');
+        return;
+      }
+      if (productForm.type !== 'FABRIC' && !productForm.categoryId) {
+        setFormError('Please select a category.');
+        return;
+      }
+
+      const payload = {
+        type: productForm.type,
+        ownerUserId: productForm.ownerUserId,
+        name: productForm.name.trim(),
+        description: productForm.description.trim(),
+        status: productForm.status,
+        isAvailable: productForm.isAvailable,
+        materialTypeId: productForm.type === 'FABRIC' ? productForm.materialTypeId : undefined,
+        categoryId: productForm.type !== 'FABRIC' ? productForm.categoryId : undefined,
+        basePrice: Number(productForm.basePrice || 0),
+        finalPrice: Number(productForm.finalPrice || productForm.basePrice || 0),
+        minYards: productForm.type === 'FABRIC' ? Number(productForm.minYards || 1) : undefined,
+        stockYards: productForm.type === 'FABRIC' ? Number(productForm.stockYards || 0) : undefined,
+        image: productForm.image || undefined,
+      };
+
+      let productId = editingProduct?.id;
+      if (editingProduct) {
+        await api.admin.updateProduct(editingProduct.type, editingProduct.id, payload);
+      } else {
+        const created = await api.admin.createProduct(payload);
+        productId = created?.data?.id;
+      }
+
+      if (productId) {
+        await api.admin.setProductFeatured(productForm.type, productId, {
+          isFeatured: productForm.isFeatured,
+          section: productForm.featuredSection || undefined,
+        });
+      }
+
+      setShowProductModal(false);
+      await fetchProducts();
+    } catch (error: any) {
+      setFormError(error?.response?.data?.message || 'Failed to save product.');
+    } finally {
+      setSavingProduct(false);
+    }
+  };
+
   const moderateProduct = async (product: Product, action: ModerationAction) => {
     try {
       setSubmitting(true);
@@ -97,20 +279,6 @@ export default function AdminProducts() {
       await fetchProducts();
     } catch (error) {
       console.error('Failed to moderate product:', error);
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const toggleFeatured = async (product: Product) => {
-    try {
-      setSubmitting(true);
-      await api.admin.setProductFeatured(product.type, product.id, {
-        isFeatured: !product.isFeatured,
-      });
-      await fetchProducts();
-    } catch (error) {
-      console.error('Failed to toggle featured status:', error);
     } finally {
       setSubmitting(false);
     }
@@ -183,7 +351,12 @@ export default function AdminProducts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
-        <div className="text-sm text-gray-500">Total products: {pagination.total}</div>
+        <div className="flex items-center gap-3">
+          <div className="text-sm text-gray-500">Total products: {pagination.total}</div>
+          <Button onClick={openCreateProductModal}>
+            Add Product
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -293,7 +466,6 @@ export default function AdminProducts() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Price</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Seller/Designer</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Featured</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Orders</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Actions</th>
               </tr>
@@ -347,19 +519,17 @@ export default function AdminProducts() {
                     <div>{product.ownerName}</div>
                     <div className="text-xs text-gray-400">{product.ownerCountry || '-'}</div>
                   </td>
-                  <td className="py-3 px-4">
-                    <button
-                      onClick={() => toggleFeatured(product)}
-                      className={`p-2 rounded-lg ${product.isFeatured ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:bg-gray-100'}`}
-                      title={product.isFeatured ? 'Remove from featured' : 'Add to featured'}
-                      disabled={submitting}
-                    >
-                      <Star className={`w-4 h-4 ${product.isFeatured ? 'fill-current' : ''}`} />
-                    </button>
-                  </td>
                   <td className="py-3 px-4 text-gray-600">{product.orderCount}</td>
                   <td className="py-3 px-4">
                     <div className="flex gap-2">
+                      <button
+                        onClick={() => openEditProductModal(product)}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Product details"
+                        disabled={submitting}
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => moderateProduct(product, 'APPROVE')}
                         className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
@@ -397,7 +567,7 @@ export default function AdminProducts() {
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={9} className="py-8 text-center text-gray-500">
+                  <td colSpan={8} className="py-8 text-center text-gray-500">
                     No products found.
                   </td>
                 </tr>
@@ -436,6 +606,202 @@ export default function AdminProducts() {
           </div>
         </div>
       </div>
+
+      {showProductModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-3xl w-full p-6 space-y-4 max-h-[90vh] overflow-auto">
+            <h3 className="text-xl font-bold">{editingProduct ? 'Product Details / Edit' : 'Add Product'}</h3>
+            {formError && (
+              <div className="p-3 rounded-lg border border-red-200 bg-red-50 text-red-700 text-sm">
+                {formError}
+              </div>
+            )}
+            <div className="grid grid-cols-2 gap-3">
+              <select
+                value={productForm.type}
+                disabled={Boolean(editingProduct)}
+                onChange={(e) => setProductForm({ ...productForm, type: e.target.value as ProductType })}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="FABRIC">Fabric</option>
+                <option value="DESIGN">Design</option>
+                <option value="READY_TO_WEAR">Ready To Wear</option>
+              </select>
+              <select
+                value={productForm.ownerUserId}
+                onChange={(e) => setProductForm({ ...productForm, ownerUserId: e.target.value })}
+                className="px-3 py-2 border rounded-lg"
+                disabled={Boolean(editingProduct)}
+              >
+                <option value="">Select Owner</option>
+                {(productForm.type === 'FABRIC' ? sellerUsers : designerUsers).map((user) => (
+                  <option key={user.id} value={user.id}>
+                    {`${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                value={productForm.name}
+                onChange={(e) => setProductForm({ ...productForm, name: e.target.value })}
+                placeholder="Product name"
+                className="px-3 py-2 border rounded-lg"
+              />
+              <input
+                value={productForm.image}
+                onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
+                placeholder="Image URL"
+                className="px-3 py-2 border rounded-lg"
+              />
+            </div>
+            <textarea
+              value={productForm.description}
+              onChange={(e) => setProductForm({ ...productForm, description: e.target.value })}
+              placeholder="Description"
+              className="w-full px-3 py-2 border rounded-lg h-24"
+            />
+
+            <div className="flex items-center gap-3">
+              <label className="px-3 py-2 border rounded-lg cursor-pointer hover:bg-gray-50 inline-flex items-center gap-2">
+                <Upload className="w-4 h-4" />
+                {uploadingImage ? 'Uploading...' : 'Upload Image'}
+                <input
+                  type="file"
+                  className="hidden"
+                  accept="image/*"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) void uploadProductImage(file);
+                  }}
+                />
+              </label>
+              {productForm.image && (
+                <img src={productForm.image} alt="Preview" className="h-14 w-14 object-cover rounded-md border" />
+              )}
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              {productForm.type === 'FABRIC' ? (
+                <select
+                  value={productForm.materialTypeId}
+                  onChange={(e) => setProductForm({ ...productForm, materialTypeId: e.target.value })}
+                  className="px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Select Material Type</option>
+                  {materials.map((material) => (
+                    <option key={material.id} value={material.id}>{material.name}</option>
+                  ))}
+                </select>
+              ) : (
+                <select
+                  value={productForm.categoryId}
+                  onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
+                  className="px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Select Category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>{category.name}</option>
+                  ))}
+                </select>
+              )}
+              <select
+                value={productForm.status}
+                onChange={(e) => setProductForm({ ...productForm, status: e.target.value as Product['status'] })}
+                className="px-3 py-2 border rounded-lg"
+              >
+                <option value="DRAFT">Draft</option>
+                <option value="PENDING_REVIEW">Pending Review</option>
+                <option value="APPROVED">Approved</option>
+                <option value="REJECTED">Rejected</option>
+                <option value="ARCHIVED">Archived</option>
+              </select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <input
+                type="number"
+                value={productForm.basePrice}
+                onChange={(e) => setProductForm({ ...productForm, basePrice: Number(e.target.value) })}
+                placeholder="Base price"
+                className="px-3 py-2 border rounded-lg"
+              />
+              <input
+                type="number"
+                value={productForm.finalPrice}
+                onChange={(e) => setProductForm({ ...productForm, finalPrice: Number(e.target.value) })}
+                placeholder="Final price"
+                className="px-3 py-2 border rounded-lg"
+              />
+            </div>
+
+            {productForm.type === 'FABRIC' && (
+              <div className="grid grid-cols-2 gap-3">
+                <input
+                  type="number"
+                  value={productForm.minYards}
+                  onChange={(e) => setProductForm({ ...productForm, minYards: Number(e.target.value) })}
+                  placeholder="Min yards"
+                  className="px-3 py-2 border rounded-lg"
+                />
+                <input
+                  type="number"
+                  value={productForm.stockYards}
+                  onChange={(e) => setProductForm({ ...productForm, stockYards: Number(e.target.value) })}
+                  placeholder="Stock yards"
+                  className="px-3 py-2 border rounded-lg"
+                />
+              </div>
+            )}
+
+            <div className="border rounded-lg p-3 space-y-3">
+              <p className="text-sm font-semibold text-gray-800">Admin-only product controls</p>
+              <label className="inline-flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={productForm.isAvailable}
+                  onChange={(e) => setProductForm({ ...productForm, isAvailable: e.target.checked })}
+                />
+                Publish product
+              </label>
+              <label className="inline-flex items-center gap-2 text-sm ml-4">
+                <input
+                  type="checkbox"
+                  checked={productForm.isFeatured}
+                  onChange={(e) => setProductForm({ ...productForm, isFeatured: e.target.checked })}
+                />
+                <span className="inline-flex items-center gap-1">
+                  <Star className={`w-4 h-4 ${productForm.isFeatured ? 'text-amber-500 fill-current' : 'text-gray-400'}`} />
+                  Mark as featured
+                </span>
+              </label>
+              {productForm.isFeatured && (
+                <select
+                  value={productForm.featuredSection}
+                  onChange={(e) => setProductForm({ ...productForm, featuredSection: e.target.value })}
+                  className="px-3 py-2 border rounded-lg w-full"
+                >
+                  <option value="">Auto section</option>
+                  <option value="FEATURED_DESIGNS">Featured Designs</option>
+                  <option value="FEATURED_FABRICS">Featured Fabrics</option>
+                  <option value="FEATURED_READY_TO_WEAR">Featured Ready to Wear</option>
+                  <option value="TRENDING_NOW">Trending Now</option>
+                  <option value="NEW_ARRIVALS">New Arrivals</option>
+                </select>
+              )}
+            </div>
+
+            <div className="flex gap-3">
+              <Button variant="outline" className="flex-1" onClick={() => setShowProductModal(false)}>
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={saveProduct} disabled={savingProduct}>
+                {savingProduct ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create Product'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
