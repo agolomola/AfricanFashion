@@ -42,6 +42,13 @@ Repository-level defaults are configured for cloud usage:
 - Node version via `.nvmrc` (20, satisfies Node 18+ requirement)
 - npm cache in workspace via `.npmrc` (`.npm-cache`)
 
+## 🔐 RBAC (Role-Based Access Control)
+
+Access control source of truth:
+- Backend permission matrix: `apps/api/src/rbac.ts`
+- Backend enforcement middleware: `apps/api/src/middleware/auth.ts` (`authorizePermissions`)
+- Frontend role routing helpers: `apps/web/src/auth/rbac.ts`
+
 ## 📁 Project Structure
 
 ```
