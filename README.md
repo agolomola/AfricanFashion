@@ -30,6 +30,25 @@ A full-stack eCommerce platform connecting African fashion designers, fabric sel
 
 [![Deploy on Railway](https://railway.app/button.svg)](https://railway.app/template/your-template)
 
+## 🤖 Cloud Agent Environment Setup
+
+To prepare cloud agents quickly (install dependencies in both apps and generate Prisma client), run:
+
+```bash
+npm run setup:cloud
+```
+
+Repository-level defaults are configured for cloud usage:
+- Node version via `.nvmrc` (20, satisfies Node 18+ requirement)
+- npm cache in workspace via `.npmrc` (`.npm-cache`)
+
+## 🔐 RBAC (Role-Based Access Control)
+
+Access control source of truth:
+- Backend permission matrix: `apps/api/src/rbac.ts`
+- Backend enforcement middleware: `apps/api/src/middleware/auth.ts` (`authorizePermissions`)
+- Frontend role routing helpers: `apps/web/src/auth/rbac.ts`
+
 ## 📁 Project Structure
 
 ```

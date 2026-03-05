@@ -108,7 +108,7 @@ export default function CustomerDashboard() {
         setWishlist(statsRes.data.wishlist || []);
       }
       if (ordersRes.success) {
-        setOrders(ordersRes.data);
+        setOrders(ordersRes.data.orders || []);
       }
       
       // Mock activities

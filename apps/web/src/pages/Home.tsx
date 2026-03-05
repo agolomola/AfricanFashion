@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, MousePointer2, Box, CreditCard, CheckCircle, Truck } from 'lucide-react';
-import { api } from '../services/api';
+import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, Search, Eye, CreditCard, CheckCircle, Truck } from 'lucide-react';
+import { api, resolveAssetUrl } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 
 // Default countries as fallback
@@ -18,12 +18,12 @@ const defaultCountries = [
 
 // How It Works steps
 const howItWorksSteps = [
-  { icon: MousePointer2, title: 'SELECT YOUR', subtitle: 'DESIGN' },
-  { icon: Box, title: '3D-TRYON', subtitle: 'VIRTUALLY' },
-  { icon: Heart, title: 'CHOOSE YOUR', subtitle: 'FABRIC' },
-  { icon: CreditCard, title: 'PAY', subtitle: 'SECURELY' },
-  { icon: CheckCircle, title: 'QUALITY', subtitle: 'CHECK' },
-  { icon: Truck, title: 'FAST', subtitle: 'DELIVERY' },
+  { icon: Search, title: 'Discover Your Style', subtitle: 'Browse curated designs from top African creators.' },
+  { icon: Eye, title: 'Preview Virtually', subtitle: 'Use virtual preview to visualize your look before checkout.' },
+  { icon: Heart, title: 'Select Your Fabric', subtitle: 'Choose premium textiles that match your design perfectly.' },
+  { icon: CreditCard, title: 'Pay Securely', subtitle: 'Checkout safely with trusted payment options.' },
+  { icon: CheckCircle, title: 'Quality Assured', subtitle: 'Every order is reviewed by QA before shipment.' },
+  { icon: Truck, title: 'Delivered to You', subtitle: 'Track your order and receive it at your doorstep.' },
 ];
 
 // Shop by Category
@@ -76,13 +76,13 @@ const defaultTestimonials = [
   },
 ];
 
-// Designer Spotlight
-const designerSpotlight = {
-  name: 'Amara Okafor',
-  quote: 'I design for the woman who wants to feel rooted and free at the same time. Every piece tells a story of heritage and modernity.',
-  description: 'Amara blends traditional African prints with modern silhouettes.',
-  image: '/images/designer-spotlight.jpg',
-};
+interface SpotlightDesigner {
+  id: string;
+  name: string;
+  country: string;
+  image: string;
+  bio: string;
+}
 
 interface HeroSlide {
   id: string;
@@ -158,6 +158,76 @@ const defaultFabrics: FeaturedProduct[] = [
   { id: 'f4', name: 'Kitenge Wax Print', description: '', price: 30, image: '/images/fabric-4.jpg', designer: 'Kenya Fabrics', country: 'Kenya', productType: 'FABRIC', badge: 'SALE' },
 ];
 
+const defaultSpotlightDesigners: SpotlightDesigner[] = [
+  {
+    id: 'spotlight-amara-okafor',
+    name: 'Amara Okafor',
+    country: 'Nigeria',
+    image: '/images/designer-spotlight.jpg',
+    bio: 'Modern silhouettes crafted with bold Ankara storytelling.',
+  },
+  {
+    id: 'spotlight-esi-boateng',
+    name: 'Esi Boateng',
+    country: 'Ghana',
+    image: '/images/design-1.jpg',
+    bio: 'Elegant occasion wear inspired by Kente heritage.',
+  },
+  {
+    id: 'spotlight-nia-kimani',
+    name: 'Nia Kimani',
+    country: 'Kenya',
+    image: '/images/design-3.jpg',
+    bio: 'Contemporary East African cuts with vibrant prints.',
+  },
+  {
+    id: 'spotlight-aicha-ndiaye',
+    name: 'Aicha Ndiaye',
+    country: 'Senegal',
+    image: '/images/rtw-3.jpg',
+    bio: 'Refined tailoring that blends tradition with street style.',
+  },
+  {
+    id: 'spotlight-samira-idrissi',
+    name: 'Samira Idrissi',
+    country: 'Morocco',
+    image: '/images/hero-2.jpg',
+    bio: 'Textured luxury pieces with North African influence.',
+  },
+];
+
+const shuffle = <T,>(items: T[]): T[] => {
+  const copy = [...items];
+  for (let i = copy.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [copy[i], copy[j]] = [copy[j], copy[i]];
+  }
+  return copy;
+};
+
+const pickRandomDesigners = (designers: SpotlightDesigner[], count: number): SpotlightDesigner[] => {
+  if (designers.length <= count) return designers.slice(0, count);
+  const shuffled = shuffle(designers);
+  const selected: SpotlightDesigner[] = [];
+  const usedCountries = new Set<string>();
+
+  // Try to prioritize country diversity first.
+  for (const designer of shuffled) {
+    if (usedCountries.has(designer.country)) continue;
+    selected.push(designer);
+    usedCountries.add(designer.country);
+    if (selected.length === count) return selected;
+  }
+
+  for (const designer of shuffled) {
+    if (selected.some((entry) => entry.id === designer.id)) continue;
+    selected.push(designer);
+    if (selected.length === count) break;
+  }
+
+  return selected;
+};
+
 // Country flag mapping
 const countryFlags: Record<string, string> = {
   'Ghana': '🇬🇭',
@@ -194,6 +264,17 @@ export default function Home() {
   const featuredDesigns = featuredData?.FEATURED_DESIGNS || defaultFeaturedDesigns;
   const featuredFabrics = featuredData?.FEATURED_FABRICS || defaultFabrics;
   const featuredRTW = featuredData?.FEATURED_READY_TO_WEAR || defaultReadyToWear;
+  const fashionCountryImageMap = useMemo(() => {
+    const map = new Map<string, string>();
+    const candidates = [...featuredDesigns, ...featuredRTW, ...featuredFabrics];
+    for (const product of candidates) {
+      if (!product?.country || !product?.image || map.has(product.country)) {
+        continue;
+      }
+      map.set(product.country, resolveAssetUrl(product.image));
+    }
+    return map;
+  }, [featuredDesigns, featuredFabrics, featuredRTW]);
 
   // Fetch countries dynamically
   const { data: countriesData } = useQuery({
@@ -217,11 +298,14 @@ export default function Home() {
   const countries = countriesData?.length > 0 
     ? countriesData.map((c: any) => ({ 
         name: c.name, 
-        flag: c.flag, 
-        image: c.image, 
+        flag: c.flag || countryFlags[c.name] || '🌍', 
+        image: fashionCountryImageMap.get(c.name) || resolveAssetUrl(c.image), 
         fabrics: c.fabrics 
       })) 
-    : defaultCountries;
+    : defaultCountries.map((c) => ({
+        ...c,
+        image: fashionCountryImageMap.get(c.name) || resolveAssetUrl(c.image),
+      }));
     
   const testimonials = testimonialsData?.length > 0 
     ? testimonialsData.map((t: any) => ({ 
@@ -236,6 +320,11 @@ export default function Home() {
 
   // Hero carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [customFeaturedStart, setCustomFeaturedStart] = useState(0);
+  const [spotlightDesigners, setSpotlightDesigners] = useState<SpotlightDesigner[]>(
+    pickRandomDesigners(defaultSpotlightDesigners, 3)
+  );
+  const customFeaturedPageSize = 3;
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -246,6 +335,67 @@ export default function Home() {
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
+
+  const customFeaturedItems = useMemo(() => {
+    if (featuredDesigns.length <= customFeaturedPageSize) {
+      return featuredDesigns;
+    }
+    const end = customFeaturedStart + customFeaturedPageSize;
+    if (end <= featuredDesigns.length) {
+      return featuredDesigns.slice(customFeaturedStart, end);
+    }
+    return [
+      ...featuredDesigns.slice(customFeaturedStart),
+      ...featuredDesigns.slice(0, end - featuredDesigns.length),
+    ];
+  }, [featuredDesigns, customFeaturedStart]);
+
+  const spotlightDesignerPool = useMemo(() => {
+    const mappedDesigners = [...featuredDesigns, ...featuredRTW]
+      .map((item) => {
+        const cleanedName = (item.designer || '').split('•')[0].trim();
+        const country = (item.country || '').trim();
+        if (!cleanedName || !country || !item.image) return null;
+        return {
+          id: `${cleanedName}-${country}`,
+          name: cleanedName,
+          country,
+          image: resolveAssetUrl(item.image),
+          bio: `Signature styles from ${country}.`,
+        } satisfies SpotlightDesigner;
+      })
+      .filter((item): item is SpotlightDesigner => Boolean(item));
+
+    const designerMap = new Map<string, SpotlightDesigner>();
+    for (const item of [...mappedDesigners, ...defaultSpotlightDesigners]) {
+      if (designerMap.has(item.id)) continue;
+      designerMap.set(item.id, item);
+    }
+
+    return Array.from(designerMap.values());
+  }, [featuredDesigns, featuredRTW]);
+
+  useEffect(() => {
+    setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
+  }, [spotlightDesignerPool]);
+
+  useEffect(() => {
+    if (spotlightDesignerPool.length === 0) return undefined;
+    const timer = setInterval(() => {
+      setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
+    }, 7000);
+    return () => clearInterval(timer);
+  }, [spotlightDesignerPool]);
+
+  const goToPrevCustomFeatured = () => {
+    if (featuredDesigns.length <= customFeaturedPageSize) return;
+    setCustomFeaturedStart((prev) => (prev - 1 + featuredDesigns.length) % featuredDesigns.length);
+  };
+
+  const goToNextCustomFeatured = () => {
+    if (featuredDesigns.length <= customFeaturedPageSize) return;
+    setCustomFeaturedStart((prev) => (prev + 1) % featuredDesigns.length);
+  };
 
   // Product card component
   const ProductCard = ({ product }: { product: FeaturedProduct }) => (
@@ -289,7 +439,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#F5F5F0]">
       {/* Hero Carousel */}
-      <section className="relative h-[500px] md:h-[600px] lg:h-[700px] overflow-hidden">
+      <section className="relative h-[600px] md:h-[720px] lg:h-[840px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={slide.id}
@@ -357,13 +507,13 @@ export default function Home() {
       </section>
 
       {/* Countries Marquee */}
-      <section className="py-8 bg-[#F5F5F0] overflow-hidden">
+      <section className="py-6 bg-[#F5F5F0] overflow-hidden">
         <div className="flex animate-marquee">
           {[...countries, ...countries].map((country, index) => (
             <Link
               key={`${country.name}-${index}`}
               to={`/designs?country=${country.name}`}
-              className="group relative flex-shrink-0 w-64 h-40 mx-2 overflow-hidden"
+              className="group relative flex-shrink-0 w-[14.4rem] h-32 mx-2 overflow-hidden"
             >
               <img
                 src={country.image}
@@ -381,45 +531,19 @@ export default function Home() {
         </div>
       </section>
 
-      {/* How It Works */}
-      <section className="py-16 bg-[#F5F5F0]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="text-center mb-12">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
-            <p className="text-gray-500">Your journey to African fashion in 6 simple steps</p>
-          </div>
-          <div className="flex flex-wrap justify-center items-center gap-4 md:gap-8">
-            {howItWorksSteps.map((step, index) => (
-              <div key={index} className="flex items-center">
-                <div className="flex flex-col items-center">
-                  <div className="w-16 h-16 bg-coral-500 rounded flex items-center justify-center mb-2">
-                    <step.icon className="w-8 h-8 text-white" />
-                  </div>
-                  <p className="text-xs font-semibold text-gray-900 text-center">{step.title}</p>
-                  <p className="text-xs font-semibold text-gray-900 text-center">{step.subtitle}</p>
-                </div>
-                {index < howItWorksSteps.length - 1 && (
-                  <ChevronRight className="w-5 h-5 text-coral-500 mx-2 hidden md:block" />
-                )}
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Shop by Category */}
-      <section className="py-16 bg-[#F5F5F0]">
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Shop by Category</h2>
             <p className="text-gray-500">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {shopCategories.map((category, index) => (
               <Link
                 key={index}
                 to={category.link}
-                className="group relative h-[400px] md:h-[500px] overflow-hidden"
+                className="group relative h-[480px] md:h-[600px] overflow-hidden"
               >
                 <img
                   src={category.image}
@@ -440,59 +564,70 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Trending Now Banner */}
-      <section className="py-16 bg-[#F5F5F0]">
-        <div className="relative h-[300px] md:h-[350px] overflow-hidden">
-          <img
-            src="/images/trending-banner.jpg"
-            alt="Trending Now"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-navy-600 bg-opacity-80" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
-            <h2 className="text-3xl md:text-4xl font-bold mb-2">Trending Now</h2>
-            <p className="text-white text-opacity-80 mb-6">The prints everyone is talking about this season.</p>
-            <div className="flex gap-4">
-              <Link
-                to="/ready-to-wear"
-                className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
-              >
-                Shop New Arrivals
-              </Link>
-              <Link
-                to="/designs"
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white hover:bg-opacity-10 transition-colors"
-              >
-                Explore Collections
-              </Link>
-            </div>
+      {/* How It Works */}
+      <section className="py-12 bg-[#F5F5F0]">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className="text-center mb-8">
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
+            <p className="text-gray-500 max-w-2xl mx-auto">
+              Your journey to authentic African fashion in six simple steps.
+            </p>
+          </div>
+          <div className="flex items-start lg:items-stretch justify-between gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-2">
+            {howItWorksSteps.map((step, index) => (
+              <div key={index} className="min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                  <step.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
+                </div>
+                <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1">{step.title}</h3>
+                <p className="text-xs md:text-sm text-gray-600 leading-snug">{step.subtitle}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
       {/* Featured Custom To Wear */}
-      <section className="py-16 bg-[#F5F5F0]">
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Custom To Wear</h2>
               <p className="text-gray-500 mt-1">Made To Fit by an African with Love</p>
             </div>
-            <Link
-              to="/designs"
-              className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium"
-            >
-              View All <ArrowRight className="w-4 h-4" />
-            </Link>
+            <div className="flex items-center gap-2">
+              <button
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={goToPrevCustomFeatured}
+                disabled={featuredDesigns.length <= customFeaturedPageSize}
+                aria-label="Previous custom products"
+              >
+                <ChevronLeft className="w-5 h-5" />
+              </button>
+              <button
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                onClick={goToNextCustomFeatured}
+                disabled={featuredDesigns.length <= customFeaturedPageSize}
+                aria-label="Next custom products"
+              >
+                <ChevronRight className="w-5 h-5" />
+              </button>
+              <Link
+                to="/designs"
+                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
+              >
+                View All <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
           </div>
           {featuredLoading ? (
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-6">
-              {featuredDesigns.slice(0, 3).map((product) => (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-5">
+              {customFeaturedItems.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
             </div>
@@ -501,9 +636,9 @@ export default function Home() {
       </section>
 
       {/* Featured Ready To Wear */}
-      <section className="py-16 bg-[#F5F5F0]">
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Ready To Wear</h2>
@@ -529,7 +664,7 @@ export default function Home() {
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
               {featuredRTW.slice(0, 4).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -539,9 +674,9 @@ export default function Home() {
       </section>
 
       {/* Featured Fabrics */}
-      <section className="py-16 bg-[#F5F5F0]">
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Fabrics To Buy</h2>
@@ -567,7 +702,7 @@ export default function Home() {
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
               {featuredFabrics.slice(0, 4).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
@@ -577,7 +712,7 @@ export default function Home() {
       </section>
 
       {/* Fresh Drops Banner */}
-      <section className="py-16 bg-[#F5F5F0]">
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="relative h-[250px] md:h-[300px] overflow-hidden">
           <img
             src="/images/fresh-drops-banner.jpg"
@@ -606,74 +741,73 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Designer Spotlight & Heritage */}
-      <section className="py-16 bg-[#F5F5F0]">
+      {/* Designer Spotlight */}
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Designer Spotlight */}
-            <div className="bg-white overflow-hidden shadow-sm">
-              <div className="h-[250px] overflow-hidden">
-                <img
-                  src={designerSpotlight.image}
-                  alt={designerSpotlight.name}
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="p-6">
-                <p className="text-coral-500 text-sm font-semibold mb-2">DESIGNER SPOTLIGHT</p>
-                <h3 className="text-2xl font-bold text-gray-900 mb-3">Meet {designerSpotlight.name}</h3>
-                <p className="text-gray-600 mb-4">"{designerSpotlight.quote}" {designerSpotlight.description}</p>
-                <Link
-                  to="/designers"
-                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
-                >
-                  Meet All Designers
-                </Link>
-              </div>
+          <div className="flex items-end justify-between mb-6">
+            <div>
+              <p className="text-coral-500 text-sm font-semibold mb-1">DESIGNER SPOTLIGHT</p>
+              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Meet Designers Across Africa</h2>
+              <p className="text-gray-500 mt-1">Showcasing rotating talent from different countries.</p>
             </div>
+            <Link
+              to="/designers"
+              className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium"
+            >
+              Meet All Designers <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+            {spotlightDesigners.map((designer) => (
+              <Link
+                key={designer.id}
+                to={`/designs?country=${encodeURIComponent(designer.country)}`}
+                className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+              >
+                <div className="h-[250px] overflow-hidden bg-gray-100">
+                  <img
+                    src={designer.image}
+                    alt={`${designer.name} from ${designer.country}`}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                </div>
+                <div className="p-5">
+                  <h3 className="text-xl font-bold text-gray-900">{designer.name}</h3>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {countryFlags[designer.country] || '🌍'} {designer.country}
+                  </p>
+                  <p className="text-sm text-gray-600 mt-3">{designer.bio}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
 
-            {/* Heritage */}
-            <div className="bg-navy-600 overflow-hidden relative">
-              <div className="absolute inset-0 opacity-20">
-                <img
-                  src="/images/heritage.jpg"
-                  alt="Heritage background"
-                  className="w-full h-full object-cover"
-                />
-              </div>
-              <div className="relative p-8 md:p-10">
-                <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-0.5 bg-coral-500"></div>
-                  <p className="text-coral-500 text-xs font-semibold tracking-widest uppercase">Our Heritage</p>
-                </div>
-                <h3 className="text-3xl md:text-4xl font-bold text-white mb-4 leading-tight">
-                  Woven With<br />History & Pride
-                </h3>
-                <p className="text-white text-opacity-80 mb-6 text-sm leading-relaxed">
-                  Every thread tells a story. From the royal courts of Ghana where Kente was born, 
-                  to the vibrant markets of Lagos where Ankara comes alive — African textiles are 
-                  more than fabric. They are identity, celebration, and legacy.
-                </p>
-                <div className="grid grid-cols-3 gap-4 mb-6">
-                  <div className="text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-coral-500">54</p>
-                    <p className="text-white text-opacity-60 text-xs">Countries</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-coral-500">1000+</p>
-                    <p className="text-white text-opacity-60 text-xs">Years of Craft</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-2xl md:text-3xl font-bold text-coral-500">∞</p>
-                    <p className="text-white text-opacity-60 text-xs">Stories</p>
-                  </div>
-                </div>
+      {/* Heritage Story */}
+      <section className="py-12 bg-[#F5F5F0]">
+        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden">
+            <div className="h-[260px] md:h-full overflow-hidden">
+              <img
+                src="/images/heritage.jpg"
+                alt="African textile heritage"
+                className="w-full h-full object-cover"
+              />
+            </div>
+            <div className="p-6 md:p-8 text-white flex flex-col justify-center">
+              <p className="text-coral-500 text-sm font-semibold mb-2">HERITAGE STORY</p>
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">Rooted in Culture</h2>
+              <p className="text-white text-opacity-85 mb-5">
+                Every pattern carries meaning. From Kente&apos;s bold geometry to Ankara&apos;s vibrant motifs,
+                African textiles tell stories of identity, celebration, and legacy passed through generations.
+              </p>
+              <div>
                 <Link
                   to="/about"
-                  className="inline-flex items-center gap-2 text-coral-500 hover:text-coral-400 font-semibold transition-colors group"
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
                 >
-                  Discover Our Story
-                  <ArrowRight className="w-4 h-4 group-hover:translate-x-1 transition-transform" />
+                  Read Our Story <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
@@ -682,13 +816,13 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-16 bg-navy-600">
+      <section className="py-12 bg-navy-600">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="text-center mb-12">
+          <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">What Our Customers Say</h2>
             <p className="text-white text-opacity-70">Join thousands of happy customers worldwide.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {testimonials.map((testimonial) => (
               <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm p-6">
                 <div className="flex items-center gap-1 mb-4">
@@ -713,11 +847,11 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-16 bg-[#F5F5F0]">
+      <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Shop CTA */}
-            <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
+            <div className="bg-coral-500 rounded-lg p-7 md:p-10 text-center text-white">
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Ready to Wear African Fashion?</h2>
               <p className="text-white text-opacity-90 mb-6">
                 Join our community of fashion lovers and discover unique pieces from talented African designers.
@@ -739,7 +873,7 @@ export default function Home() {
             </div>
 
             {/* Newsletter CTA */}
-            <div className="bg-coral-500 rounded-lg p-8 md:p-12 text-center text-white">
+            <div className="bg-coral-500 rounded-lg p-7 md:p-10 text-center text-white">
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Join the Movement</h2>
               <p className="text-white text-opacity-90 mb-6">
                 Subscribe to our newsletter for exclusive offers, new arrivals, and stories from the continent.

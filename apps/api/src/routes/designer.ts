@@ -1,19 +1,31 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, ProductStatus } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { prisma, UserRole, ProductStatus, OrderStatus } from '../db';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.FASHION_DESIGNER));
+router.use(authorizePermissions(Permissions.DESIGNER_ACCESS));
+
+function percentageChange(currentValue: number, previousValue: number) {
+  if (previousValue === 0) {
+    return currentValue > 0 ? 100 : 0;
+  }
+  return Math.round(((currentValue - previousValue) / previousValue) * 100);
+}
+
+async function getDesignerProfile(userId: string) {
+  return prisma.designerProfile.findFirst({
+    where: { userId },
+  });
+}
 
 // Get designer dashboard
 router.get('/dashboard', async (req, res, next) => {
   try {
-    const profile = await prisma.designerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getDesignerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -53,12 +65,134 @@ router.get('/dashboard', async (req, res, next) => {
   }
 });
 
+// Get designer stats for dashboard charts + KPIs
+router.get('/stats', async (req, res, next) => {
+  try {
+    const profile = await getDesignerProfile(req.user!.id);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Designer profile not found.',
+      });
+    }
+
+    const now = new Date();
+    const currentPeriodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const previousPeriodStart = new Date(currentPeriodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const [
+      totalDesigns,
+      totalOrders,
+      totalRevenueAgg,
+      pendingOrders,
+      inProductionOrders,
+      completedOrders,
+      currentOrders,
+      previousOrders,
+      currentRevenueAgg,
+      previousRevenueAgg,
+      topDesignsRaw,
+      monthlyOrders,
+    ] = await Promise.all([
+      prisma.design.count({ where: { designerId: profile.id } }),
+      prisma.designOrderItem.count({ where: { designerId: profile.id } }),
+      prisma.designOrderItem.aggregate({
+        where: { designerId: profile.id },
+        _sum: { price: true },
+      }),
+      prisma.designOrderItem.count({
+        where: { designerId: profile.id, status: { in: ['PENDING', 'CONFIRMED', 'FABRIC_RECEIVED'] } },
+      }),
+      prisma.designOrderItem.count({
+        where: { designerId: profile.id, status: 'IN_PRODUCTION' },
+      }),
+      prisma.designOrderItem.count({
+        where: { designerId: profile.id, status: 'COMPLETED' },
+      }),
+      prisma.designOrderItem.count({
+        where: { designerId: profile.id, createdAt: { gte: currentPeriodStart } },
+      }),
+      prisma.designOrderItem.count({
+        where: { designerId: profile.id, createdAt: { gte: previousPeriodStart, lt: currentPeriodStart } },
+      }),
+      prisma.designOrderItem.aggregate({
+        where: { designerId: profile.id, createdAt: { gte: currentPeriodStart } },
+        _sum: { price: true },
+      }),
+      prisma.designOrderItem.aggregate({
+        where: { designerId: profile.id, createdAt: { gte: previousPeriodStart, lt: currentPeriodStart } },
+        _sum: { price: true },
+      }),
+      prisma.design.findMany({
+        where: { designerId: profile.id },
+        select: {
+          name: true,
+          _count: { select: { orderItems: true } },
+        },
+        orderBy: {
+          orderItems: {
+            _count: 'desc',
+          },
+        },
+        take: 4,
+      }),
+      prisma.designOrderItem.findMany({
+        where: { designerId: profile.id, createdAt: { gte: sixMonthsStart } },
+        select: { createdAt: true, price: true },
+      }),
+    ]);
+
+    const monthlyBuckets = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      return {
+        key,
+        label: date.toLocaleDateString('en-US', { month: 'short' }),
+        value: 0,
+      };
+    });
+    const monthlyIndex = new Map(monthlyBuckets.map((bucket, idx) => [bucket.key, idx]));
+    for (const order of monthlyOrders) {
+      const key = `${order.createdAt.getFullYear()}-${order.createdAt.getMonth()}`;
+      const idx = monthlyIndex.get(key);
+      if (idx !== undefined) {
+        monthlyBuckets[idx].value += Number(order.price || 0);
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalDesigns,
+        totalOrders,
+        totalRevenue: Number(totalRevenueAgg._sum.price || 0),
+        pendingOrders,
+        inProductionOrders,
+        completedOrders,
+        monthlyRevenue: monthlyBuckets.map(({ label, value }) => ({ label, value })),
+        topDesigns: topDesignsRaw.map((design) => ({
+          label: design.name,
+          value: design._count.orderItems,
+        })),
+        rating: Number(profile.rating || 0),
+        revenueChange: percentageChange(
+          Number(currentRevenueAgg._sum.price || 0),
+          Number(previousRevenueAgg._sum.price || 0)
+        ),
+        orderChange: percentageChange(currentOrders, previousOrders),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get designer designs
 router.get('/designs', async (req, res, next) => {
   try {
-    const profile = await prisma.designerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getDesignerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -120,9 +254,7 @@ router.post('/designs', async (req, res, next) => {
 
     const data = schema.parse(req.body);
 
-    const profile = await prisma.designerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getDesignerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -198,9 +330,7 @@ router.post('/designs', async (req, res, next) => {
 // Get ready-to-wear products
 router.get('/ready-to-wear', async (req, res, next) => {
   try {
-    const profile = await prisma.designerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getDesignerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -250,9 +380,7 @@ router.post('/ready-to-wear', async (req, res, next) => {
 
     const data = schema.parse(req.body);
 
-    const profile = await prisma.designerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getDesignerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -300,9 +428,7 @@ router.post('/ready-to-wear', async (req, res, next) => {
 // Get design orders
 router.get('/orders', async (req, res, next) => {
   try {
-    const profile = await prisma.designerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getDesignerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -319,10 +445,22 @@ router.get('/orders', async (req, res, next) => {
         },
         order: {
           select: {
+            id: true,
             orderNumber: true,
             status: true,
             createdAt: true,
+            total: true,
             shippingAddress: true,
+            customer: {
+              select: { firstName: true, lastName: true },
+            },
+            fabricOrder: {
+              include: {
+                fabric: {
+                  select: { name: true },
+                },
+              },
+            },
           },
         },
       },
@@ -332,6 +470,77 @@ router.get('/orders', async (req, res, next) => {
     res.json({
       success: true,
       data: orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update design order item status
+router.patch('/orders/:id/status', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      status: z.enum(['PENDING', 'CONFIRMED', 'FABRIC_RECEIVED', 'IN_PRODUCTION', 'COMPLETED', 'READY_FOR_QA']),
+      notes: z.string().optional(),
+    });
+    const { status, notes } = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getDesignerProfile(req.user!.id);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Designer profile not found.',
+      });
+    }
+
+    const orderItem = await prisma.designOrderItem.findFirst({
+      where: { id, designerId: profile.id },
+      select: { id: true, orderId: true },
+    });
+
+    if (!orderItem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order item not found.',
+      });
+    }
+
+    const normalizedStatus: 'PENDING' | 'CONFIRMED' | 'FABRIC_RECEIVED' | 'IN_PRODUCTION' | 'COMPLETED' =
+      status === 'READY_FOR_QA' ? 'COMPLETED' : status;
+    const orderStatusMap: Record<'PENDING' | 'CONFIRMED' | 'FABRIC_RECEIVED' | 'IN_PRODUCTION' | 'COMPLETED', OrderStatus> = {
+      PENDING: OrderStatus.PAYMENT_CONFIRMED,
+      CONFIRMED: OrderStatus.PAYMENT_CONFIRMED,
+      FABRIC_RECEIVED: OrderStatus.FABRIC_RECEIVED,
+      IN_PRODUCTION: OrderStatus.IN_PRODUCTION,
+      COMPLETED: OrderStatus.PRODUCTION_COMPLETE,
+    };
+
+    const [updatedItem] = await prisma.$transaction([
+      prisma.designOrderItem.update({
+        where: { id },
+        data: { status: normalizedStatus },
+      }),
+      prisma.order.update({
+        where: { id: orderItem.orderId },
+        data: { status: orderStatusMap[normalizedStatus] },
+      }),
+      prisma.orderTimeline.create({
+        data: {
+          orderId: orderItem.orderId,
+          status: orderStatusMap[normalizedStatus],
+          notes: notes || `Designer updated status to ${normalizedStatus}`,
+          updatedById: req.user!.id,
+          updatedByRole: UserRole.FASHION_DESIGNER,
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully.',
+      data: updatedItem,
     });
   } catch (error) {
     next(error);

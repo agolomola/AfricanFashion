@@ -1,12 +1,11 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Store, Scissors, ClipboardCheck } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Store, Scissors } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
-import Badge from '../components/ui/Badge';
 
-type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'DESIGNER' | 'QA_TEAM';
+type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER';
 
 interface RoleOption {
   value: UserRole;
@@ -29,16 +28,10 @@ const roleOptions: RoleOption[] = [
     icon: Store,
   },
   {
-    value: 'DESIGNER',
+    value: 'FASHION_DESIGNER',
     label: 'Fashion Designer',
     description: 'Create and sell your unique designs',
     icon: Scissors,
-  },
-  {
-    value: 'QA_TEAM',
-    label: 'QA Team',
-    description: 'Quality assurance and order management',
-    icon: ClipboardCheck,
   },
 ];
 
@@ -61,10 +54,12 @@ export default function Register() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setNotice('');
 
     if (formData.password !== formData.confirmPassword) {
       setError('Passwords do not match');
@@ -79,14 +74,29 @@ export default function Register() {
     setLoading(true);
 
     try {
+      const [firstName = '', ...lastNameParts] = formData.fullName.trim().split(/\s+/);
+      const lastName = lastNameParts.join(' ') || firstName;
+
       const response = await api.auth.register({
-        ...formData,
+        email: formData.email,
+        password: formData.password,
+        phone: formData.phone,
+        country: formData.country,
+        city: formData.city,
+        businessName: formData.businessName,
+        firstName,
+        lastName,
         role: selectedRole,
       });
 
       if (response.success) {
-        login(response.data.user, response.data.token);
-        navigate('/');
+        if (response.data.user?.status === 'ACTIVE' && response.data.token) {
+          login(response.data.user, response.data.token);
+          navigate('/');
+        } else {
+          setNotice('Account created successfully. Your account is pending admin approval before login.');
+          navigate('/login');
+        }
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Registration failed');
@@ -133,6 +143,12 @@ export default function Register() {
         {error && (
           <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
             {error}
+          </div>
+        )}
+
+        {notice && (
+          <div className="bg-green-50 border border-green-200 rounded-lg p-4 text-green-700 text-sm">
+            {notice}
           </div>
         )}
 
@@ -288,7 +304,7 @@ export default function Register() {
                 </select>
               </div>
 
-              {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'DESIGNER') && (
+              {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'FASHION_DESIGNER') && (
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Business Name *
@@ -300,6 +316,22 @@ export default function Register() {
                     onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                     className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
                     placeholder="Your business name"
+                  />
+                </div>
+              )}
+
+              {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'FASHION_DESIGNER') && (
+                <div className="col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    City *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formData.city}
+                    onChange={(e) => setFormData({ ...formData, city: e.target.value })}
+                    className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                    placeholder="City"
                   />
                 </div>
               )}

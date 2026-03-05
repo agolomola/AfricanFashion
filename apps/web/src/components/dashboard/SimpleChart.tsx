@@ -14,14 +14,19 @@ interface BarChartProps {
 }
 
 export function BarChart({ data, height = 200, showValues = true, maxValue }: BarChartProps) {
-  const computedMax = maxValue || Math.max(...data.map((d) => d.value)) * 1.1;
+  if (!data.length) {
+    return <div className="text-sm text-gray-500">No data available</div>;
+  }
+
+  const safeMax = Math.max(1, ...data.map((d) => Number(d.value) || 0));
+  const computedMax = Math.max(1, maxValue || safeMax * 1.1);
   const colors = ['bg-amber-500', 'bg-blue-500', 'bg-green-500', 'bg-purple-500', 'bg-pink-500', 'bg-cyan-500'];
 
   return (
     <div className="w-full">
       <div className="flex items-end justify-between gap-2" style={{ height }}>
         {data.map((item, index) => {
-          const percentage = (item.value / computedMax) * 100;
+          const percentage = Math.max(0, (Number(item.value || 0) / computedMax) * 100);
           const color = item.color || colors[index % colors.length];
           
           return (
@@ -50,17 +55,22 @@ interface LineChartProps {
 }
 
 export function LineChart({ data, height = 200, color = '#f59e0b', showArea = true }: LineChartProps) {
+  if (!data.length) {
+    return <div className="text-sm text-gray-500">No data available</div>;
+  }
+
   const { path, areaPath, maxValue, labels } = useMemo(() => {
-    const max = Math.max(...data.map((d) => d.value)) * 1.1;
+    const max = Math.max(1, ...data.map((d) => Number(d.value) || 0)) * 1.1;
     const min = 0;
-    const range = max - min;
+    const range = max - min || 1;
     
     const width = 100;
     const chartHeight = 100;
     
+    const pointsDenominator = data.length > 1 ? data.length - 1 : 1;
     const points = data.map((d, i) => ({
-      x: (i / (data.length - 1)) * width,
-      y: chartHeight - ((d.value - min) / range) * chartHeight,
+      x: (i / pointsDenominator) * width,
+      y: chartHeight - ((Number(d.value || 0) - min) / range) * chartHeight,
     }));
     
     const pathD = points.reduce((acc, point, i) => {
@@ -96,8 +106,9 @@ export function LineChart({ data, height = 200, color = '#f59e0b', showArea = tr
           vectorEffect="non-scaling-stroke"
         />
         {data.map((d, i) => {
-          const x = (i / (data.length - 1)) * 100;
-          const y = 100 - (d.value / maxValue) * 100;
+          const denominator = data.length > 1 ? data.length - 1 : 1;
+          const x = (i / denominator) * 100;
+          const y = 100 - ((Number(d.value || 0) / maxValue) * 100);
           return (
             <circle
               key={i}
@@ -127,11 +138,15 @@ interface PieChartProps {
 
 export function PieChart({ data, size = 200, showLegend = true }: PieChartProps) {
   const colors = ['#f59e0b', '#3b82f6', '#22c55e', '#a855f7', '#ec4899', '#06b6d4', '#f97316', '#8b5cf6'];
+  if (!data.length) {
+    return <div className="text-sm text-gray-500">No data available</div>;
+  }
+
   const total = data.reduce((sum, item) => sum + item.value, 0);
   
   let currentAngle = 0;
   const slices = data.map((item, index) => {
-    const percentage = item.value / total;
+    const percentage = total > 0 ? item.value / total : 0;
     const angle = percentage * 360;
     const startAngle = currentAngle;
     currentAngle += angle;

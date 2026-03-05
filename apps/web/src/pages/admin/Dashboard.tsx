@@ -1,7 +1,5 @@
 import { useState, useEffect } from 'react';
 import { 
-  TrendingUp, 
-  TrendingDown, 
   DollarSign, 
   ShoppingBag, 
   Users, 
@@ -9,12 +7,7 @@ import {
   AlertCircle,
   CheckCircle,
   Clock,
-  ArrowRight,
   Calendar,
-  MapPin,
-  Star,
-  MoreHorizontal,
-  Filter,
   Download
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -76,8 +69,8 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const [statsRes, ordersRes] = await Promise.all([
-        api.admin.getDashboardStats(),
-        api.admin.getRecentOrders()
+        api.admin.getDashboardStats(dateRange as '24h' | '7d' | '30d' | '90d'),
+        api.admin.getRecentOrders(dateRange as '24h' | '7d' | '30d' | '90d')
       ]);
       
       if (statsRes.success) {
@@ -135,6 +128,37 @@ export default function AdminDashboard() {
   };
 
   const formatCurrency = (value: number) => `$${value.toLocaleString()}`;
+  const fallbackRevenueSeries = [
+    { label: 'Jan', value: 0 },
+    { label: 'Feb', value: 0 },
+    { label: 'Mar', value: 0 },
+    { label: 'Apr', value: 0 },
+    { label: 'May', value: 0 },
+    { label: 'Jun', value: 0 },
+  ];
+  const fallbackOrderStatus = [
+    { label: 'Pending', value: Number(stats?.pendingOrders || 0), color: '#fbbf24' },
+    { label: 'In Production', value: Number(stats?.inProductionOrders || 0), color: '#a855f7' },
+    { label: 'QA Review', value: 0, color: '#3b82f6' },
+    { label: 'Shipped', value: 0, color: '#06b6d4' },
+    { label: 'Delivered', value: 0, color: '#22c55e' },
+  ];
+  const fallbackUsersByRole = [
+    { label: 'Customers', value: 0, color: 'bg-blue-500' },
+    { label: 'Designers', value: 0, color: 'bg-purple-500' },
+    { label: 'Sellers', value: 0, color: 'bg-amber-500' },
+    { label: 'QA Team', value: 0, color: 'bg-green-500' },
+  ];
+  const monthlyRevenue = stats?.monthlyRevenue?.length ? stats.monthlyRevenue : fallbackRevenueSeries;
+  const ordersByStatus = stats?.ordersByStatus?.length ? stats.ordersByStatus : fallbackOrderStatus;
+  const usersByRole = stats?.usersByRole?.length ? stats.usersByRole : fallbackUsersByRole;
+  const normalizeStatus = (value: string) => value.toUpperCase().replace(/\s+/g, '_');
+  const countByStatuses = (statuses: string[]) =>
+    ordersByStatus.reduce((sum, item) => {
+      return statuses.includes(normalizeStatus(item.label)) ? sum + Number(item.value || 0) : sum;
+    }, 0);
+  const qaReviewCount = countByStatuses(['QA_PENDING', 'QA_INSPECTING', 'QA_APPROVED', 'QA_REJECTED']);
+  const completedCount = countByStatuses(['COMPLETED', 'DELIVERED']);
 
   if (loading) {
     return (
@@ -218,14 +242,7 @@ export default function AdminDashboard() {
             </Button>
           </div>
           <LineChart 
-            data={stats?.monthlyRevenue || [
-              { label: 'Jan', value: 12000 },
-              { label: 'Feb', value: 15000 },
-              { label: 'Mar', value: 18000 },
-              { label: 'Apr', value: 14000 },
-              { label: 'May', value: 22000 },
-              { label: 'Jun', value: 28000 },
-            ]} 
+            data={monthlyRevenue} 
             height={250}
           />
         </div>
@@ -234,13 +251,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">Orders by Status</h3>
           <PieChart 
-            data={stats?.ordersByStatus || [
-              { label: 'Pending', value: 24, color: '#fbbf24' },
-              { label: 'In Production', value: 18, color: '#a855f7' },
-              { label: 'QA Review', value: 12, color: '#3b82f6' },
-              { label: 'Shipped', value: 35, color: '#06b6d4' },
-              { label: 'Delivered', value: 89, color: '#22c55e' },
-            ]}
+            data={ordersByStatus}
             size={180}
           />
         </div>
@@ -271,14 +282,14 @@ export default function AdminDashboard() {
                 <AlertCircle className="w-5 h-5 text-blue-600" />
                 <span className="text-sm font-medium text-blue-900">QA Review</span>
               </div>
-              <p className="text-3xl font-bold text-blue-700">12</p>
+              <p className="text-3xl font-bold text-blue-700">{qaReviewCount}</p>
             </div>
             <div className="p-4 bg-green-50 rounded-xl border border-green-100">
               <div className="flex items-center gap-2 mb-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
                 <span className="text-sm font-medium text-green-900">Completed</span>
               </div>
-              <p className="text-3xl font-bold text-green-700">89</p>
+              <p className="text-3xl font-bold text-green-700">{completedCount}</p>
             </div>
           </div>
         </div>
@@ -287,12 +298,7 @@ export default function AdminDashboard() {
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <h3 className="text-lg font-semibold text-gray-900 mb-6">User Distribution</h3>
           <BarChart 
-            data={stats?.usersByRole || [
-              { label: 'Customers', value: 1250, color: 'bg-blue-500' },
-              { label: 'Designers', value: 85, color: 'bg-purple-500' },
-              { label: 'Sellers', value: 120, color: 'bg-amber-500' },
-              { label: 'QA Team', value: 15, color: 'bg-green-500' },
-            ]}
+            data={usersByRole}
             height={150}
           />
         </div>
@@ -310,7 +316,7 @@ export default function AdminDashboard() {
               { 
                 key: 'totalAmount', 
                 header: 'Amount',
-                render: (item) => `$${item.totalAmount.toFixed(2)}`
+                render: (item) => `$${Number(item.totalAmount || 0).toFixed(2)}`
               },
               { 
                 key: 'status', 

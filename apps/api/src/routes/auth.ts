@@ -3,15 +3,17 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma, UserRole, UserStatus } from '../db';
 import { generateToken, authenticate } from '../middleware/auth';
+import { getRolePermissions, ROLE_HOME_ROUTE } from '../rbac';
 
 const router = Router();
 
 // Validation schemas
 const registerSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').transform((value) => value.toLowerCase().trim()),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  firstName: z.string().min(2, 'First name is required'),
-  lastName: z.string().min(2, 'Last name is required'),
+  firstName: z.string().min(1).optional(),
+  lastName: z.string().min(1).optional(),
+  fullName: z.string().min(2).optional(),
   phone: z.string().optional(),
   role: z.enum(['CUSTOMER', 'FABRIC_SELLER', 'FASHION_DESIGNER']),
   // Role-specific fields
@@ -25,7 +27,7 @@ const registerSchema = z.object({
 });
 
 const loginSchema = z.object({
-  email: z.string().email('Invalid email address'),
+  email: z.string().email('Invalid email address').transform((value) => value.toLowerCase().trim()),
   password: z.string().min(1, 'Password is required'),
 });
 
@@ -33,10 +35,22 @@ const loginSchema = z.object({
 router.post('/register', async (req, res, next) => {
   try {
     const data = registerSchema.parse(req.body);
+    const namesFromFullName = data.fullName ? data.fullName.trim().split(/\s+/) : [];
+    const firstName = (data.firstName || namesFromFullName[0] || '').trim();
+    const lastName = (data.lastName || namesFromFullName.slice(1).join(' ') || firstName).trim();
+
+    if (firstName.length < 2 || lastName.length < 2) {
+      return res.status(400).json({
+        success: false,
+        message: 'First name and last name are required.',
+      });
+    }
 
     // Check if email already exists
-    const existingUser = await prisma.user.findUnique({
-      where: { email: data.email },
+    const existingUser = await prisma.user.findFirst({
+      where: {
+        email: { equals: data.email, mode: 'insensitive' },
+      },
     });
 
     if (existingUser) {
@@ -53,8 +67,8 @@ router.post('/register', async (req, res, next) => {
     const userData: any = {
       email: data.email,
       password: hashedPassword,
-      firstName: data.firstName,
-      lastName: data.lastName,
+      firstName,
+      lastName,
       phone: data.phone,
       role: data.role as UserRole,
       status: data.role === 'CUSTOMER' ? UserStatus.ACTIVE : UserStatus.PENDING, // Sellers/designers need approval
@@ -115,12 +129,14 @@ router.post('/register', async (req, res, next) => {
       },
     });
 
-    // Generate token
-    const token = generateToken({
-      id: user.id,
-      email: user.email,
-      role: user.role as UserRole,
-    });
+    // Only ACTIVE users should receive an authentication token immediately.
+    const token = user.status === UserStatus.ACTIVE
+      ? generateToken({
+          id: user.id,
+          email: user.email,
+          role: user.role as UserRole,
+        })
+      : null;
 
     res.status(201).json({
       success: true,
@@ -130,6 +146,10 @@ router.post('/register', async (req, res, next) => {
       data: {
         user,
         token,
+        access: {
+          homeRoute: ROLE_HOME_ROUTE[user.role as UserRole],
+          permissions: getRolePermissions(user.role as UserRole),
+        },
       },
     });
   } catch (error) {
@@ -143,8 +163,10 @@ router.post('/login', async (req, res, next) => {
     const data = loginSchema.parse(req.body);
 
     // Find user
-    const user = await prisma.user.findUnique({
-      where: { email: data.email },
+    const user = await prisma.user.findFirst({
+      where: {
+        email: { equals: data.email, mode: 'insensitive' },
+      },
     });
 
     if (!user) {
@@ -212,6 +234,10 @@ router.post('/login', async (req, res, next) => {
           status: user.status,
         },
         token,
+        access: {
+          homeRoute: ROLE_HOME_ROUTE[user.role],
+          permissions: getRolePermissions(user.role),
+        },
       },
     });
   } catch (error) {
@@ -256,6 +282,10 @@ router.get('/me', authenticate, async (req, res, next) => {
         role: user.role,
         status: user.status,
         profile: user.customerProfile || user.fabricSellerProfile || user.designerProfile || user.qaProfile || user.adminProfile,
+        access: {
+          homeRoute: ROLE_HOME_ROUTE[user.role],
+          permissions: getRolePermissions(user.role),
+        },
       },
     });
   } catch (error) {

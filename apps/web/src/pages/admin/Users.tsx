@@ -19,9 +19,9 @@ interface User {
   email: string;
   role: string;
   status: string;
-  country: string;
+  country?: string;
   createdAt: string;
-  orderCount: number;
+  orderCount?: number;
 }
 
 export default function AdminUsers() {
@@ -32,7 +32,7 @@ export default function AdminUsers() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
-  const [actionType, setActionType] = useState<'activate' | 'deactivate' | 'verify' | null>(null);
+  const [actionType, setActionType] = useState<'activate' | 'suspend' | 'reject' | null>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -47,7 +47,17 @@ export default function AdminUsers() {
         status: statusFilter || undefined,
       });
       if (response.success) {
-        setUsers(response.data.users);
+        const mappedUsers: User[] = response.data.users.map((user: any) => ({
+          id: user.id,
+          fullName: `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.email,
+          email: user.email,
+          role: user.role,
+          status: user.status,
+          country: '-',
+          createdAt: user.createdAt,
+          orderCount: 0,
+        }));
+        setUsers(mappedUsers);
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -62,8 +72,8 @@ export default function AdminUsers() {
     try {
       let newStatus = selectedUser.status;
       if (actionType === 'activate') newStatus = 'ACTIVE';
-      if (actionType === 'deactivate') newStatus = 'INACTIVE';
-      if (actionType === 'verify') newStatus = 'VERIFIED';
+      if (actionType === 'suspend') newStatus = 'SUSPENDED';
+      if (actionType === 'reject') newStatus = 'REJECTED';
 
       await api.admin.updateUserStatus(selectedUser.id, newStatus);
       fetchUsers();
@@ -75,7 +85,7 @@ export default function AdminUsers() {
     }
   };
 
-  const openActionModal = (user: User, action: 'activate' | 'deactivate' | 'verify') => {
+  const openActionModal = (user: User, action: 'activate' | 'suspend' | 'reject') => {
     setSelectedUser(user);
     setActionType(action);
     setShowActionModal(true);
@@ -129,7 +139,7 @@ export default function AdminUsers() {
           <option value="">All Roles</option>
           <option value="CUSTOMER">Customer</option>
           <option value="FABRIC_SELLER">Fabric Seller</option>
-          <option value="DESIGNER">Designer</option>
+          <option value="FASHION_DESIGNER">Designer</option>
           <option value="QA_TEAM">QA Team</option>
           <option value="ADMINISTRATOR">Administrator</option>
         </select>
@@ -140,9 +150,9 @@ export default function AdminUsers() {
         >
           <option value="">All Status</option>
           <option value="ACTIVE">Active</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="SUSPENDED">Suspended</option>
           <option value="PENDING">Pending</option>
-          <option value="VERIFIED">Verified</option>
+          <option value="REJECTED">Rejected</option>
         </select>
         <Button variant="outline" onClick={fetchUsers}>
           <Filter className="w-4 h-4 mr-2" />
@@ -188,15 +198,15 @@ export default function AdminUsers() {
                     <Badge 
                       variant={
                         user.status === 'ACTIVE' ? 'green' :
-                        user.status === 'INACTIVE' ? 'red' :
-                        user.status === 'VERIFIED' ? 'blue' : 'yellow'
+                        user.status === 'SUSPENDED' ? 'red' :
+                        user.status === 'REJECTED' ? 'gray' : 'yellow'
                       }
                     >
                       {user.status}
                     </Badge>
                   </td>
-                  <td className="py-3 px-4 text-gray-600">{user.country}</td>
-                  <td className="py-3 px-4 text-gray-600">{user.orderCount}</td>
+                  <td className="py-3 px-4 text-gray-600">{user.country || '-'}</td>
+                  <td className="py-3 px-4 text-gray-600">{user.orderCount || 0}</td>
                   <td className="py-3 px-4 text-gray-500">
                     {new Date(user.createdAt).toLocaleDateString()}
                   </td>
@@ -211,22 +221,22 @@ export default function AdminUsers() {
                           <UserCheck className="w-4 h-4" />
                         </button>
                       )}
-                      {user.status !== 'INACTIVE' && (
+                      {user.status !== 'SUSPENDED' && (
                         <button
-                          onClick={() => openActionModal(user, 'deactivate')}
+                          onClick={() => openActionModal(user, 'suspend')}
                           className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          title="Deactivate"
+                          title="Suspend"
                         >
                           <UserX className="w-4 h-4" />
                         </button>
                       )}
-                      {user.status !== 'VERIFIED' && user.role !== 'CUSTOMER' && (
+                      {user.status !== 'REJECTED' && user.status !== 'ACTIVE' && user.role !== 'CUSTOMER' && (
                         <button
-                          onClick={() => openActionModal(user, 'verify')}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          title="Verify"
+                          onClick={() => openActionModal(user, 'reject')}
+                          className="p-2 text-gray-600 hover:bg-gray-100 rounded-lg"
+                          title="Reject"
                         >
-                          <CheckCircle className="w-4 h-4" />
+                          <XCircle className="w-4 h-4" />
                         </button>
                       )}
                     </div>
@@ -244,8 +254,8 @@ export default function AdminUsers() {
           <div className="bg-white rounded-2xl max-w-md w-full p-6">
             <h3 className="text-xl font-bold mb-4">
               {actionType === 'activate' && 'Activate User'}
-              {actionType === 'deactivate' && 'Deactivate User'}
-              {actionType === 'verify' && 'Verify User'}
+              {actionType === 'suspend' && 'Suspend User'}
+              {actionType === 'reject' && 'Reject User'}
             </h3>
             <p className="text-gray-600 mb-6">
               Are you sure you want to {actionType} <strong>{selectedUser.fullName}</strong>?
@@ -257,11 +267,11 @@ export default function AdminUsers() {
               <Button 
                 className="flex-1"
                 onClick={handleAction}
-                variant={actionType === 'deactivate' ? 'outline' : 'default'}
+                variant={actionType === 'suspend' || actionType === 'reject' ? 'outline' : 'default'}
               >
                 {actionType === 'activate' && <UserCheck className="w-4 h-4 mr-2" />}
-                {actionType === 'deactivate' && <UserX className="w-4 h-4 mr-2" />}
-                {actionType === 'verify' && <CheckCircle className="w-4 h-4 mr-2" />}
+                {actionType === 'suspend' && <UserX className="w-4 h-4 mr-2" />}
+                {actionType === 'reject' && <XCircle className="w-4 h-4 mr-2" />}
                 Confirm
               </Button>
             </div>

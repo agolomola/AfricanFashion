@@ -13,7 +13,7 @@ import {
   ChevronRight,
   Check
 } from 'lucide-react';
-import { api } from '../services/api';
+import { api, resolveAssetUrl } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import Button from '../components/ui/Button';
@@ -56,6 +56,8 @@ interface Design {
   rating: number;
   reviewCount: number;
   orderCount: number;
+  isFeatured?: boolean;
+  featuredSections?: string[];
 }
 
 export default function DesignDetail() {
@@ -83,10 +85,53 @@ export default function DesignDetail() {
       setLoading(true);
       const response = await api.products.getDesign(id!);
       if (response.success) {
-        setDesign(response.data);
+        const mappedDesign: Design = {
+          id: response.data.id,
+          name: response.data.name,
+          description: response.data.description,
+          basePrice: Number(response.data.finalPrice || response.data.basePrice || 0),
+          images: (response.data.images || []).map((img: any) => resolveAssetUrl(img.url)).filter(Boolean),
+          category: {
+            id: response.data.category?.id,
+            name: response.data.category?.name || 'Design',
+          },
+          designer: {
+            id: response.data.designerId,
+            businessName: response.data.designer?.businessName || 'Designer',
+            country: response.data.designer?.country || '',
+            city: response.data.designer?.city || '',
+            profileImage: undefined,
+          },
+          suitableFabrics: (response.data.suitableFabrics || []).map((sf: any) => ({
+            fabric: {
+              id: sf.fabric?.id,
+              name: sf.fabric?.name || 'Fabric',
+              images: (sf.fabric?.images || []).map((img: any) => resolveAssetUrl(img.url)).filter(Boolean),
+              pricePerMeter: Number(sf.fabric?.finalPrice || sf.fabric?.sellerPrice || 0),
+              seller: {
+                businessName: sf.fabric?.seller?.businessName || 'Seller',
+                country: sf.fabric?.seller?.country || '',
+              },
+            },
+            minMeters: Number(sf.yardsNeeded || 1),
+            maxMeters: Number(sf.yardsNeeded || 1) + 5,
+          })),
+          measurements: (response.data.measurementVariables || []).map((m: any) => ({
+            name: m.name,
+            description: m.instructions || m.name,
+            unit: m.unit || 'cm',
+            isRequired: Boolean(m.isRequired),
+          })),
+          rating: Number(response.data.designer?.rating || 0),
+          reviewCount: 0,
+          orderCount: Number(response.data.totalOrders || 0),
+          isFeatured: Boolean(response.data.isFeatured),
+          featuredSections: response.data.featuredSections || [],
+        };
+        setDesign(mappedDesign);
         // Initialize fabric meters
         const initialMeters: Record<string, number> = {};
-        response.data.suitableFabrics.forEach((sf: any) => {
+        mappedDesign.suitableFabrics.forEach((sf: any) => {
           initialMeters[sf.fabric.id] = sf.minMeters;
         });
         setFabricMeters(initialMeters);
@@ -204,7 +249,7 @@ export default function DesignDetail() {
           <div className="space-y-4">
             <div className="relative bg-gray-100 overflow-hidden" style={{ aspectRatio: '4/5' }}>
               <img
-                src={design.images[selectedImage]}
+                src={design.images[selectedImage] || '/images/placeholder.jpg'}
                 alt={design.name}
                 className="w-full h-full object-cover"
               />
@@ -255,7 +300,12 @@ export default function DesignDetail() {
             {/* Header */}
             <div>
               <div className="flex items-start justify-between mb-2">
-                <Badge variant="secondary">{design.category.name}</Badge>
+                <div className="flex gap-2">
+                  <Badge variant="secondary">{design.category.name}</Badge>
+                  {design.isFeatured && (
+                    <Badge variant="purple">Featured</Badge>
+                  )}
+                </div>
                 <div className="flex items-center gap-2">
                   <button className="p-2 hover:bg-gray-100 rounded-full transition-colors">
                     <Share2 className="w-5 h-5 text-gray-600" />

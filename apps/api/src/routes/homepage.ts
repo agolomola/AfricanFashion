@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
@@ -44,10 +45,8 @@ router.get('/featured/:section', async (req, res) => {
     // Fetch full product details based on productType
     const productsWithDetails = await Promise.all(
       featuredProducts.map(async (fp) => {
-        let product = null;
-
         if (fp.productType === 'DESIGN') {
-          product = await prisma.design.findUnique({
+          const product = await prisma.design.findUnique({
             where: { id: fp.productId },
             include: {
               designer: {
@@ -62,8 +61,22 @@ router.get('/featured/:section', async (req, res) => {
               },
             },
           });
-        } else if (fp.productType === 'FABRIC') {
-          product = await prisma.fabric.findUnique({
+
+          if (!product) return null;
+          return {
+            id: product.id,
+            name: fp.customTitle || product.name,
+            description: fp.customDescription || product.description,
+            price: Number(product.finalPrice),
+            image: product.images[0]?.url || '/images/placeholder.jpg',
+            designer: product.designer.businessName,
+            country: product.designer.country,
+            productType: fp.productType,
+          };
+        }
+
+        if (fp.productType === 'FABRIC') {
+          const product = await prisma.fabric.findUnique({
             where: { id: fp.productId },
             include: {
               seller: {
@@ -78,8 +91,22 @@ router.get('/featured/:section', async (req, res) => {
               },
             },
           });
-        } else if (fp.productType === 'READY_TO_WEAR') {
-          product = await prisma.readyToWear.findUnique({
+
+          if (!product) return null;
+          return {
+            id: product.id,
+            name: fp.customTitle || product.name,
+            description: fp.customDescription || product.description,
+            price: Number(product.finalPrice),
+            image: product.images[0]?.url || '/images/placeholder.jpg',
+            designer: product.seller.businessName,
+            country: product.seller.country,
+            productType: fp.productType,
+          };
+        }
+
+        if (fp.productType === 'READY_TO_WEAR') {
+          const product = await prisma.readyToWear.findUnique({
             where: { id: fp.productId },
             include: {
               designer: {
@@ -94,20 +121,21 @@ router.get('/featured/:section', async (req, res) => {
               },
             },
           });
+
+          if (!product) return null;
+          return {
+            id: product.id,
+            name: fp.customTitle || product.name,
+            description: fp.customDescription || product.description,
+            price: Number(product.basePrice),
+            image: product.images[0]?.url || '/images/placeholder.jpg',
+            designer: product.designer.businessName,
+            country: product.designer.country,
+            productType: fp.productType,
+          };
         }
 
-        if (!product) return null;
-
-        return {
-          id: product.id,
-          name: fp.customTitle || product.name,
-          description: fp.customDescription || product.description,
-          price: product.finalPrice || product.basePrice,
-          image: product.images[0]?.url || '/images/placeholder.jpg',
-          designer: product.designer?.businessName || product.seller?.businessName,
-          country: product.designer?.country || product.seller?.country,
-          productType: fp.productType,
-        };
+        return null;
       })
     );
 
@@ -145,10 +173,8 @@ router.get('/featured', async (req, res) => {
 
       const productsWithDetails = await Promise.all(
         featuredProducts.map(async (fp) => {
-          let product = null;
-
           if (fp.productType === 'DESIGN') {
-            product = await prisma.design.findUnique({
+            const product = await prisma.design.findUnique({
               where: { id: fp.productId },
               include: {
                 designer: {
@@ -163,8 +189,22 @@ router.get('/featured', async (req, res) => {
                 },
               },
             });
-          } else if (fp.productType === 'FABRIC') {
-            product = await prisma.fabric.findUnique({
+
+            if (!product) return null;
+            return {
+              id: product.id,
+              name: fp.customTitle || product.name,
+              description: fp.customDescription || product.description,
+              price: Number(product.finalPrice),
+              image: product.images[0]?.url || '/images/placeholder.jpg',
+              designer: product.designer.businessName,
+              country: product.designer.country,
+              productType: fp.productType,
+            };
+          }
+
+          if (fp.productType === 'FABRIC') {
+            const product = await prisma.fabric.findUnique({
               where: { id: fp.productId },
               include: {
                 seller: {
@@ -179,8 +219,22 @@ router.get('/featured', async (req, res) => {
                 },
               },
             });
-          } else if (fp.productType === 'READY_TO_WEAR') {
-            product = await prisma.readyToWear.findUnique({
+
+            if (!product) return null;
+            return {
+              id: product.id,
+              name: fp.customTitle || product.name,
+              description: fp.customDescription || product.description,
+              price: Number(product.finalPrice),
+              image: product.images[0]?.url || '/images/placeholder.jpg',
+              designer: product.seller.businessName,
+              country: product.seller.country,
+              productType: fp.productType,
+            };
+          }
+
+          if (fp.productType === 'READY_TO_WEAR') {
+            const product = await prisma.readyToWear.findUnique({
               where: { id: fp.productId },
               include: {
                 designer: {
@@ -195,20 +249,21 @@ router.get('/featured', async (req, res) => {
                 },
               },
             });
+
+            if (!product) return null;
+            return {
+              id: product.id,
+              name: fp.customTitle || product.name,
+              description: fp.customDescription || product.description,
+              price: Number(product.basePrice),
+              image: product.images[0]?.url || '/images/placeholder.jpg',
+              designer: product.designer.businessName,
+              country: product.designer.country,
+              productType: fp.productType,
+            };
           }
 
-          if (!product) return null;
-
-          return {
-            id: product.id,
-            name: fp.customTitle || product.name,
-            description: fp.customDescription || product.description,
-            price: product.finalPrice || product.basePrice,
-            image: product.images[0]?.url || '/images/placeholder.jpg',
-            designer: product.designer?.businessName || product.seller?.businessName,
-            country: product.designer?.country || product.seller?.country,
-            productType: fp.productType,
-          };
+          return null;
         })
       );
 
@@ -231,7 +286,7 @@ router.get('/featured', async (req, res) => {
 // ==================== ADMIN ENDPOINTS ====================
 
 // Get all hero slides (admin)
-router.get('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/hero-slides', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const slides = await prisma.heroSlide.findMany({
       orderBy: { displayOrder: 'asc' },
@@ -251,7 +306,7 @@ router.get('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), async
 });
 
 // Create hero slide (admin)
-router.post('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/hero-slides', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { title, subtitle, image, ctaText, ctaLink, displayOrder } = req.body;
 
@@ -288,7 +343,7 @@ router.post('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), asyn
 });
 
 // Update hero slide (admin)
-router.put('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/hero-slides/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, subtitle, image, ctaText, ctaLink, displayOrder, isActive } = req.body;
@@ -321,7 +376,7 @@ router.put('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR'), a
 });
 
 // Delete hero slide (admin)
-router.delete('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/hero-slides/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -343,7 +398,7 @@ router.delete('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR')
 });
 
 // Get all featured products (admin)
-router.get('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const featured = await prisma.featuredProduct.findMany({
       orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
@@ -363,7 +418,7 @@ router.get('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (r
 });
 
 // Add product to featured section (admin)
-router.post('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { productId, productType, section, displayOrder, customTitle, customDescription } = req.body;
 
@@ -417,7 +472,7 @@ router.post('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (
 });
 
 // Update featured product (admin)
-router.put('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/featured/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
     const { displayOrder, customTitle, customDescription, isActive } = req.body;
@@ -447,7 +502,7 @@ router.put('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), asyn
 });
 
 // Remove product from featured section (admin)
-router.delete('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/featured/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -469,7 +524,7 @@ router.delete('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), a
 });
 
 // Get available products for featuring (admin)
-router.get('/admin/products-for-featured', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/products-for-featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { type } = req.query;
 

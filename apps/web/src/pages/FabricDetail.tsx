@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Ruler, Loader2 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { api } from '../services/api';
+import { api, resolveAssetUrl } from '../services/api';
+import Badge from '../components/ui/Badge';
 
 interface Fabric {
   id: string;
@@ -23,6 +24,8 @@ interface Fabric {
   flag?: string;
   careInstructions?: string;
   shippingInfo?: string;
+  isFeatured?: boolean;
+  featuredSections?: string[];
 }
 
 const countryFlags: Record<string, string> = {
@@ -54,8 +57,30 @@ export default function FabricDetail() {
         setLoading(true);
         const response = await api.products.getFabric(id);
         if (response.success) {
-          setFabric(response.data);
-          setQuantity(response.data.minOrderMeters || 2);
+          const mappedFabric: Fabric = {
+            id: response.data.id,
+            name: response.data.name,
+            description: response.data.description,
+            pricePerMeter: Number(response.data.finalPrice || response.data.sellerPrice || 0),
+            minOrderMeters: Number(response.data.minYards || 1),
+            stockMeters: Number(response.data.stockYards || 0),
+            images: (response.data.images || []).map((img: any) => ({ url: resolveAssetUrl(img.url) })),
+            seller: {
+              id: response.data.sellerId,
+              businessName: response.data.seller?.businessName || 'Unknown Seller',
+              country: response.data.seller?.country || '',
+              rating: Number(response.data.seller?.rating || 0),
+              reviewCount: 0,
+            },
+            materialType: {
+              id: response.data.materialType?.id,
+              name: response.data.materialType?.name || 'Material',
+            },
+            isFeatured: Boolean(response.data.isFeatured),
+            featuredSections: response.data.featuredSections || [],
+          };
+          setFabric(mappedFabric);
+          setQuantity(mappedFabric.minOrderMeters || 1);
         } else {
           setError('Failed to load fabric details');
         }
@@ -142,6 +167,11 @@ export default function FabricDetail() {
                 <span>{fabric.materialType?.name || 'Unknown Material'}</span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900">{fabric.name}</h1>
+              {fabric.isFeatured && (
+                <div className="mt-2">
+                  <Badge variant="purple">Featured</Badge>
+                </div>
+              )}
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />
@@ -169,7 +199,7 @@ export default function FabricDetail() {
                 </button>
                 <span className="px-4 py-2 font-medium w-16 text-center">{quantity}</span>
                 <button
-                  onClick={() => setQuantity(quantity + 1)}
+                  onClick={() => setQuantity(Math.min(Math.max(fabric.stockMeters || 1, 1), quantity + 1))}
                   className="px-4 py-2 hover:bg-gray-100"
                 >
                   +

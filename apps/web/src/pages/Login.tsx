@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock, ArrowRight } from 'lucide-react';
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
+import { getHomeRouteForRole } from '../auth/rbac';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -25,25 +26,8 @@ export default function Login() {
       const response = await api.auth.login(formData.email, formData.password);
       if (response.success) {
         login(response.data.user, response.data.token);
-        
-        // Redirect based on role
-        const role = response.data.user.role;
-        switch (role) {
-          case 'ADMINISTRATOR':
-            navigate('/admin');
-            break;
-          case 'FABRIC_SELLER':
-            navigate('/seller');
-            break;
-          case 'FASHION_DESIGNER':
-            navigate('/designer');
-            break;
-          case 'QA_TEAM':
-            navigate('/qa');
-            break;
-          default:
-            navigate('/');
-        }
+        const homeRoute = response.data?.access?.homeRoute || getHomeRouteForRole(response.data.user.role);
+        navigate(homeRoute, { replace: true });
       }
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid email or password');

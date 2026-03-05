@@ -89,15 +89,29 @@ export default function QADashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, pendingRes, historyRes] = await Promise.all([
+      const [statsRes, pendingRes, historyRes] = await Promise.allSettled([
         api.qa.getStats(),
         api.qa.getPendingItems(),
         api.qa.getReviewHistory()
       ]);
       
-      if (statsRes.success) setStats(statsRes.data);
-      if (pendingRes.success) setPendingItems(pendingRes.data);
-      if (historyRes.success) setRecentReviews(historyRes.data);
+      if (statsRes.status === 'fulfilled' && statsRes.value.success) {
+        setStats(statsRes.value.data);
+      } else {
+        setStats(null);
+      }
+
+      if (pendingRes.status === 'fulfilled' && pendingRes.value.success) {
+        setPendingItems(pendingRes.value.data);
+      } else {
+        setPendingItems([]);
+      }
+
+      if (historyRes.status === 'fulfilled' && historyRes.value.success) {
+        setRecentReviews(historyRes.value.data);
+      } else {
+        setRecentReviews([]);
+      }
       
       // Mock activities
       setActivities([
@@ -148,12 +162,12 @@ export default function QADashboard() {
       });
       
       setShowReviewModal(false);
-      setSelectedItem(null);
-      setReviewNotes('');
       
       if (status === 'APPROVED') {
         setShowShipModal(true);
       } else {
+        setSelectedItem(null);
+        setReviewNotes('');
         fetchDashboardData();
       }
     } catch (error) {
@@ -346,11 +360,17 @@ export default function QADashboard() {
                 {pendingItems.slice(0, 4).map((item) => (
                   <div key={item.id} className="border rounded-xl overflow-hidden">
                     <div className="relative">
-                      <img
-                        src={item.images[0]}
-                        alt={item.designName}
-                        className="w-full h-32 object-cover"
-                      />
+                      {item.images?.[0] ? (
+                        <img
+                          src={item.images[0]}
+                          alt={item.designName}
+                          className="w-full h-32 object-cover"
+                        />
+                      ) : (
+                        <div className="w-full h-32 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
+                          No image
+                        </div>
+                      )}
                       <Badge 
                         variant={item.priority === 'HIGH' ? 'red' : item.priority === 'MEDIUM' ? 'yellow' : 'blue'}
                         className="absolute top-2 right-2"
@@ -390,7 +410,13 @@ export default function QADashboard() {
               header: 'Design',
               render: (item) => (
                 <div className="flex items-center gap-3">
-                  <img src={item.images[0]} alt={item.designName} className="w-12 h-12 rounded-lg object-cover" />
+                  {item.images?.[0] ? (
+                    <img src={item.images[0]} alt={item.designName} className="w-12 h-12 rounded-lg object-cover" />
+                  ) : (
+                    <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
+                      No image
+                    </div>
+                  )}
                   <div>
                     <p className="font-medium text-gray-900">{item.designName}</p>
                     <p className="text-xs text-gray-500">{item.orderNumber}</p>
@@ -487,14 +513,18 @@ export default function QADashboard() {
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-6">
-                {selectedItem.images.map((img, idx) => (
+                {selectedItem.images.length > 0 ? selectedItem.images.map((img, idx) => (
                   <img
                     key={idx}
                     src={img}
                     alt={`Review ${idx + 1}`}
                     className="w-full h-48 object-cover rounded-lg"
                   />
-                ))}
+                )) : (
+                  <div className="col-span-2 h-48 rounded-lg bg-gray-100 flex items-center justify-center text-gray-400">
+                    No images available for this order
+                  </div>
+                )}
               </div>
 
               <div className="grid grid-cols-2 gap-6 mb-6">
@@ -587,6 +617,8 @@ export default function QADashboard() {
                 className="flex-1"
                 onClick={() => {
                   setShowShipModal(false);
+                  setSelectedItem(null);
+                  setReviewNotes('');
                   fetchDashboardData();
                 }}
               >

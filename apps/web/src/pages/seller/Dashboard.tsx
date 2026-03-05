@@ -2,21 +2,18 @@ import { useState, useEffect } from 'react';
 import { 
   Package, 
   DollarSign, 
-  TrendingUp, 
   ShoppingBag,
   Plus,
   Edit,
   Eye,
   AlertCircle,
-  TrendingDown,
   Truck,
-  CheckCircle,
   Clock,
-  BarChart3,
   MapPin,
-  ArrowRight
+  ArrowRight,
+  Upload,
+  X
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -79,10 +76,37 @@ export default function SellerDashboard() {
   const [showStockModal, setShowStockModal] = useState(false);
   const [selectedFabric, setSelectedFabric] = useState<Fabric | null>(null);
   const [newStock, setNewStock] = useState(0);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingFabric, setCreatingFabric] = useState(false);
+  const [materials, setMaterials] = useState<Array<{ id: string; name: string }>>([]);
+  const [newFabricImages, setNewFabricImages] = useState<File[]>([]);
+  const [newFabric, setNewFabric] = useState({
+    name: '',
+    description: '',
+    materialTypeId: '',
+    sellerPrice: '',
+    minYards: '1',
+    stockYards: '0',
+  });
+  const [modalError, setModalError] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    (async () => {
+      try {
+        const response = await api.products.getMaterials();
+        if (response.success) {
+          setMaterials(response.data || []);
+        }
+      } catch (error) {
+        console.error('Failed to load material types:', error);
+      }
+    })();
+  }, [showCreateModal]);
 
   const fetchDashboardData = async () => {
     try {
@@ -164,6 +188,81 @@ export default function SellerDashboard() {
   const lowStockFabrics = fabrics.filter(f => f.stockMeters < 20);
   const pendingOrders = orders.filter(o => o.status === 'CONFIRMED');
 
+  const getOrderVariant = (status: string) => {
+    if (status === 'DELIVERED') return 'green';
+    if (status === 'SHIPPED_TO_DESIGNER' || status === 'SHIPPED') return 'blue';
+    if (status === 'CONFIRMED' || status === 'PENDING') return 'yellow';
+    return 'gray';
+  };
+
+  const resetCreateFabricForm = () => {
+    setNewFabric({
+      name: '',
+      description: '',
+      materialTypeId: '',
+      sellerPrice: '',
+      minYards: '1',
+      stockYards: '0',
+    });
+    setNewFabricImages([]);
+    setModalError('');
+  };
+
+  const handleCreateFabric = async () => {
+    try {
+      setModalError('');
+      if (!newFabric.name || !newFabric.description || !newFabric.materialTypeId || !newFabric.sellerPrice) {
+        setModalError('Please fill all required fields.');
+        return;
+      }
+      if (newFabricImages.length === 0) {
+        setModalError('Please upload at least one image.');
+        return;
+      }
+      setCreatingFabric(true);
+
+      const uploadedImages: Array<{ url: string; alt?: string }> = [];
+      for (const file of newFabricImages) {
+        const formData = new FormData();
+        formData.append('image', file);
+        const uploadResponse = await api.upload.image(formData);
+        if (uploadResponse.success) {
+          uploadedImages.push({ url: uploadResponse.data.url, alt: newFabric.name });
+        }
+      }
+
+      if (uploadedImages.length === 0) {
+        setModalError('Image upload failed. Please try again.');
+        return;
+      }
+
+      const createResponse = await api.seller.createFabric({
+        name: newFabric.name.trim(),
+        description: newFabric.description.trim(),
+        materialTypeId: newFabric.materialTypeId,
+        sellerPrice: Number(newFabric.sellerPrice),
+        minYards: Number(newFabric.minYards),
+        stockYards: Number(newFabric.stockYards),
+        images: uploadedImages,
+      });
+
+      if (!createResponse.success) {
+        setModalError('Failed to create fabric.');
+        return;
+      }
+
+      setShowCreateModal(false);
+      resetCreateFabricForm();
+      fetchDashboardData();
+      setActiveTab('fabrics');
+    } catch (error: any) {
+      console.error('Failed to create fabric:', error);
+      setModalError(error?.response?.data?.message || 'Failed to create fabric.');
+    } finally {
+      setCreatingFabric(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
@@ -180,11 +279,9 @@ export default function SellerDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Seller Dashboard</h1>
           <p className="text-gray-500 mt-1">Manage your fabrics and track sales</p>
         </div>
-        <Button asChild>
-          <Link to="/seller/fabrics/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Fabric
-          </Link>
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add New Fabric
         </Button>
       </div>
 
@@ -351,11 +448,9 @@ export default function SellerDashboard() {
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">My Fabrics</h2>
-            <Button size="sm" asChild>
-              <Link to="/seller/fabrics/new">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Fabric
-              </Link>
+            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Fabric
             </Button>
           </div>
           <DataTable
@@ -365,7 +460,13 @@ export default function SellerDashboard() {
                 header: 'Fabric',
                 render: (item) => (
                   <div className="flex items-center gap-3">
-                    <img src={item.images[0]} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                    {item.images?.[0] ? (
+                      <img src={item.images[0]} alt={item.name} className="w-10 h-10 rounded-lg object-cover" />
+                    ) : (
+                      <div className="w-10 h-10 rounded-lg bg-gray-100 flex items-center justify-center text-[10px] text-gray-400">
+                        No img
+                      </div>
+                    )}
                     <div>
                       <p className="font-medium text-gray-900">{item.name}</p>
                       <p className="text-xs text-gray-500">{item.materialType?.name}</p>
@@ -392,7 +493,7 @@ export default function SellerDashboard() {
                 key: 'status', 
                 header: 'Status',
                 render: (item) => (
-                  <Badge variant={item.status === 'ACTIVE' ? 'green' : 'gray'}>
+                  <Badge variant={item.status === 'ACTIVE' ? 'green' : item.status === 'PENDING_REVIEW' ? 'yellow' : 'gray'}>
                     {item.status}
                   </Badge>
                 )
@@ -442,11 +543,7 @@ export default function SellerDashboard() {
               key: 'status', 
               header: 'Status',
               render: (item) => (
-                <Badge variant={
-                  item.status === 'DELIVERED' ? 'green' :
-                  item.status === 'SHIPPED' ? 'blue' :
-                  item.status === 'CONFIRMED' ? 'yellow' : 'gray'
-                }>
+                <Badge variant={getOrderVariant(item.status)}>
                   {item.status}
                 </Badge>
               )
@@ -461,7 +558,7 @@ export default function SellerDashboard() {
               {item.status === 'CONFIRMED' && (
                 <Button 
                   size="sm"
-                  onClick={() => handleUpdateOrderStatus(item.id, 'SHIPPED')}
+                  onClick={() => handleUpdateOrderStatus(item.id, 'SHIPPED_TO_DESIGNER')}
                 >
                   <Truck className="w-4 h-4 mr-1" />
                   Ship
@@ -507,6 +604,130 @@ export default function SellerDashboard() {
                 onClick={() => handleUpdateStock(selectedFabric.id, newStock)}
               >
                 Update Stock
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Create Fabric Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upload New Fabric</h3>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetCreateFabricForm();
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                {modalError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fabric Name *</label>
+                <input
+                  type="text"
+                  value={newFabric.name}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea
+                  value={newFabric.description}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg h-24 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Material Type *</label>
+                <select
+                  value={newFabric.materialTypeId}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, materialTypeId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Select material</option>
+                  {materials.map((material) => (
+                    <option key={material.id} value={material.id}>
+                      {material.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Price per yard (USD) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newFabric.sellerPrice}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, sellerPrice: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum yards</label>
+                <input
+                  type="number"
+                  min="1"
+                  step="1"
+                  value={newFabric.minYards}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, minYards: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Stock yards</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={newFabric.stockYards}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, stockYards: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Fabric Images *</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(e) => setNewFabricImages(Array.from(e.target.files || []))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+                {newFabricImages.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">{newFabricImages.length} image(s) selected</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetCreateFabricForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleCreateFabric} disabled={creatingFabric}>
+                <Upload className="w-4 h-4 mr-2" />
+                {creatingFabric ? 'Uploading...' : 'Upload Fabric'}
               </Button>
             </div>
           </div>

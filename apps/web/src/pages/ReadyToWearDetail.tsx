@@ -2,7 +2,8 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Truck, Check, Loader2 } from 'lucide-react';
 import Button from '../components/ui/Button';
-import { api } from '../services/api';
+import Badge from '../components/ui/Badge';
+import { api, resolveAssetUrl } from '../services/api';
 
 interface ReadyToWearProduct {
   id: string;
@@ -25,6 +26,8 @@ interface ReadyToWearProduct {
   careInstructions?: string;
   shippingInfo?: string;
   inStock?: boolean;
+  isFeatured?: boolean;
+  featuredSections?: string[];
 }
 
 const countryFlags: Record<string, string> = {
@@ -58,12 +61,39 @@ export default function ReadyToWearDetail() {
         setLoading(true);
         const response = await api.products.getReadyToWearProduct(id);
         if (response.success) {
-          setProduct(response.data);
-          if (response.data.sizes && response.data.sizes.length > 0) {
-            setSelectedSize(response.data.sizes[0]);
+          const sizeVariations = response.data.sizeVariations || [];
+          const availableSizes = sizeVariations.filter((s: any) => Number(s.stock || 0) > 0);
+          const basePrice = Number(response.data.basePrice || 0);
+          const minSizePrice = availableSizes.length > 0
+            ? Math.min(...availableSizes.map((s: any) => Number(s.price || basePrice)))
+            : basePrice;
+
+          const mappedProduct: ReadyToWearProduct = {
+            id: response.data.id,
+            name: response.data.name,
+            description: response.data.description,
+            price: minSizePrice,
+            images: (response.data.images || []).map((img: any) => ({ url: resolveAssetUrl(img.url) })),
+            designer: {
+              id: response.data.designerId,
+              businessName: response.data.designer?.businessName || 'Designer',
+              country: response.data.designer?.country || '',
+              rating: Number(response.data.designer?.rating || 0),
+              reviewCount: 0,
+            },
+            category: response.data.category,
+            sizes: (availableSizes.length > 0 ? availableSizes : sizeVariations).map((s: any) => s.size),
+            inStock: sizeVariations.some((s: any) => Number(s.stock || 0) > 0),
+            isFeatured: Boolean(response.data.isFeatured),
+            featuredSections: response.data.featuredSections || [],
+          };
+
+          setProduct(mappedProduct);
+          if (mappedProduct.sizes && mappedProduct.sizes.length > 0) {
+            setSelectedSize(mappedProduct.sizes[0]);
           }
-          if (response.data.colors && response.data.colors.length > 0) {
-            setSelectedColor(response.data.colors[0]);
+          if (mappedProduct.colors && mappedProduct.colors.length > 0) {
+            setSelectedColor(mappedProduct.colors[0]);
           }
         } else {
           setError('Failed to load product details');
@@ -157,6 +187,11 @@ export default function ReadyToWearDetail() {
                 <span>{product.category?.name || 'Ready To Wear'}</span>
               </div>
               <h1 className="text-3xl font-bold text-gray-900">{product.name}</h1>
+              {product.isFeatured && (
+                <div className="mt-2">
+                  <Badge variant="purple">Featured</Badge>
+                </div>
+              )}
               <div className="flex items-center gap-4 mt-3">
                 <div className="flex items-center gap-1">
                   <Star className="w-5 h-5 text-yellow-400 fill-current" />

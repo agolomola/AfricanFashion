@@ -1,18 +1,49 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, UserStatus, ProductStatus } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { prisma, UserRole, UserStatus, ProductStatus, OrderStatus } from '../db';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
+function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 20) {
+  const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
+function percentageChange(currentValue: number, previousValue: number) {
+  if (previousValue === 0) {
+    return currentValue > 0 ? 100 : 0;
+  }
+  return Math.round(((currentValue - previousValue) / previousValue) * 100);
+}
+
 // All admin routes require admin role
 router.use(authenticate);
-router.use(authorize(UserRole.ADMINISTRATOR));
+router.use(authorizePermissions(Permissions.ADMIN_ACCESS));
 
 // ==================== DASHBOARD STATS ====================
 
 router.get('/dashboard', async (req, res, next) => {
   try {
+    const requestedRange = String(req.query.range || '7d');
+    const range = (['24h', '7d', '30d', '90d'] as const).includes(requestedRange as any)
+      ? (requestedRange as '24h' | '7d' | '30d' | '90d')
+      : '7d';
+    const rangeDurationMs =
+      range === '24h'
+        ? 24 * 60 * 60 * 1000
+        : range === '30d'
+          ? 30 * 24 * 60 * 60 * 1000
+          : range === '90d'
+            ? 90 * 24 * 60 * 60 * 1000
+            : 7 * 24 * 60 * 60 * 1000;
+    const now = new Date();
+    const rangeStart = new Date(now.getTime() - rangeDurationMs);
+    const previousRangeStart = new Date(rangeStart.getTime() - rangeDurationMs);
+
     const [
       totalUsers,
       totalCustomers,
@@ -23,6 +54,18 @@ router.get('/dashboard', async (req, res, next) => {
       totalOrders,
       totalRevenue,
       totalProducts,
+      pendingOrders,
+      inProductionOrders,
+      currentRevenue,
+      previousRevenue,
+      currentOrders,
+      previousOrders,
+      currentUsers,
+      previousUsers,
+      currentProducts,
+      previousProducts,
+      statusCounts,
+      paidOrdersInRange,
       recentOrders,
     ] = await Promise.all([
       prisma.user.count(),
@@ -46,6 +89,86 @@ router.get('/dashboard', async (req, res, next) => {
         prisma.design.count(),
         prisma.readyToWear.count(),
       ]).then(([fabrics, designs, rtw]) => fabrics + designs + rtw),
+      prisma.order.count({
+        where: {
+          status: {
+            in: [
+              OrderStatus.PENDING_PAYMENT,
+              OrderStatus.PAYMENT_CONFIRMED,
+              OrderStatus.FABRIC_PENDING,
+              OrderStatus.FABRIC_CONFIRMED,
+            ],
+          },
+        },
+      }),
+      prisma.order.count({
+        where: {
+          status: {
+            in: [
+              OrderStatus.FABRIC_RECEIVED,
+              OrderStatus.IN_PRODUCTION,
+              OrderStatus.PRODUCTION_COMPLETE,
+              OrderStatus.QA_PENDING,
+              OrderStatus.QA_INSPECTING,
+            ],
+          },
+        },
+      }),
+      prisma.order.aggregate({
+        where: {
+          paymentStatus: 'COMPLETED',
+          paidAt: { gte: rangeStart },
+        },
+        _sum: { total: true },
+      }),
+      prisma.order.aggregate({
+        where: {
+          paymentStatus: 'COMPLETED',
+          paidAt: { gte: previousRangeStart, lt: rangeStart },
+        },
+        _sum: { total: true },
+      }),
+      prisma.order.count({
+        where: {
+          createdAt: { gte: rangeStart },
+        },
+      }),
+      prisma.order.count({
+        where: {
+          createdAt: { gte: previousRangeStart, lt: rangeStart },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: rangeStart },
+        },
+      }),
+      prisma.user.count({
+        where: {
+          createdAt: { gte: previousRangeStart, lt: rangeStart },
+        },
+      }),
+      prisma.$transaction([
+        prisma.fabric.count({ where: { createdAt: { gte: rangeStart } } }),
+        prisma.design.count({ where: { createdAt: { gte: rangeStart } } }),
+        prisma.readyToWear.count({ where: { createdAt: { gte: rangeStart } } }),
+      ]).then(([fabrics, designs, rtw]) => fabrics + designs + rtw),
+      prisma.$transaction([
+        prisma.fabric.count({ where: { createdAt: { gte: previousRangeStart, lt: rangeStart } } }),
+        prisma.design.count({ where: { createdAt: { gte: previousRangeStart, lt: rangeStart } } }),
+        prisma.readyToWear.count({ where: { createdAt: { gte: previousRangeStart, lt: rangeStart } } }),
+      ]).then(([fabrics, designs, rtw]) => fabrics + designs + rtw),
+      prisma.order.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      }),
+      prisma.order.findMany({
+        where: {
+          paymentStatus: 'COMPLETED',
+          paidAt: { gte: rangeStart },
+        },
+        select: { paidAt: true, total: true },
+      }),
       prisma.order.findMany({
         take: 5,
         orderBy: { createdAt: 'desc' },
@@ -56,6 +179,35 @@ router.get('/dashboard', async (req, res, next) => {
         },
       }),
     ]);
+
+    const bucketCount = 6;
+    const bucketSizeMs = Math.max(1, Math.floor(rangeDurationMs / bucketCount));
+    const revenueBuckets = Array.from({ length: bucketCount }, (_, index) => {
+      const bucketEnd = new Date(rangeStart.getTime() + bucketSizeMs * (index + 1));
+      return {
+        label:
+          range === '24h'
+            ? bucketEnd.toLocaleTimeString('en-US', { hour: 'numeric' })
+            : bucketEnd.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        value: 0,
+      };
+    });
+
+    for (const order of paidOrdersInRange) {
+      if (!order.paidAt) continue;
+      const diffMs = order.paidAt.getTime() - rangeStart.getTime();
+      if (diffMs < 0) continue;
+      const bucketIndex = Math.min(bucketCount - 1, Math.floor(diffMs / bucketSizeMs));
+      revenueBuckets[bucketIndex].value += Number(order.total || 0);
+    }
+
+    const ordersByStatus = statusCounts.map((entry) => ({
+      label: entry.status.replace(/_/g, ' '),
+      value: entry._count._all,
+    }));
+
+    const currentRevenueValue = Number(currentRevenue._sum.total || 0);
+    const previousRevenueValue = Number(previousRevenue._sum.total || 0);
 
     res.json({
       success: true,
@@ -75,6 +227,21 @@ router.get('/dashboard', async (req, res, next) => {
         products: {
           total: totalProducts,
         },
+        pendingOrders,
+        inProductionOrders,
+        revenueChange: percentageChange(currentRevenueValue, previousRevenueValue),
+        orderChange: percentageChange(currentOrders, previousOrders),
+        userChange: percentageChange(currentUsers, previousUsers),
+        productChange: percentageChange(currentProducts, previousProducts),
+        monthlyRevenue: revenueBuckets,
+        ordersByStatus,
+        usersByRole: [
+          { label: 'Customers', value: totalCustomers },
+          { label: 'Designers', value: totalDesigners },
+          { label: 'Sellers', value: totalFabricSellers },
+          { label: 'QA Team', value: totalQa },
+        ],
+        range,
         recentOrders,
       },
     });
@@ -88,7 +255,7 @@ router.get('/dashboard', async (req, res, next) => {
 // Get all users with filters
 router.get('/users', async (req, res, next) => {
   try {
-    const { role, status, search, page = '1', limit = '20' } = req.query;
+    const { role, status, search, page, limit } = req.query;
 
     const where: any = {};
     if (role) where.role = role;
@@ -101,13 +268,13 @@ router.get('/users', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -128,10 +295,10 @@ router.get('/users', async (req, res, next) => {
       data: {
         users,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -168,7 +335,11 @@ router.get('/users/pending', async (req, res, next) => {
 router.patch('/users/:id/status', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body;
+    const schema = z.object({
+      status: z.nativeEnum(UserStatus),
+      reason: z.string().optional(),
+    });
+    const { status, reason } = schema.parse(req.body);
 
     const user = await prisma.user.update({
       where: { id },
@@ -467,18 +638,18 @@ router.delete('/pricing-rules/:id', async (req, res, next) => {
 // Get all orders
 router.get('/orders', async (req, res, next) => {
   try {
-    const { status, page = '1', limit = '20' } = req.query;
+    const { status, page, limit } = req.query;
 
     const where: any = {};
     if (status) where.status = status;
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         orderBy: { createdAt: 'desc' },
         include: {
           customer: {
@@ -487,14 +658,55 @@ router.get('/orders', async (req, res, next) => {
           designOrder: {
             include: {
               design: {
-                select: { name: true },
+                select: {
+                  name: true,
+                  designer: {
+                    include: {
+                      user: {
+                        select: { firstName: true, lastName: true },
+                      },
+                    },
+                  },
+                },
               },
             },
           },
           fabricOrder: {
             include: {
               fabric: {
-                select: { name: true },
+                select: {
+                  name: true,
+                  seller: {
+                    include: {
+                      user: {
+                        select: { firstName: true, lastName: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          readyToWearItems: {
+            include: {
+              readyToWear: {
+                select: {
+                  name: true,
+                  designer: {
+                    include: {
+                      user: {
+                        select: { firstName: true, lastName: true },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          qa: {
+            include: {
+              user: {
+                select: { firstName: true, lastName: true },
               },
             },
           },
@@ -508,10 +720,10 @@ router.get('/orders', async (req, res, next) => {
       data: {
         orders,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -524,7 +736,10 @@ router.get('/orders', async (req, res, next) => {
 router.patch('/orders/:id/assign-qa', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { qaId } = req.body;
+    const schema = z.object({
+      qaId: z.string().uuid(),
+    });
+    const { qaId } = schema.parse(req.body);
 
     const order = await prisma.order.update({
       where: { id },

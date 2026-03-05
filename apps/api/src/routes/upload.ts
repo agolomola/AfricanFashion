@@ -2,9 +2,15 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
+const allowedMimeTypes: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -12,15 +18,15 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+    const extension = allowedMimeTypes[file.mimetype];
+    const uniqueName = `${uuidv4()}${extension || path.extname(file.originalname) || '.bin'}`;
     cb(null, uniqueName);
   },
 });
 
 // File filter
 const fileFilter = (req: any, file: any, cb: any) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowedTypes.includes(file.mimetype)) {
+  if (allowedMimeTypes[file.mimetype]) {
     cb(null, true);
   } else {
     cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
@@ -36,7 +42,7 @@ const upload = multer({
 });
 
 // Upload single image
-router.post('/image', authenticate, upload.single('image'), (req, res) => {
+router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -65,7 +71,7 @@ router.post('/image', authenticate, upload.single('image'), (req, res) => {
 });
 
 // Upload multiple images
-router.post('/images', authenticate, upload.array('images', 10), (req, res) => {
+router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), upload.array('images', 10), (req, res) => {
   try {
     if (!req.files || (req.files as any[]).length === 0) {
       return res.status(400).json({

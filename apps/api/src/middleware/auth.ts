@@ -1,6 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 import { prisma, UserRole } from '../db';
+import { Permission, hasAnyPermission } from '../rbac';
 
 // JWT Secret - must be set in production
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -9,10 +11,10 @@ if (!JWT_SECRET) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable is required in production');
   }
-  console.warn('WARNING: JWT_SECRET not set. Using insecure fallback for development only.');
+  console.warn('WARNING: JWT_SECRET not set. Using ephemeral development secret.');
 }
 
-const SECRET = JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production';
+const SECRET = JWT_SECRET || randomBytes(32).toString('hex');
 
 // Extend Express Request type
 declare global {
@@ -106,6 +108,27 @@ export function authorize(...allowedRoles: UserRole[]) {
     }
 
     if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to access this resource.',
+      });
+    }
+
+    next();
+  };
+}
+
+// Permission-based authorization middleware (RBAC)
+export function authorizePermissions(...requiredPermissions: Permission[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    if (!hasAnyPermission(req.user.role, requiredPermissions)) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to access this resource.',

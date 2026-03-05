@@ -1,12 +1,20 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma, UserRole } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.CUSTOMER));
+router.use(authorizePermissions(Permissions.CUSTOMER_ACCESS));
+
+function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 10) {
+  const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
 
 // Get customer profile
 router.get('/profile', async (req, res, next) => {
@@ -88,7 +96,17 @@ router.post('/addresses', async (req, res, next) => {
 router.patch('/addresses/:id', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const updateData = req.body;
+    const schema = z.object({
+      label: z.string().min(1).optional(),
+      fullName: z.string().min(2).optional(),
+      phone: z.string().min(1).optional(),
+      country: z.string().min(1).optional(),
+      city: z.string().min(1).optional(),
+      address: z.string().min(1).optional(),
+      postalCode: z.string().optional(),
+      isDefault: z.boolean().optional(),
+    });
+    const updateData = schema.parse(req.body);
 
     const profile = await prisma.customerProfile.findUnique({
       where: { userId: req.user!.id },
@@ -197,14 +215,14 @@ router.post('/measurements', async (req, res, next) => {
 // Get customer orders
 router.get('/orders', async (req, res, next) => {
   try {
-    const { page = '1', limit = '10' } = req.query;
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const { page, limit } = req.query;
+    const pagination = parsePagination(page, limit, 10);
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where: { customerId: req.user!.id },
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         orderBy: { createdAt: 'desc' },
         include: {
           designOrder: {
@@ -242,10 +260,10 @@ router.get('/orders', async (req, res, next) => {
       data: {
         orders,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });

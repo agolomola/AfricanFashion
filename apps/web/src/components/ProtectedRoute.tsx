@@ -1,7 +1,7 @@
 import { Navigate, Outlet } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-
-type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM' | 'ADMINISTRATOR';
+import type { UserRole } from '../types';
+import { getHomeRouteForRole, normalizeRole } from '../auth/rbac';
 
 interface ProtectedRouteProps {
   allowedRoles?: UserRole[];
@@ -9,26 +9,19 @@ interface ProtectedRouteProps {
 
 export default function ProtectedRoute({ allowedRoles }: ProtectedRouteProps) {
   const { isAuthenticated, user } = useAuthStore();
+  const normalizedRole = normalizeRole(user?.role);
 
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  if (allowedRoles && user?.role) {
-    if (!allowedRoles.includes(user.role as UserRole)) {
-      // Redirect to appropriate dashboard based on role
-      switch (user.role) {
-        case 'ADMINISTRATOR':
-          return <Navigate to="/admin" replace />;
-        case 'FABRIC_SELLER':
-          return <Navigate to="/seller" replace />;
-        case 'FASHION_DESIGNER':
-          return <Navigate to="/designer" replace />;
-        case 'QA_TEAM':
-          return <Navigate to="/qa" replace />;
-        default:
-          return <Navigate to="/" replace />;
-      }
+  if (allowedRoles) {
+    if (!normalizedRole) {
+      return <Navigate to="/login" replace />;
+    }
+
+    if (!allowedRoles.includes(normalizedRole)) {
+      return <Navigate to={getHomeRouteForRole(normalizedRole)} replace />;
     }
   }
 

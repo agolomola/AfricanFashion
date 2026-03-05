@@ -9,6 +9,7 @@ import {
   UserCheck,
   Package
 } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -35,10 +36,21 @@ export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const { id: routeOrderId } = useParams();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [statusFilter]);
+
+  useEffect(() => {
+    if (!routeOrderId || !orders.length) return;
+    const match = orders.find((order) => order.id === routeOrderId);
+    if (match) {
+      setSelectedOrder(match);
+      setShowDetailModal(true);
+    }
+  }, [routeOrderId, orders]);
 
   const fetchOrders = async () => {
     try {
@@ -67,11 +79,27 @@ export default function AdminOrders() {
 
   const filteredOrders = orders.filter(order => {
     const matchesSearch = 
-      order.orderNumber.toLowerCase().includes(search.toLowerCase()) ||
-      order.customerName.toLowerCase().includes(search.toLowerCase());
+      String(order.orderNumber || '').toLowerCase().includes(search.toLowerCase()) ||
+      String(order.customerName || '').toLowerCase().includes(search.toLowerCase());
     const matchesStatus = !statusFilter || order.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  const closeDetailModal = () => {
+    setShowDetailModal(false);
+    if (routeOrderId) {
+      navigate('/admin/orders', { replace: true });
+    }
+  };
+
+  const getStatusVariant = (status: string) => {
+    if (status === 'DELIVERED' || status === 'COMPLETED') return 'green';
+    if (status === 'SHIPPED') return 'blue';
+    if (status === 'IN_PRODUCTION' || status === 'PRODUCTION_COMPLETE') return 'purple';
+    if (status === 'PENDING_PAYMENT' || status === 'PAYMENT_CONFIRMED' || status === 'FABRIC_PENDING' || status === 'QA_PENDING' || status === 'QA_INSPECTING') return 'yellow';
+    if (status === 'CANCELLED' || status === 'REFUNDED' || status === 'QA_REJECTED') return 'red';
+    return 'gray';
+  };
 
   if (loading) {
     return (
@@ -110,14 +138,23 @@ export default function AdminOrders() {
           className="px-4 py-2 border rounded-lg"
         >
           <option value="">All Status</option>
-          <option value="PENDING">Pending</option>
-          <option value="CONFIRMED">Confirmed</option>
+          <option value="PENDING_PAYMENT">Pending Payment</option>
+          <option value="PAYMENT_CONFIRMED">Payment Confirmed</option>
+          <option value="FABRIC_PENDING">Fabric Pending</option>
+          <option value="FABRIC_CONFIRMED">Fabric Confirmed</option>
+          <option value="FABRIC_SHIPPED">Fabric Shipped</option>
+          <option value="FABRIC_RECEIVED">Fabric Received</option>
           <option value="IN_PRODUCTION">In Production</option>
-          <option value="QA_REVIEW">QA Review</option>
-          <option value="READY_FOR_SHIPPING">Ready for Shipping</option>
+          <option value="PRODUCTION_COMPLETE">Production Complete</option>
+          <option value="QA_PENDING">QA Pending</option>
+          <option value="QA_INSPECTING">QA Inspecting</option>
+          <option value="QA_APPROVED">QA Approved</option>
+          <option value="QA_REJECTED">QA Rejected</option>
           <option value="SHIPPED">Shipped</option>
           <option value="DELIVERED">Delivered</option>
+          <option value="COMPLETED">Completed</option>
           <option value="CANCELLED">Cancelled</option>
+          <option value="REFUNDED">Refunded</option>
         </select>
         <Button variant="outline" onClick={fetchOrders}>
           <Filter className="w-4 h-4 mr-2" />
@@ -147,16 +184,9 @@ export default function AdminOrders() {
                 <tr key={order.id} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="py-3 px-4 font-medium">{order.orderNumber}</td>
                   <td className="py-3 px-4">{order.customerName}</td>
-                  <td className="py-3 px-4 font-medium">${order.totalAmount.toFixed(2)}</td>
+                  <td className="py-3 px-4 font-medium">${Number(order.totalAmount || 0).toFixed(2)}</td>
                   <td className="py-3 px-4">
-                    <Badge 
-                      variant={
-                        order.status === 'DELIVERED' ? 'green' :
-                        order.status === 'SHIPPED' ? 'blue' :
-                        order.status === 'IN_PRODUCTION' ? 'purple' :
-                        order.status === 'PENDING' ? 'yellow' : 'gray'
-                      }
-                    >
+                    <Badge variant={getStatusVariant(order.status)}>
                       {order.status}
                     </Badge>
                   </td>
@@ -183,6 +213,7 @@ export default function AdminOrders() {
                       onClick={() => {
                         setSelectedOrder(order);
                         setShowDetailModal(true);
+                        navigate(`/admin/orders/${order.id}`);
                       }}
                       className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg"
                     >
@@ -203,7 +234,7 @@ export default function AdminOrders() {
             <div className="flex items-center justify-between mb-6">
               <h3 className="text-xl font-bold">Order Details</h3>
               <button 
-                onClick={() => setShowDetailModal(false)}
+                onClick={closeDetailModal}
                 className="p-2 hover:bg-gray-100 rounded-full"
               >
                 <XCircle className="w-5 h-5" />
@@ -217,12 +248,7 @@ export default function AdminOrders() {
                   <p className="text-lg font-bold">{selectedOrder.orderNumber}</p>
                 </div>
                 <Badge 
-                  variant={
-                    selectedOrder.status === 'DELIVERED' ? 'green' :
-                    selectedOrder.status === 'SHIPPED' ? 'blue' :
-                    selectedOrder.status === 'IN_PRODUCTION' ? 'purple' :
-                    selectedOrder.status === 'PENDING' ? 'yellow' : 'gray'
-                  }
+                  variant={getStatusVariant(selectedOrder.status)}
                 >
                   {selectedOrder.status}
                 </Badge>
@@ -235,7 +261,7 @@ export default function AdminOrders() {
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Total Amount</p>
-                  <p className="font-medium text-amber-700">${selectedOrder.totalAmount.toFixed(2)}</p>
+                  <p className="font-medium text-amber-700">${Number(selectedOrder.totalAmount || 0).toFixed(2)}</p>
                 </div>
                 <div>
                   <p className="text-sm text-gray-500">Designer</p>

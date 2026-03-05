@@ -3,7 +3,7 @@ import { clsx } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
 interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
-  variant?: 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
+  variant?: 'primary' | 'default' | 'secondary' | 'outline' | 'ghost' | 'danger';
   size?: 'sm' | 'md' | 'lg';
   isLoading?: boolean;
   asChild?: boolean;
@@ -15,6 +15,7 @@ const Button = forwardRef<HTMLButtonElement, ButtonProps>(
     
     const variants = {
       primary: 'bg-coral-500 text-white hover:bg-coral-600 focus:ring-coral-500',
+      default: 'bg-coral-500 text-white hover:bg-coral-600 focus:ring-coral-500',
       secondary: 'bg-navy-600 text-white hover:bg-navy-700 focus:ring-navy-500',
       outline: 'border-2 border-coral-500 text-coral-500 hover:bg-coral-50 focus:ring-coral-500',
       ghost: 'text-gray-700 hover:bg-gray-100 focus:ring-gray-500',

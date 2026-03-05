@@ -49,6 +49,7 @@ import QADashboard from './pages/qa/Dashboard';
 // Auth
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
+import { getHomeRouteForRole } from './auth/rbac';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -85,10 +86,10 @@ function App() {
 
             {/* Auth Routes */}
             <Route path="/login" element={
-              isAuthenticated ? <Navigate to="/" /> : <Login />
+              isAuthenticated ? <Navigate to={getHomeRouteForRole(user?.role)} replace /> : <Login />
             } />
             <Route path="/register" element={
-              isAuthenticated ? <Navigate to="/" /> : <Register />
+              isAuthenticated ? <Navigate to={getHomeRouteForRole(user?.role)} replace /> : <Register />
             } />
 
             {/* Checkout - Requires Auth */}
@@ -113,6 +114,7 @@ function App() {
                 <Route path="/admin/users" element={<AdminUsers />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
                 <Route path="/admin/orders" element={<AdminOrders />} />
+                <Route path="/admin/orders/:id" element={<AdminOrders />} />
                 <Route path="/admin/pricing" element={<AdminPricingRules />} />
                 <Route path="/admin/banners" element={<AdminBanners />} />
                 <Route path="/admin/homepage" element={<AdminHomepage />} />

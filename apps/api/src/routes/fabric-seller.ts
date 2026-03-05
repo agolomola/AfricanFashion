@@ -1,19 +1,31 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, ProductStatus } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { prisma, UserRole, ProductStatus, OrderStatus } from '../db';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.FABRIC_SELLER));
+router.use(authorizePermissions(Permissions.SELLER_ACCESS));
+
+function percentageChange(currentValue: number, previousValue: number) {
+  if (previousValue === 0) {
+    return currentValue > 0 ? 100 : 0;
+  }
+  return Math.round(((currentValue - previousValue) / previousValue) * 100);
+}
+
+async function getSellerProfile(userId: string) {
+  return prisma.fabricSellerProfile.findFirst({
+    where: { userId },
+  });
+}
 
 // Get seller dashboard
 router.get('/dashboard', async (req, res, next) => {
   try {
-    const profile = await prisma.fabricSellerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getSellerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -51,12 +63,128 @@ router.get('/dashboard', async (req, res, next) => {
   }
 });
 
+// Get seller stats (dashboard charts + KPIs)
+router.get('/stats', async (req, res, next) => {
+  try {
+    const profile = await getSellerProfile(req.user!.id);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Seller profile not found.',
+      });
+    }
+
+    const now = new Date();
+    const currentPeriodStart = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const previousPeriodStart = new Date(currentPeriodStart.getTime() - 30 * 24 * 60 * 60 * 1000);
+    const sixMonthsStart = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+
+    const [
+      totalFabrics,
+      totalSales,
+      totalRevenueAgg,
+      pendingOrders,
+      lowStockItems,
+      currentSales,
+      previousSales,
+      currentRevenueAgg,
+      previousRevenueAgg,
+      topFabricsRaw,
+      monthlyOrders,
+    ] = await Promise.all([
+      prisma.fabric.count({ where: { sellerId: profile.id } }),
+      prisma.fabricOrderItem.count({ where: { sellerId: profile.id } }),
+      prisma.fabricOrderItem.aggregate({
+        where: { sellerId: profile.id },
+        _sum: { totalPrice: true },
+      }),
+      prisma.fabricOrderItem.count({
+        where: { sellerId: profile.id, status: 'CONFIRMED' },
+      }),
+      prisma.fabric.count({
+        where: { sellerId: profile.id, stockYards: { lt: 20 } },
+      }),
+      prisma.fabricOrderItem.count({
+        where: { sellerId: profile.id, createdAt: { gte: currentPeriodStart } },
+      }),
+      prisma.fabricOrderItem.count({
+        where: { sellerId: profile.id, createdAt: { gte: previousPeriodStart, lt: currentPeriodStart } },
+      }),
+      prisma.fabricOrderItem.aggregate({
+        where: { sellerId: profile.id, createdAt: { gte: currentPeriodStart } },
+        _sum: { totalPrice: true },
+      }),
+      prisma.fabricOrderItem.aggregate({
+        where: { sellerId: profile.id, createdAt: { gte: previousPeriodStart, lt: currentPeriodStart } },
+        _sum: { totalPrice: true },
+      }),
+      prisma.fabric.findMany({
+        where: { sellerId: profile.id },
+        select: {
+          name: true,
+          _count: { select: { orderItems: true } },
+        },
+        orderBy: {
+          orderItems: {
+            _count: 'desc',
+          },
+        },
+        take: 4,
+      }),
+      prisma.fabricOrderItem.findMany({
+        where: { sellerId: profile.id, createdAt: { gte: sixMonthsStart } },
+        select: { createdAt: true },
+      }),
+    ]);
+
+    const monthlyBuckets = Array.from({ length: 6 }, (_, i) => {
+      const date = new Date(now.getFullYear(), now.getMonth() - 5 + i, 1);
+      const key = `${date.getFullYear()}-${date.getMonth()}`;
+      return {
+        key,
+        label: date.toLocaleDateString('en-US', { month: 'short' }),
+        value: 0,
+      };
+    });
+    const monthlyIndex = new Map(monthlyBuckets.map((bucket, idx) => [bucket.key, idx]));
+    for (const order of monthlyOrders) {
+      const key = `${order.createdAt.getFullYear()}-${order.createdAt.getMonth()}`;
+      const idx = monthlyIndex.get(key);
+      if (idx !== undefined) {
+        monthlyBuckets[idx].value += 1;
+      }
+    }
+
+    res.json({
+      success: true,
+      data: {
+        totalFabrics,
+        totalSales,
+        totalRevenue: Number(totalRevenueAgg._sum.totalPrice || 0),
+        pendingOrders,
+        lowStockItems,
+        monthlySales: monthlyBuckets.map(({ label, value }) => ({ label, value })),
+        topFabrics: topFabricsRaw.map((fabric) => ({
+          label: fabric.name,
+          value: fabric._count.orderItems,
+        })),
+        salesChange: percentageChange(currentSales, previousSales),
+        revenueChange: percentageChange(
+          Number(currentRevenueAgg._sum.totalPrice || 0),
+          Number(previousRevenueAgg._sum.totalPrice || 0)
+        ),
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get seller fabrics
 router.get('/fabrics', async (req, res, next) => {
   try {
-    const profile = await prisma.fabricSellerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getSellerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -102,9 +230,7 @@ router.post('/fabrics', async (req, res, next) => {
 
     const data = schema.parse(req.body);
 
-    const profile = await prisma.fabricSellerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getSellerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -180,12 +306,59 @@ router.post('/fabrics', async (req, res, next) => {
   }
 });
 
+// Update stock for owned fabric
+router.patch('/fabrics/:id/stock', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      stock: z.number().int().min(0),
+    });
+    const { stock } = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getSellerProfile(req.user!.id);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Seller profile not found.',
+      });
+    }
+
+    const fabric = await prisma.fabric.findFirst({
+      where: { id, sellerId: profile.id },
+      select: { id: true },
+    });
+
+    if (!fabric) {
+      return res.status(404).json({
+        success: false,
+        message: 'Fabric not found.',
+      });
+    }
+
+    const updated = await prisma.fabric.update({
+      where: { id },
+      data: { stockYards: stock },
+      include: {
+        materialType: true,
+        images: true,
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Stock updated successfully.',
+      data: updated,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Get fabric orders
 router.get('/orders', async (req, res, next) => {
   try {
-    const profile = await prisma.fabricSellerProfile.findFirst({
-      where: { userId: req.user!.id },
-    });
+    const profile = await getSellerProfile(req.user!.id);
 
     if (!profile) {
       return res.status(404).json({
@@ -202,9 +375,24 @@ router.get('/orders', async (req, res, next) => {
         },
         order: {
           select: {
+            id: true,
             orderNumber: true,
             status: true,
             createdAt: true,
+            customer: {
+              select: { firstName: true, lastName: true },
+            },
+            designOrder: {
+              include: {
+                design: {
+                  select: {
+                    designer: {
+                      select: { country: true },
+                    },
+                  },
+                },
+              },
+            },
           },
         },
       },
@@ -214,6 +402,79 @@ router.get('/orders', async (req, res, next) => {
     res.json({
       success: true,
       data: orders,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// Update fabric order item status
+router.patch('/orders/:id/status', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      status: z.enum(['PENDING', 'CONFIRMED', 'SHIPPED_TO_DESIGNER', 'DELIVERED']),
+      trackingNumber: z.string().optional(),
+      notes: z.string().optional(),
+    });
+    const { status, trackingNumber, notes } = schema.parse(req.body);
+    const { id } = req.params;
+
+    const profile = await getSellerProfile(req.user!.id);
+
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Seller profile not found.',
+      });
+    }
+
+    const orderItem = await prisma.fabricOrderItem.findFirst({
+      where: { id, sellerId: profile.id },
+      select: { id: true, orderId: true },
+    });
+
+    if (!orderItem) {
+      return res.status(404).json({
+        success: false,
+        message: 'Order item not found.',
+      });
+    }
+
+    const orderStatusMap: Record<typeof status, OrderStatus> = {
+      PENDING: OrderStatus.FABRIC_PENDING,
+      CONFIRMED: OrderStatus.FABRIC_CONFIRMED,
+      SHIPPED_TO_DESIGNER: OrderStatus.FABRIC_SHIPPED,
+      DELIVERED: OrderStatus.FABRIC_RECEIVED,
+    };
+
+    const [updatedItem] = await prisma.$transaction([
+      prisma.fabricOrderItem.update({
+        where: { id },
+        data: {
+          status,
+          ...(status === 'SHIPPED_TO_DESIGNER' && { shippedToDesignerAt: new Date() }),
+          ...(trackingNumber ? { trackingNumber } : {}),
+        },
+      }),
+      prisma.order.update({
+        where: { id: orderItem.orderId },
+        data: { status: orderStatusMap[status] },
+      }),
+      prisma.orderTimeline.create({
+        data: {
+          orderId: orderItem.orderId,
+          status: orderStatusMap[status],
+          notes: notes || `Fabric seller updated status to ${status}`,
+          updatedById: req.user!.id,
+          updatedByRole: UserRole.FABRIC_SELLER,
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      message: 'Order status updated successfully.',
+      data: updatedItem,
     });
   } catch (error) {
     next(error);

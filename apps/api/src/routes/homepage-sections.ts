@@ -1,8 +1,85 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
+
+const countryCreateSchema = z.object({
+  name: z.string().min(1),
+  flag: z.string().min(1),
+  fabrics: z.string().min(1),
+  image: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const countryUpdateSchema = countryCreateSchema.partial();
+
+const howItWorksCreateSchema = z.object({
+  stepNumber: z.number().int().positive(),
+  title: z.string().min(1),
+  subtitle: z.string().min(1),
+  icon: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const howItWorksUpdateSchema = howItWorksCreateSchema.partial();
+
+const shopCategoryCreateSchema = z.object({
+  key: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  image: z.string().min(1),
+  ctaText: z.string().min(1),
+  ctaLink: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const shopCategoryUpdateSchema = shopCategoryCreateSchema.partial();
+
+const designerSpotlightCreateSchema = z.object({
+  designerId: z.string().uuid(),
+  quote: z.string().min(1),
+  bio: z.string().min(1),
+  image: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const designerSpotlightUpdateSchema = designerSpotlightCreateSchema.partial();
+
+const heritageCreateSchema = z.object({
+  title: z.string().min(1),
+  subtitle: z.string().min(1),
+  image: z.string().min(1),
+  ctaText: z.string().optional(),
+  ctaLink: z.string().optional(),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const heritageUpdateSchema = heritageCreateSchema.partial();
+
+const testimonialCreateSchema = z.object({
+  name: z.string().min(1),
+  initials: z.string().min(1),
+  location: z.string().min(1),
+  quote: z.string().min(1),
+  avatar: z.string().optional(),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const testimonialUpdateSchema = testimonialCreateSchema.partial();
+
+const footerCreateSchema = z.object({
+  companyName: z.string().optional(),
+  tagline: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  socialLinks: z.string().optional(),
+  copyright: z.string().optional(),
+});
+const footerUpdateSchema = footerCreateSchema;
 
 // ==================== PUBLIC ENDPOINTS ====================
 
@@ -75,22 +152,31 @@ router.get('/designer-spotlight', async (req, res) => {
     const spotlight = await prisma.designerSpotlight.findFirst({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
-      include: {
-        designer: {
-          select: {
-            id: true,
-            businessName: true,
-            country: true,
-            bio: true,
-            logo: true,
-          },
-        },
+    });
+
+    if (!spotlight) {
+      return res.json({
+        success: true,
+        data: null,
+      });
+    }
+
+    const designer = await prisma.designerProfile.findUnique({
+      where: { id: spotlight.designerId },
+      select: {
+        id: true,
+        businessName: true,
+        country: true,
+        bio: true,
       },
     });
 
     res.json({
       success: true,
-      data: spotlight,
+      data: {
+        ...spotlight,
+        designer,
+      },
     });
   } catch (error) {
     console.error('Error fetching designer spotlight:', error);
@@ -164,7 +250,7 @@ router.get('/footer', async (req, res) => {
 // ==================== ADMIN ENDPOINTS ====================
 
 // Country Marquee Admin
-router.get('/admin/countries', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const countries = await prisma.countryMarquee.findMany({
       orderBy: { displayOrder: 'asc' },
@@ -175,20 +261,22 @@ router.get('/admin/countries', authenticate, authorize('ADMINISTRATOR'), async (
   }
 });
 
-router.post('/admin/countries', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const country = await prisma.countryMarquee.create({ data: req.body });
+    const data = countryCreateSchema.parse(req.body);
+    const country = await prisma.countryMarquee.create({ data });
     res.status(201).json({ success: true, data: country });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create country' });
   }
 });
 
-router.put('/admin/countries/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/countries/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = countryUpdateSchema.parse(req.body);
     const country = await prisma.countryMarquee.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: country });
   } catch (error) {
@@ -196,7 +284,7 @@ router.put('/admin/countries/:id', authenticate, authorize('ADMINISTRATOR'), asy
   }
 });
 
-router.delete('/admin/countries/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/countries/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     await prisma.countryMarquee.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Country deleted' });
@@ -206,7 +294,7 @@ router.delete('/admin/countries/:id', authenticate, authorize('ADMINISTRATOR'), 
 });
 
 // How It Works Steps Admin
-router.get('/admin/how-it-works', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/how-it-works', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const steps = await prisma.howItWorksStep.findMany({
       orderBy: { stepNumber: 'asc' },
@@ -217,20 +305,22 @@ router.get('/admin/how-it-works', authenticate, authorize('ADMINISTRATOR'), asyn
   }
 });
 
-router.post('/admin/how-it-works', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/how-it-works', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const step = await prisma.howItWorksStep.create({ data: req.body });
+    const data = howItWorksCreateSchema.parse(req.body);
+    const step = await prisma.howItWorksStep.create({ data });
     res.status(201).json({ success: true, data: step });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create step' });
   }
 });
 
-router.put('/admin/how-it-works/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/how-it-works/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = howItWorksUpdateSchema.parse(req.body);
     const step = await prisma.howItWorksStep.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: step });
   } catch (error) {
@@ -238,7 +328,7 @@ router.put('/admin/how-it-works/:id', authenticate, authorize('ADMINISTRATOR'), 
   }
 });
 
-router.delete('/admin/how-it-works/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/how-it-works/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     await prisma.howItWorksStep.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Step deleted' });
@@ -248,7 +338,7 @@ router.delete('/admin/how-it-works/:id', authenticate, authorize('ADMINISTRATOR'
 });
 
 // Shop Categories Admin
-router.get('/admin/categories', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/categories', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const categories = await prisma.shopCategory.findMany({
       orderBy: { displayOrder: 'asc' },
@@ -259,20 +349,22 @@ router.get('/admin/categories', authenticate, authorize('ADMINISTRATOR'), async 
   }
 });
 
-router.post('/admin/categories', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/categories', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const category = await prisma.shopCategory.create({ data: req.body });
+    const data = shopCategoryCreateSchema.parse(req.body);
+    const category = await prisma.shopCategory.create({ data });
     res.status(201).json({ success: true, data: category });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create category' });
   }
 });
 
-router.put('/admin/categories/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/categories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = shopCategoryUpdateSchema.parse(req.body);
     const category = await prisma.shopCategory.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: category });
   } catch (error) {
@@ -280,7 +372,7 @@ router.put('/admin/categories/:id', authenticate, authorize('ADMINISTRATOR'), as
   }
 });
 
-router.delete('/admin/categories/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/categories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     await prisma.shopCategory.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Category deleted' });
@@ -290,40 +382,49 @@ router.delete('/admin/categories/:id', authenticate, authorize('ADMINISTRATOR'),
 });
 
 // Designer Spotlight Admin
-router.get('/admin/designer-spotlight', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/designer-spotlight', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const spotlights = await prisma.designerSpotlight.findMany({
       orderBy: { displayOrder: 'asc' },
-      include: {
-        designer: {
-          select: {
-            id: true,
-            businessName: true,
-            country: true,
-          },
-        },
+    });
+    const designerIds = spotlights.map((spotlight) => spotlight.designerId);
+    const designers = await prisma.designerProfile.findMany({
+      where: { id: { in: designerIds } },
+      select: {
+        id: true,
+        businessName: true,
+        country: true,
       },
     });
-    res.json({ success: true, data: spotlights });
+
+    const designersById = new Map(designers.map((designer) => [designer.id, designer]));
+    const data = spotlights.map((spotlight) => ({
+      ...spotlight,
+      designer: designersById.get(spotlight.designerId) || null,
+    }));
+
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch spotlights' });
   }
 });
 
-router.post('/admin/designer-spotlight', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/designer-spotlight', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const spotlight = await prisma.designerSpotlight.create({ data: req.body });
+    const data = designerSpotlightCreateSchema.parse(req.body);
+    const spotlight = await prisma.designerSpotlight.create({ data });
     res.status(201).json({ success: true, data: spotlight });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create spotlight' });
   }
 });
 
-router.put('/admin/designer-spotlight/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/designer-spotlight/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = designerSpotlightUpdateSchema.parse(req.body);
     const spotlight = await prisma.designerSpotlight.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: spotlight });
   } catch (error) {
@@ -331,7 +432,7 @@ router.put('/admin/designer-spotlight/:id', authenticate, authorize('ADMINISTRAT
   }
 });
 
-router.delete('/admin/designer-spotlight/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/designer-spotlight/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     await prisma.designerSpotlight.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Spotlight deleted' });
@@ -341,7 +442,7 @@ router.delete('/admin/designer-spotlight/:id', authenticate, authorize('ADMINIST
 });
 
 // Heritage Section Admin
-router.get('/admin/heritage', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/heritage', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const heritage = await prisma.heritageSection.findMany({
       orderBy: { displayOrder: 'asc' },
@@ -352,20 +453,22 @@ router.get('/admin/heritage', authenticate, authorize('ADMINISTRATOR'), async (r
   }
 });
 
-router.post('/admin/heritage', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/heritage', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const heritage = await prisma.heritageSection.create({ data: req.body });
+    const data = heritageCreateSchema.parse(req.body);
+    const heritage = await prisma.heritageSection.create({ data });
     res.status(201).json({ success: true, data: heritage });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create heritage' });
   }
 });
 
-router.put('/admin/heritage/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/heritage/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = heritageUpdateSchema.parse(req.body);
     const heritage = await prisma.heritageSection.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: heritage });
   } catch (error) {
@@ -373,7 +476,7 @@ router.put('/admin/heritage/:id', authenticate, authorize('ADMINISTRATOR'), asyn
   }
 });
 
-router.delete('/admin/heritage/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/heritage/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     await prisma.heritageSection.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Heritage deleted' });
@@ -383,7 +486,7 @@ router.delete('/admin/heritage/:id', authenticate, authorize('ADMINISTRATOR'), a
 });
 
 // Testimonials Admin
-router.get('/admin/testimonials', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/testimonials', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const testimonials = await prisma.testimonial.findMany({
       orderBy: { displayOrder: 'asc' },
@@ -394,20 +497,22 @@ router.get('/admin/testimonials', authenticate, authorize('ADMINISTRATOR'), asyn
   }
 });
 
-router.post('/admin/testimonials', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/testimonials', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const testimonial = await prisma.testimonial.create({ data: req.body });
+    const data = testimonialCreateSchema.parse(req.body);
+    const testimonial = await prisma.testimonial.create({ data });
     res.status(201).json({ success: true, data: testimonial });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create testimonial' });
   }
 });
 
-router.put('/admin/testimonials/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/testimonials/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = testimonialUpdateSchema.parse(req.body);
     const testimonial = await prisma.testimonial.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: testimonial });
   } catch (error) {
@@ -415,7 +520,7 @@ router.put('/admin/testimonials/:id', authenticate, authorize('ADMINISTRATOR'), 
   }
 });
 
-router.delete('/admin/testimonials/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/testimonials/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     await prisma.testimonial.delete({ where: { id: req.params.id } });
     res.json({ success: true, message: 'Testimonial deleted' });
@@ -425,7 +530,7 @@ router.delete('/admin/testimonials/:id', authenticate, authorize('ADMINISTRATOR'
 });
 
 // Footer Content Admin
-router.get('/admin/footer', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/footer', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const footer = await prisma.footerContent.findFirst();
     res.json({ success: true, data: footer });
@@ -434,20 +539,22 @@ router.get('/admin/footer', authenticate, authorize('ADMINISTRATOR'), async (req
   }
 });
 
-router.post('/admin/footer', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/footer', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const footer = await prisma.footerContent.create({ data: req.body });
+    const data = footerCreateSchema.parse(req.body);
+    const footer = await prisma.footerContent.create({ data });
     res.status(201).json({ success: true, data: footer });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create footer' });
   }
 });
 
-router.put('/admin/footer/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/footer/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
+    const data = footerUpdateSchema.parse(req.body);
     const footer = await prisma.footerContent.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: footer });
   } catch (error) {

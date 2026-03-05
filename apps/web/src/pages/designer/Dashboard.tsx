@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { 
   Scissors, 
   DollarSign, 
-  TrendingUp, 
   ShoppingBag,
   Plus,
   Edit,
@@ -10,15 +9,12 @@ import {
   Clock,
   CheckCircle,
   AlertCircle,
-  Image as ImageIcon,
   Star,
-  Calendar,
-  MessageSquare,
   ArrowRight,
-  TrendingDown,
-  Palette
+  Palette,
+  Upload,
+  X
 } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { api } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -82,10 +78,48 @@ export default function DesignerDashboard() {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'designs' | 'orders'>('overview');
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creatingDesign, setCreatingDesign] = useState(false);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [availableFabrics, setAvailableFabrics] = useState<Array<{ id: string; name: string }>>([]);
+  const [designImages, setDesignImages] = useState<File[]>([]);
+  const [newDesign, setNewDesign] = useState({
+    name: '',
+    description: '',
+    categoryId: '',
+    basePrice: '',
+  });
+  const [measurementText, setMeasurementText] = useState('Bust\nWaist\nHip\nLength');
+  const [selectedFabrics, setSelectedFabrics] = useState<Record<string, number>>({});
+  const [modalError, setModalError] = useState('');
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (!showCreateModal) return;
+    (async () => {
+      try {
+        const [categoriesRes, fabricsRes] = await Promise.all([
+          api.products.getCategories(),
+          api.products.getFabrics({ limit: 100 }),
+        ]);
+        if (categoriesRes.success) {
+          setCategories(categoriesRes.data || []);
+        }
+        if (fabricsRes.success) {
+          const rows = (fabricsRes.data?.fabrics || []).map((f: any) => ({
+            id: f.id,
+            name: f.name,
+          }));
+          setAvailableFabrics(rows);
+        }
+      } catch (error) {
+        console.error('Failed to load design form options:', error);
+      }
+    })();
+  }, [showCreateModal]);
 
   const fetchDashboardData = async () => {
     try {
@@ -148,7 +182,107 @@ export default function DesignerDashboard() {
   };
 
   const pendingOrders = orders.filter(o => o.status === 'PENDING');
-  const inProductionOrders = orders.filter(o => o.status === 'IN_PRODUCTION');
+  const getOrderStatusVariant = (status: string) => {
+    if (status === 'COMPLETED') return 'green';
+    if (status === 'IN_PRODUCTION') return 'purple';
+    if (status === 'PENDING' || status === 'CONFIRMED' || status === 'FABRIC_RECEIVED') return 'yellow';
+    if (status === 'QA_REJECTED') return 'red';
+    return 'gray';
+  };
+
+  const resetCreateDesignForm = () => {
+    setNewDesign({
+      name: '',
+      description: '',
+      categoryId: '',
+      basePrice: '',
+    });
+    setMeasurementText('Bust\nWaist\nHip\nLength');
+    setSelectedFabrics({});
+    setDesignImages([]);
+    setModalError('');
+  };
+
+  const toggleFabricSelection = (fabricId: string) => {
+    setSelectedFabrics((prev) => {
+      if (prev[fabricId]) {
+        const next = { ...prev };
+        delete next[fabricId];
+        return next;
+      }
+      return { ...prev, [fabricId]: 3 };
+    });
+  };
+
+  const handleCreateDesign = async () => {
+    try {
+      setModalError('');
+      if (!newDesign.name || !newDesign.description || !newDesign.categoryId || !newDesign.basePrice) {
+        setModalError('Please fill all required fields.');
+        return;
+      }
+      if (designImages.length === 0) {
+        setModalError('Please upload at least one design image.');
+        return;
+      }
+      setCreatingDesign(true);
+
+      const uploadedImages: Array<{ url: string; alt?: string }> = [];
+      for (const file of designImages) {
+        const formData = new FormData();
+        formData.append('image', file);
+        const uploadResponse = await api.upload.image(formData);
+        if (uploadResponse.success) {
+          uploadedImages.push({ url: uploadResponse.data.url, alt: newDesign.name });
+        }
+      }
+      if (uploadedImages.length === 0) {
+        setModalError('Image upload failed. Please try again.');
+        return;
+      }
+
+      const measurementVariables = measurementText
+        .split('\n')
+        .map((line) => line.trim())
+        .filter(Boolean)
+        .map((name) => ({
+          name,
+          unit: 'cm',
+          isRequired: true,
+          instructions: '',
+        }));
+
+      const suitableFabricIds = Object.entries(selectedFabrics).map(([fabricId, yardsNeeded]) => ({
+        fabricId,
+        yardsNeeded: Number(yardsNeeded || 1),
+      }));
+
+      const response = await api.designer.createDesign({
+        name: newDesign.name.trim(),
+        description: newDesign.description.trim(),
+        categoryId: newDesign.categoryId,
+        basePrice: Number(newDesign.basePrice),
+        suitableFabricIds,
+        measurementVariables,
+        images: uploadedImages,
+      });
+
+      if (!response.success) {
+        setModalError('Failed to create design.');
+        return;
+      }
+
+      setShowCreateModal(false);
+      resetCreateDesignForm();
+      fetchDashboardData();
+      setActiveTab('designs');
+    } catch (error: any) {
+      console.error('Failed to create design:', error);
+      setModalError(error?.response?.data?.message || 'Failed to create design.');
+    } finally {
+      setCreatingDesign(false);
+    }
+  };
 
   if (loading) {
     return (
@@ -166,11 +300,9 @@ export default function DesignerDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Designer Dashboard</h1>
           <p className="text-gray-500 mt-1">Manage your designs and track orders</p>
         </div>
-        <Button asChild>
-          <Link to="/designer/designs/new">
-            <Plus className="w-4 h-4 mr-2" />
-            Add New Design
-          </Link>
+        <Button onClick={() => setShowCreateModal(true)}>
+          <Plus className="w-4 h-4 mr-2" />
+          Add New Design
         </Button>
       </div>
 
@@ -334,24 +466,28 @@ export default function DesignerDashboard() {
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">My Designs</h2>
-            <Button size="sm" asChild>
-              <Link to="/designer/designs/new">
-                <Plus className="w-4 h-4 mr-2" />
-                Add Design
-              </Link>
+            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+              <Plus className="w-4 h-4 mr-2" />
+              Add Design
             </Button>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {designs.map((design) => (
               <div key={design.id} className="border rounded-xl overflow-hidden hover:shadow-lg transition-shadow">
                 <div className="relative">
-                  <img
-                    src={design.images[0]}
-                    alt={design.name}
-                    className="w-full h-56 object-cover"
-                  />
+                  {design.images?.[0] ? (
+                    <img
+                      src={design.images[0]}
+                      alt={design.name}
+                      className="w-full h-56 object-cover"
+                    />
+                  ) : (
+                    <div className="w-full h-56 bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
+                      No image
+                    </div>
+                  )}
                   <Badge 
-                    variant={design.status === 'ACTIVE' ? 'green' : 'gray'}
+                    variant={design.status === 'ACTIVE' ? 'green' : design.status === 'PENDING_REVIEW' ? 'yellow' : 'gray'}
                     className="absolute top-3 right-3"
                   >
                     {design.status}
@@ -367,11 +503,11 @@ export default function DesignerDashboard() {
                   <div className="mt-4 grid grid-cols-3 gap-4">
                     <div>
                       <p className="text-xs text-gray-500">Price</p>
-                      <p className="font-medium text-amber-700">${design.basePrice}</p>
+                      <p className="font-medium text-amber-700">${Number(design.basePrice || 0).toFixed(2)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Rating</p>
-                      <p className="font-medium text-gray-900">⭐ {design.rating.toFixed(1)}</p>
+                      <p className="font-medium text-gray-900">⭐ {Number(design.rating || 0).toFixed(1)}</p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Orders</p>
@@ -416,11 +552,7 @@ export default function DesignerDashboard() {
               key: 'status', 
               header: 'Status',
               render: (item) => (
-                <Badge variant={
-                  item.status === 'COMPLETED' ? 'green' :
-                  item.status === 'IN_PRODUCTION' ? 'purple' :
-                  item.status === 'PENDING' ? 'yellow' : 'gray'
-                }>
+                <Badge variant={getOrderStatusVariant(item.status)}>
                   {item.status}
                 </Badge>
               )
@@ -443,7 +575,7 @@ export default function DesignerDashboard() {
               {item.status === 'IN_PRODUCTION' && (
                 <Button 
                   size="sm"
-                  onClick={() => handleUpdateOrderStatus(item.id, 'READY_FOR_QA')}
+                  onClick={() => handleUpdateOrderStatus(item.id, 'COMPLETED')}
                 >
                   Complete
                 </Button>
@@ -454,6 +586,147 @@ export default function DesignerDashboard() {
             </div>
           )}
         />
+      )}
+
+      {/* Create Design Modal */}
+      {showCreateModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-auto p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900">Upload New Design</h3>
+              <button
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetCreateDesignForm();
+                }}
+                className="p-2 hover:bg-gray-100 rounded-full"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {modalError && (
+              <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm border border-red-200">
+                {modalError}
+              </div>
+            )}
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Design Name *</label>
+                <input
+                  type="text"
+                  value={newDesign.name}
+                  onChange={(e) => setNewDesign((prev) => ({ ...prev, name: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description *</label>
+                <textarea
+                  value={newDesign.description}
+                  onChange={(e) => setNewDesign((prev) => ({ ...prev, description: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg h-24 resize-none"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Category *</label>
+                <select
+                  value={newDesign.categoryId}
+                  onChange={(e) => setNewDesign((prev) => ({ ...prev, categoryId: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  <option value="">Select category</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (USD) *</label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newDesign.basePrice}
+                  onChange={(e) => setNewDesign((prev) => ({ ...prev, basePrice: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Measurement Variables (one per line)
+                </label>
+                <textarea
+                  value={measurementText}
+                  onChange={(e) => setMeasurementText(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg h-28 resize-none"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Suitable Fabrics (optional)
+                </label>
+                <div className="max-h-40 overflow-auto border rounded-lg p-2 space-y-2">
+                  {availableFabrics.map((fabric) => (
+                    <div key={fabric.id} className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(selectedFabrics[fabric.id])}
+                        onChange={() => toggleFabricSelection(fabric.id)}
+                      />
+                      <span className="flex-1 text-sm">{fabric.name}</span>
+                      {selectedFabrics[fabric.id] ? (
+                        <input
+                          type="number"
+                          min="1"
+                          step="1"
+                          value={selectedFabrics[fabric.id]}
+                          onChange={(e) =>
+                            setSelectedFabrics((prev) => ({ ...prev, [fabric.id]: Number(e.target.value || 1) }))
+                          }
+                          className="w-20 px-2 py-1 text-sm border rounded"
+                        />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Design Images *</label>
+                <input
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  multiple
+                  onChange={(e) => setDesignImages(Array.from(e.target.files || []))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+                {designImages.length > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">{designImages.length} image(s) selected</p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={() => {
+                  setShowCreateModal(false);
+                  resetCreateDesignForm();
+                }}
+              >
+                Cancel
+              </Button>
+              <Button className="flex-1" onClick={handleCreateDesign} disabled={creatingDesign}>
+                <Upload className="w-4 h-4 mr-2" />
+                {creatingDesign ? 'Uploading...' : 'Upload Design'}
+              </Button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

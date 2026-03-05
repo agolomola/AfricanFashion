@@ -1,8 +1,51 @@
 import { Router } from 'express';
-import { prisma, ProductStatus } from '../db';
+import { prisma, ProductStatus, ProductType } from '../db';
 import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
+
+function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 20) {
+  const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
+async function getFeaturedSectionsByProductIds(productIds: string[], productType: ProductType) {
+  if (productIds.length === 0) {
+    return new Map<string, string[]>();
+  }
+  const featuredRows = await prisma.featuredProduct.findMany({
+    where: {
+      productType,
+      isActive: true,
+      productId: { in: productIds },
+    },
+    select: {
+      productId: true,
+      section: true,
+    },
+  });
+  const featuredMap = new Map<string, string[]>();
+  for (const row of featuredRows) {
+    const existing = featuredMap.get(row.productId) || [];
+    existing.push(row.section);
+    featuredMap.set(row.productId, existing);
+  }
+  return featuredMap;
+}
+
+async function getFeaturedSections(productId: string, productType: ProductType) {
+  const featuredRows = await prisma.featuredProduct.findMany({
+    where: {
+      productId,
+      productType,
+      isActive: true,
+    },
+    select: { section: true },
+  });
+  return featuredRows.map((row) => row.section);
+}
 
 // Public routes (no auth required)
 
@@ -43,7 +86,7 @@ router.get('/materials', async (req, res, next) => {
 // Get fabrics with filters
 router.get('/fabrics', async (req, res, next) => {
   try {
-    const { country, materialTypeId, search, page = '1', limit = '20' } = req.query;
+    const { country, materialTypeId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -65,13 +108,13 @@ router.get('/fabrics', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [fabrics, total] = await Promise.all([
       prisma.fabric.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         include: {
           materialType: true,
           seller: {
@@ -83,16 +126,25 @@ router.get('/fabrics', async (req, res, next) => {
       }),
       prisma.fabric.count({ where }),
     ]);
+    const featuredMap = await getFeaturedSectionsByProductIds(
+      fabrics.map((fabric) => fabric.id),
+      ProductType.FABRIC
+    );
+    const fabricsWithFeatured = fabrics.map((fabric) => ({
+      ...fabric,
+      isFeatured: featuredMap.has(fabric.id),
+      featuredSections: featuredMap.get(fabric.id) || [],
+    }));
 
     res.json({
       success: true,
       data: {
-        fabrics,
+        fabrics: fabricsWithFeatured,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -140,9 +192,15 @@ router.get('/fabrics/:id', async (req, res, next) => {
       });
     }
 
+    const featuredSections = await getFeaturedSections(fabric.id, ProductType.FABRIC);
+
     res.json({
       success: true,
-      data: fabric,
+      data: {
+        ...fabric,
+        isFeatured: featuredSections.length > 0,
+        featuredSections,
+      },
     });
   } catch (error) {
     next(error);
@@ -152,7 +210,7 @@ router.get('/fabrics/:id', async (req, res, next) => {
 // Get designs with filters
 router.get('/designs', async (req, res, next) => {
   try {
-    const { categoryId, country, designerId, search, page = '1', limit = '20' } = req.query;
+    const { categoryId, country, designerId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -170,13 +228,13 @@ router.get('/designs', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [designs, total] = await Promise.all([
       prisma.design.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         include: {
           category: true,
           designer: {
@@ -209,16 +267,25 @@ router.get('/designs', async (req, res, next) => {
       }),
       prisma.design.count({ where }),
     ]);
+    const featuredMap = await getFeaturedSectionsByProductIds(
+      designs.map((design) => design.id),
+      ProductType.DESIGN
+    );
+    const designsWithFeatured = designs.map((design) => ({
+      ...design,
+      isFeatured: featuredMap.has(design.id),
+      featuredSections: featuredMap.get(design.id) || [],
+    }));
 
     res.json({
       success: true,
       data: {
-        designs,
+        designs: designsWithFeatured,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -276,9 +343,15 @@ router.get('/designs/:id', async (req, res, next) => {
       });
     }
 
+    const featuredSections = await getFeaturedSections(design.id, ProductType.DESIGN);
+
     res.json({
       success: true,
-      data: design,
+      data: {
+        ...design,
+        isFeatured: featuredSections.length > 0,
+        featuredSections,
+      },
     });
   } catch (error) {
     next(error);
@@ -288,7 +361,7 @@ router.get('/designs/:id', async (req, res, next) => {
 // Get ready-to-wear with filters
 router.get('/ready-to-wear', async (req, res, next) => {
   try {
-    const { categoryId, country, designerId, search, page = '1', limit = '20' } = req.query;
+    const { categoryId, country, designerId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -306,13 +379,13 @@ router.get('/ready-to-wear', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [products, total] = await Promise.all([
       prisma.readyToWear.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         include: {
           category: true,
           designer: {
@@ -332,16 +405,25 @@ router.get('/ready-to-wear', async (req, res, next) => {
       }),
       prisma.readyToWear.count({ where }),
     ]);
+    const featuredMap = await getFeaturedSectionsByProductIds(
+      products.map((product) => product.id),
+      ProductType.READY_TO_WEAR
+    );
+    const productsWithFeatured = products.map((product) => ({
+      ...product,
+      isFeatured: featuredMap.has(product.id),
+      featuredSections: featuredMap.get(product.id) || [],
+    }));
 
     res.json({
       success: true,
       data: {
-        products,
+        products: productsWithFeatured,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -380,9 +462,15 @@ router.get('/ready-to-wear/:id', async (req, res, next) => {
       });
     }
 
+    const featuredSections = await getFeaturedSections(product.id, ProductType.READY_TO_WEAR);
+
     res.json({
       success: true,
-      data: product,
+      data: {
+        ...product,
+        isFeatured: featuredSections.length > 0,
+        featuredSections,
+      },
     });
   } catch (error) {
     next(error);
