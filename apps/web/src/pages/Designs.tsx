@@ -657,7 +657,7 @@ export default function Designs() {
                 {/* Page Info */}
                 {pagination && (
                   <p className="text-center text-gray-500 mt-4">
-                    Page {pagination.page} of {pagination.pages} • Showing {designs.length} of {pagination.total} designs
+                    Page {pagination.page} of {pagination.pages} - Showing {designs.length} of {pagination.total} designs
                   </p>
                 )}
               </>
