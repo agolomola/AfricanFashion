@@ -672,12 +672,16 @@ export default function SellerDashboard() {
               <label className="block text-sm font-medium text-gray-700 mb-2">
                 Current Stock: {selectedFabric.stockMeters}m
               </label>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                New Stock Quantity (yards)
+              </label>
               <input
                 type="number"
                 value={newStock}
                 onChange={(e) => setNewStock(parseInt(e.target.value) || 0)}
                 className="w-full px-4 py-2 border rounded-lg"
                 min="0"
+                placeholder="Enter updated stock in yards"
               />
             </div>
             <div className="flex gap-3">
@@ -756,7 +760,7 @@ export default function SellerDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Price per yard (USD) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Seller Base Price per yard (USD) *</label>
                 <input
                   type="number"
                   min="0"
@@ -764,10 +768,12 @@ export default function SellerDashboard() {
                   value={newFabric.sellerPrice}
                   onChange={(e) => setNewFabric((prev) => ({ ...prev, sellerPrice: e.target.value }))}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="e.g. 24.99"
                 />
+                <p className="text-xs text-gray-500 mt-1">Admin markups/rules apply to this base price.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum yards</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order Quantity (yards)</label>
                 <input
                   type="number"
                   min="1"
@@ -775,10 +781,12 @@ export default function SellerDashboard() {
                   value={newFabric.minYards}
                   onChange={(e) => setNewFabric((prev) => ({ ...prev, minYards: e.target.value }))}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="e.g. 1"
                 />
+                <p className="text-xs text-gray-500 mt-1">Smallest quantity a customer can order.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Stock yards</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Available Stock (yards)</label>
                 <input
                   type="number"
                   min="0"
@@ -786,7 +794,9 @@ export default function SellerDashboard() {
                   value={newFabric.stockYards}
                   onChange={(e) => setNewFabric((prev) => ({ ...prev, stockYards: e.target.value }))}
                   className="w-full px-3 py-2 border rounded-lg"
+                  placeholder="e.g. 100"
                 />
+                <p className="text-xs text-gray-500 mt-1">Total inventory currently available for sale.</p>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fabric Images *</label>
