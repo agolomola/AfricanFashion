@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Eye, EyeOff, Image as ImageIcon, Upload, X, Chevro
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface HeroSlide {
   id: string;
@@ -49,6 +50,7 @@ const SECTIONS = [
 ];
 
 export default function AdminHomepage() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<'hero' | 'featured'>('hero');
 
   // Hero slides state
@@ -97,6 +99,7 @@ export default function AdminHomepage() {
       }
     } catch (error) {
       console.error('Error fetching hero slides:', error);
+      toast.error('Failed to load hero slides.');
     } finally {
       setLoadingHero(false);
     }
@@ -111,6 +114,7 @@ export default function AdminHomepage() {
       }
     } catch (error) {
       console.error('Error fetching featured products:', error);
+      toast.error('Failed to load featured products.');
     } finally {
       setLoadingFeatured(false);
     }
@@ -124,6 +128,7 @@ export default function AdminHomepage() {
       }
     } catch (error) {
       console.error('Error fetching available products:', error);
+      toast.error('Failed to load products for featuring.');
     }
   };
 
@@ -162,8 +167,10 @@ export default function AdminHomepage() {
     try {
       await api.homepage.deleteHeroSlide(id);
       setHeroSlides(heroSlides.filter((s) => s.id !== id));
-    } catch (error) {
+      toast.success('Hero slide deleted.');
+    } catch (error: any) {
       console.error('Error deleting hero slide:', error);
+      toast.error(error?.response?.data?.message || 'Failed to delete hero slide.');
     }
   };
 
@@ -177,8 +184,10 @@ export default function AdminHomepage() {
           s.id === slide.id ? { ...s, isActive: !s.isActive } : s
         )
       );
-    } catch (error) {
+      toast.success(slide.isActive ? 'Hero slide hidden.' : 'Hero slide activated.');
+    } catch (error: any) {
       console.error('Error toggling hero slide:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update hero slide status.');
     }
   };
 
@@ -203,11 +212,13 @@ export default function AdminHomepage() {
               s.id === editingHeroSlide.id ? response.data : s
             )
           );
+          toast.success('Hero slide updated successfully.');
         }
       } else {
         const response = await api.homepage.createHeroSlide(heroFormData);
         if (response.success) {
           setHeroSlides([...heroSlides, response.data]);
+          toast.success('Hero slide created successfully.');
         }
       }
       setShowHeroModal(false);
@@ -226,10 +237,12 @@ export default function AdminHomepage() {
       const response = await api.upload.image(formData);
       if (response.success) {
         setHeroFormData((prev) => ({ ...prev, image: response.data.url }));
+        toast.success('Hero image uploaded.');
       }
     } catch (error) {
       console.error('Error uploading hero image:', error);
       setHeroFormError('Image upload failed. Please try again.');
+      toast.error('Hero image upload failed.');
     } finally {
       setUploadingHeroImage(false);
     }
@@ -271,8 +284,10 @@ export default function AdminHomepage() {
     try {
       await api.homepage.removeFeaturedProduct(id);
       setFeaturedProducts(featuredProducts.filter((fp) => fp.id !== id));
-    } catch (error) {
+      toast.success('Featured product removed.');
+    } catch (error: any) {
       console.error('Error removing featured product:', error);
+      toast.error(error?.response?.data?.message || 'Failed to remove featured product.');
     }
   };
 
@@ -286,8 +301,10 @@ export default function AdminHomepage() {
           f.id === fp.id ? { ...f, isActive: !f.isActive } : f
         )
       );
-    } catch (error) {
+      toast.success(fp.isActive ? 'Featured product hidden.' : 'Featured product activated.');
+    } catch (error: any) {
       console.error('Error toggling featured product:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update featured product status.');
     }
   };
 
@@ -316,6 +333,7 @@ export default function AdminHomepage() {
               f.id === editingFeatured.id ? response.data : f
             )
           );
+          toast.success('Featured product updated successfully.');
         }
       } else {
         const response = await api.homepage.addFeaturedProduct({
@@ -328,6 +346,7 @@ export default function AdminHomepage() {
         });
         if (response.success) {
           setFeaturedProducts([...featuredProducts, response.data]);
+          toast.success('Product added to featured section.');
         }
       }
       setShowFeaturedModal(false);

@@ -50,6 +50,7 @@ import QADashboard from './pages/qa/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
 import { getHomeRouteForRole } from './auth/rbac';
+import { ToastProvider } from './components/ui/ToastProvider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -69,8 +70,9 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <Elements stripe={stripePromise}>
-        <Router>
-          <Routes>
+        <ToastProvider>
+          <Router>
+            <Routes>
             {/* Public Routes */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
@@ -149,8 +151,9 @@ function App() {
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" />} />
-          </Routes>
-        </Router>
+            </Routes>
+          </Router>
+        </ToastProvider>
       </Elements>
     </QueryClientProvider>
   );

@@ -17,6 +17,7 @@ import {
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import { useToast } from '../../components/ui/ToastProvider';
 
 interface Banner {
   id: string;
@@ -41,6 +42,7 @@ const SECTIONS = [
 ];
 
 export default function AdminBanners() {
+  const toast = useToast();
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
@@ -77,6 +79,7 @@ export default function AdminBanners() {
       }
     } catch (error) {
       console.error('Failed to fetch banners:', error);
+      toast.error('Failed to load banners.');
     } finally {
       setLoading(false);
     }
@@ -123,9 +126,11 @@ export default function AdminBanners() {
       const response = await api.admin.deleteBanner(id);
       if (response.success) {
         setBanners(banners.filter(b => b.id !== id));
+        toast.success('Banner deleted.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to delete banner:', error);
+      toast.error(error?.response?.data?.message || 'Failed to delete banner.');
     }
   };
 
@@ -136,9 +141,12 @@ export default function AdminBanners() {
         setBanners(banners.map(b => 
           b.id === id ? { ...b, isActive: !b.isActive } : b
         ));
+        const toggledBanner = banners.find((b) => b.id === id);
+        toast.success(toggledBanner?.isActive ? 'Banner deactivated.' : 'Banner activated.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to toggle banner:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update banner status.');
     }
   };
 
@@ -159,11 +167,13 @@ export default function AdminBanners() {
           setBanners(banners.map(b => 
             b.id === editingBanner.id ? response.data : b
           ));
+          toast.success('Banner updated successfully.');
         }
       } else {
         const response = await api.admin.createBanner(formData);
         if (response.success) {
           setBanners([...banners, response.data]);
+          toast.success('Banner created successfully.');
         }
       }
       setShowModal(false);
@@ -202,6 +212,7 @@ export default function AdminBanners() {
       }));
     } catch (error) {
       console.error('Failed to upload images:', error);
+      toast.error('Failed to upload one or more images.');
     } finally {
       setUploading(false);
     }

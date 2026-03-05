@@ -3,6 +3,7 @@ import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X, Globe, Sparkles, ShoppingB
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import { useToast } from '../../components/ui/ToastProvider';
 
 type SectionType = 'countries' | 'howItWorks' | 'categories' | 'designerSpotlight' | 'heritage' | 'testimonials' | 'footer';
 
@@ -99,6 +100,7 @@ const TABS = [
 ];
 
 export default function HomepageSections() {
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState<SectionType>('countries');
   const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
@@ -127,11 +129,12 @@ export default function HomepageSections() {
         }
       } catch (error) {
         console.error('Error fetching designers:', error);
+        toast.error('Failed to load designers.');
       }
     };
 
     loadDesigners();
-  }, []);
+  }, [toast]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -182,47 +185,66 @@ export default function HomepageSections() {
           const country = countries.find(c => c.id === id);
           if (country) {
             response = await api.homepageSections.updateCountry(id, { ...country, isActive: !currentStatus });
-            if (response.success) fetchData();
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Country hidden.' : 'Country activated.');
+            }
           }
           break;
         case 'howItWorks':
           const step = howItWorks.find(s => s.id === id);
           if (step) {
             response = await api.homepageSections.updateHowItWorksStep(id, { ...step, isActive: !currentStatus });
-            if (response.success) fetchData();
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'How-it-works step hidden.' : 'How-it-works step activated.');
+            }
           }
           break;
         case 'categories':
           const cat = categories.find(c => c.id === id);
           if (cat) {
             response = await api.homepageSections.updateCategory(id, { ...cat, isActive: !currentStatus });
-            if (response.success) fetchData();
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Category hidden.' : 'Category activated.');
+            }
           }
           break;
         case 'designerSpotlight':
           const spotlight = designerSpotlights.find(s => s.id === id);
           if (spotlight) {
             response = await api.homepageSections.updateDesignerSpotlight(id, { ...spotlight, isActive: !currentStatus });
-            if (response.success) fetchData();
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Designer spotlight hidden.' : 'Designer spotlight activated.');
+            }
           }
           break;
         case 'heritage':
           const heritage = heritageSections.find(h => h.id === id);
           if (heritage) {
             response = await api.homepageSections.updateHeritage(id, { ...heritage, isActive: !currentStatus });
-            if (response.success) fetchData();
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Heritage section hidden.' : 'Heritage section activated.');
+            }
           }
           break;
         case 'testimonials':
           const testimonial = testimonials.find(t => t.id === id);
           if (testimonial) {
             response = await api.homepageSections.updateTestimonial(id, { ...testimonial, isActive: !currentStatus });
-            if (response.success) fetchData();
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Testimonial hidden.' : 'Testimonial activated.');
+            }
           }
           break;
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error toggling status:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update status.');
     }
   };
 
@@ -250,9 +272,13 @@ export default function HomepageSections() {
           response = await api.homepageSections.deleteTestimonial(id);
           break;
       }
-      if (response?.success) fetchData();
-    } catch (error) {
+      if (response?.success) {
+        fetchData();
+        toast.success('Item deleted successfully.');
+      }
+    } catch (error: any) {
       console.error('Error deleting item:', error);
+      toast.error(error?.response?.data?.message || 'Failed to delete item.');
     }
   };
 
@@ -744,6 +770,7 @@ function SectionModal({
   onClose: () => void;
   onSave: () => void;
 }) {
+  const toast = useToast();
   const [formData, setFormData] = useState<any>(item || getDefaultFormData(type));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -782,9 +809,11 @@ function SectionModal({
       const response = await api.upload.image(formData);
       if (response.success) {
         setFormData((prev: any) => ({ ...prev, [field]: response.data.url }));
+        toast.success('Image uploaded successfully.');
       }
     } catch (error) {
       console.error('Error uploading image:', error);
+      toast.error('Image upload failed.');
     } finally {
       setUploading(false);
     }
@@ -800,6 +829,7 @@ function SectionModal({
     ) {
       setSaving(false);
       setFormError('Please upload an image before submitting.');
+      toast.error('Please upload an image before submitting.');
       return;
     }
     try {
@@ -856,11 +886,14 @@ function SectionModal({
         }
       }
       if (response?.success) {
+        toast.success(item?.id ? 'Section updated successfully.' : 'Section created successfully.');
         onSave();
       }
     } catch (error: any) {
       console.error('Error saving item:', error);
-      setFormError(error?.response?.data?.message || 'Failed to save changes.');
+      const message = error?.response?.data?.message || 'Failed to save changes.';
+      setFormError(message);
+      toast.error(message);
     } finally {
       setSaving(false);
     }
