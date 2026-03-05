@@ -755,38 +755,62 @@ export default function AdminProducts() {
             </div>
 
             <div className="grid grid-cols-2 gap-3">
-              <input
-                type="number"
-                value={productForm.basePrice}
-                onChange={(e) => setProductForm({ ...productForm, basePrice: Number(e.target.value) })}
-                placeholder="Base price"
-                className="px-3 py-2 border rounded-lg"
-              />
-              <input
-                type="number"
-                value={productForm.finalPrice}
-                onChange={(e) => setProductForm({ ...productForm, finalPrice: Number(e.target.value) })}
-                placeholder="Final price"
-                className="px-3 py-2 border rounded-lg"
-              />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (USD) *</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={productForm.basePrice}
+                  onChange={(e) => setProductForm({ ...productForm, basePrice: Number(e.target.value) })}
+                  placeholder="e.g. 45.00"
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">Vendor base price before admin pricing rules.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Final Price (USD)</label>
+                <input
+                  type="number"
+                  min={0}
+                  step="0.01"
+                  value={productForm.finalPrice}
+                  onChange={(e) => setProductForm({ ...productForm, finalPrice: Number(e.target.value) })}
+                  placeholder="e.g. 54.00"
+                  className="w-full px-3 py-2 border rounded-lg"
+                />
+                <p className="text-xs text-gray-500 mt-1">Optional override; otherwise computed from base price.</p>
+              </div>
             </div>
 
             {productForm.type === 'FABRIC' && (
               <div className="grid grid-cols-2 gap-3">
-                <input
-                  type="number"
-                  value={productForm.minYards}
-                  onChange={(e) => setProductForm({ ...productForm, minYards: Number(e.target.value) })}
-                  placeholder="Min yards"
-                  className="px-3 py-2 border rounded-lg"
-                />
-                <input
-                  type="number"
-                  value={productForm.stockYards}
-                  onChange={(e) => setProductForm({ ...productForm, stockYards: Number(e.target.value) })}
-                  placeholder="Stock yards"
-                  className="px-3 py-2 border rounded-lg"
-                />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order Quantity (yards)</label>
+                  <input
+                    type="number"
+                    min={1}
+                    step="1"
+                    value={productForm.minYards}
+                    onChange={(e) => setProductForm({ ...productForm, minYards: Number(e.target.value) })}
+                    placeholder="e.g. 1"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Smallest quantity a customer can order.</p>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Available Stock (yards)</label>
+                  <input
+                    type="number"
+                    min={0}
+                    step="1"
+                    value={productForm.stockYards}
+                    onChange={(e) => setProductForm({ ...productForm, stockYards: Number(e.target.value) })}
+                    placeholder="e.g. 120"
+                    className="w-full px-3 py-2 border rounded-lg"
+                  />
+                  <p className="text-xs text-gray-500 mt-1">Current inventory available for sale.</p>
+                </div>
               </div>
             )}
 
