@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, OrderType, OrderStatus } from '../db';
+import { prisma, UserRole, OrderType, OrderStatus, PaymentStatus, ProductStatus } from '../db';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
@@ -120,26 +120,47 @@ router.post('/custom-design', async (req, res, next) => {
       measurements: z.record(z.number()),
       shippingAddressId: z.string().uuid(),
       paymentMethod: z.string(),
+      paymentIntentId: z.string().min(1).optional(),
     });
 
     const data = schema.parse(req.body);
     const customerId = req.user!.id;
 
+    const customerProfile = await prisma.customerProfile.findUnique({
+      where: { userId: customerId },
+      select: { id: true },
+    });
+
+    if (!customerProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer profile not found.',
+      });
+    }
+
     // Get design and fabric details
     const [design, fabric, address] = await Promise.all([
-      prisma.design.findUnique({
-        where: { id: data.designId },
+      prisma.design.findFirst({
+        where: {
+          id: data.designId,
+          status: ProductStatus.APPROVED,
+          isAvailable: true,
+        },
         include: {
           designer: true,
           suitableFabrics: { where: { fabricId: data.fabricId } },
         },
       }),
-      prisma.fabric.findUnique({
-        where: { id: data.fabricId },
+      prisma.fabric.findFirst({
+        where: {
+          id: data.fabricId,
+          status: ProductStatus.APPROVED,
+          isAvailable: true,
+        },
         include: { seller: true },
       }),
-      prisma.address.findUnique({
-        where: { id: data.shippingAddressId },
+      prisma.address.findFirst({
+        where: { id: data.shippingAddressId, customerProfileId: customerProfile.id },
       }),
     ]);
 
@@ -178,12 +199,14 @@ router.post('/custom-design', async (req, res, next) => {
     }
 
     // Calculate prices
-    const fabricPrice = fabric.finalPrice * data.yards;
-    const designPrice = design.finalPrice;
+    const fabricPrice = Number(fabric.finalPrice) * data.yards;
+    const designPrice = Number(design.finalPrice);
     const subtotal = fabricPrice + designPrice;
     const shippingCost = 25; // Fixed for now
     const tax = subtotal * 0.08; // 8% tax
     const total = subtotal + shippingCost + tax;
+    const isPaymentConfirmed = Boolean(data.paymentIntentId);
+    const initialStatus = isPaymentConfirmed ? OrderStatus.PAYMENT_CONFIRMED : OrderStatus.PENDING_PAYMENT;
 
     // Generate order number
     const orderNumber = `AF-${Date.now().toString(36).toUpperCase()}`;
@@ -202,7 +225,10 @@ router.post('/custom-design', async (req, res, next) => {
           tax,
           total,
           paymentMethod: data.paymentMethod,
-          status: OrderStatus.PENDING_PAYMENT,
+          paymentIntentId: data.paymentIntentId,
+          paymentStatus: isPaymentConfirmed ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+          paidAt: isPaymentConfirmed ? new Date() : null,
+          status: initialStatus,
           // Create design order item
           designOrder: {
             create: {
@@ -227,8 +253,10 @@ router.post('/custom-design', async (req, res, next) => {
           // Create timeline entry
           timeline: {
             create: {
-              status: OrderStatus.PENDING_PAYMENT,
-              notes: 'Order created, awaiting payment',
+              status: initialStatus,
+              notes: isPaymentConfirmed
+                ? 'Order created and payment confirmed'
+                : 'Order created, awaiting payment',
               updatedById: customerId,
               updatedByRole: UserRole.CUSTOMER,
             },
@@ -240,11 +268,13 @@ router.post('/custom-design', async (req, res, next) => {
         },
       });
 
-      // Reserve fabric stock
-      await tx.fabric.update({
-        where: { id: data.fabricId },
-        data: { stockYards: { decrement: data.yards } },
-      });
+      // Only decrement inventory for paid orders.
+      if (isPaymentConfirmed) {
+        await tx.fabric.update({
+          where: { id: data.fabricId },
+          data: { stockYards: { decrement: data.yards } },
+        });
+      }
 
       return newOrder;
     });
@@ -262,6 +292,14 @@ router.post('/custom-design', async (req, res, next) => {
 // Create ready-to-wear order
 router.post('/ready-to-wear', async (req, res, next) => {
   try {
+    type ValidatedReadyToWearItem = {
+      readyToWearId: string;
+      size: string;
+      quantity: number;
+      price: number;
+      sizeVariationId: string;
+    };
+
     const schema = z.object({
       items: z.array(z.object({
         readyToWearId: z.string().uuid(),
@@ -270,18 +308,35 @@ router.post('/ready-to-wear', async (req, res, next) => {
       })),
       shippingAddressId: z.string().uuid(),
       paymentMethod: z.string(),
+      paymentIntentId: z.string().min(1).optional(),
     });
 
     const data = schema.parse(req.body);
     const customerId = req.user!.id;
 
+    const customerProfile = await prisma.customerProfile.findUnique({
+      where: { userId: customerId },
+      select: { id: true },
+    });
+
+    if (!customerProfile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Customer profile not found.',
+      });
+    }
+
     // Validate items and calculate total
     let subtotal = 0;
-    const validatedItems = [];
+    const validatedItems: ValidatedReadyToWearItem[] = [];
 
     for (const item of data.items) {
-      const product = await prisma.readyToWear.findUnique({
-        where: { id: item.readyToWearId },
+      const product = await prisma.readyToWear.findFirst({
+        where: {
+          id: item.readyToWearId,
+          status: ProductStatus.APPROVED,
+          isAvailable: true,
+        },
         include: {
           sizeVariations: {
             where: { size: item.size },
@@ -311,19 +366,19 @@ router.post('/ready-to-wear', async (req, res, next) => {
         });
       }
 
-      const itemTotal = sizeVar.price * item.quantity;
+      const itemTotal = Number(sizeVar.price) * item.quantity;
       subtotal += itemTotal;
 
       validatedItems.push({
         ...item,
-        price: sizeVar.price,
+        price: Number(sizeVar.price),
         sizeVariationId: sizeVar.id,
       });
     }
 
     // Get shipping address
-    const address = await prisma.address.findUnique({
-      where: { id: data.shippingAddressId },
+    const address = await prisma.address.findFirst({
+      where: { id: data.shippingAddressId, customerProfileId: customerProfile.id },
     });
 
     if (!address) {
@@ -337,6 +392,8 @@ router.post('/ready-to-wear', async (req, res, next) => {
     const shippingCost = 15;
     const tax = subtotal * 0.08;
     const total = subtotal + shippingCost + tax;
+    const isPaymentConfirmed = Boolean(data.paymentIntentId);
+    const initialStatus = isPaymentConfirmed ? OrderStatus.PAYMENT_CONFIRMED : OrderStatus.PENDING_PAYMENT;
 
     // Generate order number
     const orderNumber = `AF-${Date.now().toString(36).toUpperCase()}`;
@@ -354,7 +411,10 @@ router.post('/ready-to-wear', async (req, res, next) => {
           tax,
           total,
           paymentMethod: data.paymentMethod,
-          status: OrderStatus.PENDING_PAYMENT,
+          paymentIntentId: data.paymentIntentId,
+          paymentStatus: isPaymentConfirmed ? PaymentStatus.COMPLETED : PaymentStatus.PENDING,
+          paidAt: isPaymentConfirmed ? new Date() : null,
+          status: initialStatus,
           readyToWearItems: {
             create: validatedItems.map((item) => ({
               readyToWearId: item.readyToWearId,
@@ -365,8 +425,10 @@ router.post('/ready-to-wear', async (req, res, next) => {
           },
           timeline: {
             create: {
-              status: OrderStatus.PENDING_PAYMENT,
-              notes: 'Ready-to-wear order created, awaiting payment',
+              status: initialStatus,
+              notes: isPaymentConfirmed
+                ? 'Ready-to-wear order created and payment confirmed'
+                : 'Ready-to-wear order created, awaiting payment',
               updatedById: customerId,
               updatedByRole: UserRole.CUSTOMER,
             },
@@ -377,12 +439,14 @@ router.post('/ready-to-wear', async (req, res, next) => {
         },
       });
 
-      // Deduct stock
-      for (const item of validatedItems) {
-        await tx.readyToWearSize.update({
-          where: { id: item.sizeVariationId },
-          data: { stock: { decrement: item.quantity } },
-        });
+      // Only decrement inventory for paid orders.
+      if (isPaymentConfirmed) {
+        for (const item of validatedItems) {
+          await tx.readyToWearSize.update({
+            where: { id: item.sizeVariationId },
+            data: { stock: { decrement: item.quantity } },
+          });
+        }
       }
 
       return newOrder;
@@ -402,7 +466,11 @@ router.post('/ready-to-wear', async (req, res, next) => {
 router.patch('/:id/status', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, notes } = req.body;
+    const schema = z.object({
+      status: z.string().min(1),
+      notes: z.string().optional(),
+    });
+    const { status, notes } = schema.parse(req.body);
     const user = req.user!;
 
     // Get current order
@@ -424,18 +492,32 @@ router.patch('/:id/status', async (req, res, next) => {
     // Validate status transition based on user role
     let canUpdate = false;
     let updateData: any = {};
+    let timelineStatus: OrderStatus = order.status;
 
     if (user.role === UserRole.ADMINISTRATOR) {
-      canUpdate = true;
+      const orderStatus = z.nativeEnum(OrderStatus).safeParse(status);
+      if (orderStatus.success) {
+        canUpdate = true;
+        timelineStatus = orderStatus.data;
+        updateData.status = orderStatus.data;
+      }
     } else if (user.role === UserRole.FABRIC_SELLER && order.fabricOrder) {
       const sellerProfile = await prisma.fabricSellerProfile.findFirst({
         where: { userId: user.id },
       });
       if (sellerProfile && order.fabricOrder.sellerId === sellerProfile.id) {
         // Fabric seller can only update fabric portion
-        const fabricStatuses = ['PENDING', 'CONFIRMED', 'SHIPPED_TO_DESIGNER', 'DELIVERED'];
-        if (fabricStatuses.includes(status)) {
+        const fabricStatuses = ['PENDING', 'CONFIRMED', 'SHIPPED_TO_DESIGNER', 'DELIVERED'] as const;
+        const fabricToOrderStatus: Record<(typeof fabricStatuses)[number], OrderStatus> = {
+          PENDING: OrderStatus.FABRIC_PENDING,
+          CONFIRMED: OrderStatus.FABRIC_CONFIRMED,
+          SHIPPED_TO_DESIGNER: OrderStatus.FABRIC_SHIPPED,
+          DELIVERED: OrderStatus.FABRIC_RECEIVED,
+        };
+        if ((fabricStatuses as readonly string[]).includes(status)) {
           canUpdate = true;
+          timelineStatus = fabricToOrderStatus[status as (typeof fabricStatuses)[number]];
+          updateData.status = timelineStatus;
           updateData.fabricOrder = {
             update: {
               status,
@@ -452,9 +534,18 @@ router.patch('/:id/status', async (req, res, next) => {
       });
       if (designerProfile && order.designOrder.designerId === designerProfile.id) {
         // Designer can only update design portion
-        const designStatuses = ['PENDING', 'CONFIRMED', 'FABRIC_RECEIVED', 'IN_PRODUCTION', 'COMPLETED'];
-        if (designStatuses.includes(status)) {
+        const designStatuses = ['PENDING', 'CONFIRMED', 'FABRIC_RECEIVED', 'IN_PRODUCTION', 'COMPLETED'] as const;
+        const designToOrderStatus: Record<(typeof designStatuses)[number], OrderStatus> = {
+          PENDING: OrderStatus.PAYMENT_CONFIRMED,
+          CONFIRMED: OrderStatus.PAYMENT_CONFIRMED,
+          FABRIC_RECEIVED: OrderStatus.FABRIC_RECEIVED,
+          IN_PRODUCTION: OrderStatus.IN_PRODUCTION,
+          COMPLETED: OrderStatus.PRODUCTION_COMPLETE,
+        };
+        if ((designStatuses as readonly string[]).includes(status)) {
           canUpdate = true;
+          timelineStatus = designToOrderStatus[status as (typeof designStatuses)[number]];
+          updateData.status = timelineStatus;
           updateData.designOrder = {
             update: { status },
           };
@@ -465,11 +556,19 @@ router.patch('/:id/status', async (req, res, next) => {
         where: { userId: user.id },
       });
       if (qaProfile && order.qaId === qaProfile.id) {
-        const qaStatuses = ['QA_PENDING', 'QA_INSPECTING', 'QA_APPROVED', 'QA_REJECTED', 'SHIPPED'];
-        if (qaStatuses.includes(status)) {
+        const qaStatuses: OrderStatus[] = [
+          OrderStatus.QA_PENDING,
+          OrderStatus.QA_INSPECTING,
+          OrderStatus.QA_APPROVED,
+          OrderStatus.QA_REJECTED,
+          OrderStatus.SHIPPED,
+        ];
+        const parsedStatus = z.nativeEnum(OrderStatus).safeParse(status);
+        if (parsedStatus.success && qaStatuses.includes(parsedStatus.data)) {
           canUpdate = true;
-          updateData.status = status;
-          if (status === 'SHIPPED') {
+          updateData.status = parsedStatus.data;
+          timelineStatus = parsedStatus.data;
+          if (parsedStatus.data === OrderStatus.SHIPPED) {
             updateData.shippedAt = new Date();
           }
         }
@@ -483,22 +582,21 @@ router.patch('/:id/status', async (req, res, next) => {
       });
     }
 
-    // Update order
-    const updatedOrder = await prisma.order.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Add timeline entry
-    await prisma.orderTimeline.create({
-      data: {
-        orderId: id,
-        status,
-        notes: notes || `Status updated to ${status}`,
-        updatedById: user.id,
-        updatedByRole: user.role,
-      },
-    });
+    const [updatedOrder] = await prisma.$transaction([
+      prisma.order.update({
+        where: { id },
+        data: updateData,
+      }),
+      prisma.orderTimeline.create({
+        data: {
+          orderId: id,
+          status: timelineStatus,
+          notes: notes || `Status updated to ${status}`,
+          updatedById: user.id,
+          updatedByRole: user.role,
+        },
+      }),
+    ]);
 
     res.json({
       success: true,

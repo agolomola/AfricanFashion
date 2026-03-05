@@ -44,10 +44,8 @@ router.get('/featured/:section', async (req, res) => {
     // Fetch full product details based on productType
     const productsWithDetails = await Promise.all(
       featuredProducts.map(async (fp) => {
-        let product = null;
-
         if (fp.productType === 'DESIGN') {
-          product = await prisma.design.findUnique({
+          const product = await prisma.design.findUnique({
             where: { id: fp.productId },
             include: {
               designer: {
@@ -62,8 +60,22 @@ router.get('/featured/:section', async (req, res) => {
               },
             },
           });
-        } else if (fp.productType === 'FABRIC') {
-          product = await prisma.fabric.findUnique({
+
+          if (!product) return null;
+          return {
+            id: product.id,
+            name: fp.customTitle || product.name,
+            description: fp.customDescription || product.description,
+            price: Number(product.finalPrice),
+            image: product.images[0]?.url || '/images/placeholder.jpg',
+            designer: product.designer.businessName,
+            country: product.designer.country,
+            productType: fp.productType,
+          };
+        }
+
+        if (fp.productType === 'FABRIC') {
+          const product = await prisma.fabric.findUnique({
             where: { id: fp.productId },
             include: {
               seller: {
@@ -78,8 +90,22 @@ router.get('/featured/:section', async (req, res) => {
               },
             },
           });
-        } else if (fp.productType === 'READY_TO_WEAR') {
-          product = await prisma.readyToWear.findUnique({
+
+          if (!product) return null;
+          return {
+            id: product.id,
+            name: fp.customTitle || product.name,
+            description: fp.customDescription || product.description,
+            price: Number(product.finalPrice),
+            image: product.images[0]?.url || '/images/placeholder.jpg',
+            designer: product.seller.businessName,
+            country: product.seller.country,
+            productType: fp.productType,
+          };
+        }
+
+        if (fp.productType === 'READY_TO_WEAR') {
+          const product = await prisma.readyToWear.findUnique({
             where: { id: fp.productId },
             include: {
               designer: {
@@ -94,20 +120,21 @@ router.get('/featured/:section', async (req, res) => {
               },
             },
           });
+
+          if (!product) return null;
+          return {
+            id: product.id,
+            name: fp.customTitle || product.name,
+            description: fp.customDescription || product.description,
+            price: Number(product.basePrice),
+            image: product.images[0]?.url || '/images/placeholder.jpg',
+            designer: product.designer.businessName,
+            country: product.designer.country,
+            productType: fp.productType,
+          };
         }
 
-        if (!product) return null;
-
-        return {
-          id: product.id,
-          name: fp.customTitle || product.name,
-          description: fp.customDescription || product.description,
-          price: product.finalPrice || product.basePrice,
-          image: product.images[0]?.url || '/images/placeholder.jpg',
-          designer: product.designer?.businessName || product.seller?.businessName,
-          country: product.designer?.country || product.seller?.country,
-          productType: fp.productType,
-        };
+        return null;
       })
     );
 
@@ -145,10 +172,8 @@ router.get('/featured', async (req, res) => {
 
       const productsWithDetails = await Promise.all(
         featuredProducts.map(async (fp) => {
-          let product = null;
-
           if (fp.productType === 'DESIGN') {
-            product = await prisma.design.findUnique({
+            const product = await prisma.design.findUnique({
               where: { id: fp.productId },
               include: {
                 designer: {
@@ -163,8 +188,22 @@ router.get('/featured', async (req, res) => {
                 },
               },
             });
-          } else if (fp.productType === 'FABRIC') {
-            product = await prisma.fabric.findUnique({
+
+            if (!product) return null;
+            return {
+              id: product.id,
+              name: fp.customTitle || product.name,
+              description: fp.customDescription || product.description,
+              price: Number(product.finalPrice),
+              image: product.images[0]?.url || '/images/placeholder.jpg',
+              designer: product.designer.businessName,
+              country: product.designer.country,
+              productType: fp.productType,
+            };
+          }
+
+          if (fp.productType === 'FABRIC') {
+            const product = await prisma.fabric.findUnique({
               where: { id: fp.productId },
               include: {
                 seller: {
@@ -179,8 +218,22 @@ router.get('/featured', async (req, res) => {
                 },
               },
             });
-          } else if (fp.productType === 'READY_TO_WEAR') {
-            product = await prisma.readyToWear.findUnique({
+
+            if (!product) return null;
+            return {
+              id: product.id,
+              name: fp.customTitle || product.name,
+              description: fp.customDescription || product.description,
+              price: Number(product.finalPrice),
+              image: product.images[0]?.url || '/images/placeholder.jpg',
+              designer: product.seller.businessName,
+              country: product.seller.country,
+              productType: fp.productType,
+            };
+          }
+
+          if (fp.productType === 'READY_TO_WEAR') {
+            const product = await prisma.readyToWear.findUnique({
               where: { id: fp.productId },
               include: {
                 designer: {
@@ -195,20 +248,21 @@ router.get('/featured', async (req, res) => {
                 },
               },
             });
+
+            if (!product) return null;
+            return {
+              id: product.id,
+              name: fp.customTitle || product.name,
+              description: fp.customDescription || product.description,
+              price: Number(product.basePrice),
+              image: product.images[0]?.url || '/images/placeholder.jpg',
+              designer: product.designer.businessName,
+              country: product.designer.country,
+              productType: fp.productType,
+            };
           }
 
-          if (!product) return null;
-
-          return {
-            id: product.id,
-            name: fp.customTitle || product.name,
-            description: fp.customDescription || product.description,
-            price: product.finalPrice || product.basePrice,
-            image: product.images[0]?.url || '/images/placeholder.jpg',
-            designer: product.designer?.businessName || product.seller?.businessName,
-            country: product.designer?.country || product.seller?.country,
-            productType: fp.productType,
-          };
+          return null;
         })
       );
 

@@ -5,7 +5,21 @@ export const prisma = new PrismaClient({
 });
 
 // Export types from Prisma
-export type { User, Product, Order, OrderItem, Fabric, Design, Measurement, CartItem, Address, Review, Notification, AuditLog, PricingRule, ProductCategory, MaterialType } from '@prisma/client';
+export type {
+  User,
+  Order,
+  Fabric,
+  Design,
+  Address,
+  Review,
+  Notification,
+  ActivityLog,
+  PricingRule,
+  ProductCategory,
+  MaterialType,
+  ReadyToWear,
+  OrderTimeline,
+} from '@prisma/client';
 
 // Export enums
 export { UserRole, UserStatus, ProductStatus, ProductType, OrderType, OrderStatus, PaymentStatus } from '@prisma/client';

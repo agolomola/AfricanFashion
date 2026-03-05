@@ -75,22 +75,31 @@ router.get('/designer-spotlight', async (req, res) => {
     const spotlight = await prisma.designerSpotlight.findFirst({
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
-      include: {
-        designer: {
-          select: {
-            id: true,
-            businessName: true,
-            country: true,
-            bio: true,
-            logo: true,
-          },
-        },
+    });
+
+    if (!spotlight) {
+      return res.json({
+        success: true,
+        data: null,
+      });
+    }
+
+    const designer = await prisma.designerProfile.findUnique({
+      where: { id: spotlight.designerId },
+      select: {
+        id: true,
+        businessName: true,
+        country: true,
+        bio: true,
       },
     });
 
     res.json({
       success: true,
-      data: spotlight,
+      data: {
+        ...spotlight,
+        designer,
+      },
     });
   } catch (error) {
     console.error('Error fetching designer spotlight:', error);
@@ -294,17 +303,24 @@ router.get('/admin/designer-spotlight', authenticate, authorize('ADMINISTRATOR')
   try {
     const spotlights = await prisma.designerSpotlight.findMany({
       orderBy: { displayOrder: 'asc' },
-      include: {
-        designer: {
-          select: {
-            id: true,
-            businessName: true,
-            country: true,
-          },
-        },
+    });
+    const designerIds = spotlights.map((spotlight) => spotlight.designerId);
+    const designers = await prisma.designerProfile.findMany({
+      where: { id: { in: designerIds } },
+      select: {
+        id: true,
+        businessName: true,
+        country: true,
       },
     });
-    res.json({ success: true, data: spotlights });
+
+    const designersById = new Map(designers.map((designer) => [designer.id, designer]));
+    const data = spotlights.map((spotlight) => ({
+      ...spotlight,
+      designer: designersById.get(spotlight.designerId) || null,
+    }));
+
+    res.json({ success: true, data });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to fetch spotlights' });
   }

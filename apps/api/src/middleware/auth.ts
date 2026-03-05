@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import { randomBytes } from 'crypto';
 import { prisma, UserRole } from '../db';
 
 // JWT Secret - must be set in production
@@ -9,10 +10,10 @@ if (!JWT_SECRET) {
   if (process.env.NODE_ENV === 'production') {
     throw new Error('JWT_SECRET environment variable is required in production');
   }
-  console.warn('WARNING: JWT_SECRET not set. Using insecure fallback for development only.');
+  console.warn('WARNING: JWT_SECRET not set. Using ephemeral development secret.');
 }
 
-const SECRET = JWT_SECRET || 'dev-only-insecure-secret-do-not-use-in-production';
+const SECRET = JWT_SECRET || randomBytes(32).toString('hex');
 
 // Extend Express Request type
 declare global {

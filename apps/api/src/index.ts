@@ -26,6 +26,7 @@ import uploadRoutes from './routes/upload';
 import bannerRoutes from './routes/banners';
 import homepageRoutes from './routes/homepage';
 import homepageSectionsRoutes from './routes/homepage-sections';
+import paymentRoutes from './routes/payments';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -40,7 +41,10 @@ app.use(express.urlencoded({ extended: true }));
 app.use(morgan('dev'));
 
 // Static files for uploads
-app.use('/uploads', express.static('uploads'));
+app.use('/uploads', (req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  next();
+}, express.static('uploads'));
 
 // Health check
 app.get('/health', (req, res) => {
@@ -60,13 +64,16 @@ app.use('/api/upload', uploadRoutes);
 app.use('/api/banners', bannerRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/homepage-sections', homepageSectionsRoutes);
+app.use('/api/payments', paymentRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
+  const statusCode = err.status || 500;
+  const isClientError = statusCode >= 400 && statusCode < 500;
   res.status(err.status || 500).json({
     success: false,
-    message: err.message || 'Internal server error',
+    message: isClientError ? (err.message || 'Request failed') : 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });

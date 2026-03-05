@@ -5,6 +5,11 @@ import { v4 as uuidv4 } from 'uuid';
 import { authenticate } from '../middleware/auth';
 
 const router = Router();
+const allowedMimeTypes: Record<string, string> = {
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/webp': '.webp',
+};
 
 // Configure multer storage
 const storage = multer.diskStorage({
@@ -12,15 +17,15 @@ const storage = multer.diskStorage({
     cb(null, 'uploads/');
   },
   filename: (req, file, cb) => {
-    const uniqueName = `${uuidv4()}${path.extname(file.originalname)}`;
+    const extension = allowedMimeTypes[file.mimetype];
+    const uniqueName = `${uuidv4()}${extension || path.extname(file.originalname) || '.bin'}`;
     cb(null, uniqueName);
   },
 });
 
 // File filter
 const fileFilter = (req: any, file: any, cb: any) => {
-  const allowedTypes = ['image/jpeg', 'image/png', 'image/webp'];
-  if (allowedTypes.includes(file.mimetype)) {
+  if (allowedMimeTypes[file.mimetype]) {
     cb(null, true);
   } else {
     cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
