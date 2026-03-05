@@ -5,6 +5,7 @@
   "private": true,
   "packageManager": "npm@10.2.4",
   "scripts": {
+    "setup:cloud": "bash ./scripts/cloud-agent-setup.sh",
     "dev": "cd apps/web && npm run dev",
     "build": "cd apps/web && npm run build"
   },
