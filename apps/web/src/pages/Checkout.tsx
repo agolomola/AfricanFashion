@@ -132,15 +132,36 @@ export default function Checkout() {
 
   const createOrders = async (paymentIntentId: string) => {
     try {
+      const addressResponse = await api.customer.addAddress({
+        label: 'Checkout Address',
+        fullName: shippingAddress.fullName,
+        phone: shippingAddress.phone,
+        country: shippingAddress.country,
+        city: shippingAddress.city,
+        address: [shippingAddress.addressLine1, shippingAddress.addressLine2].filter(Boolean).join(', '),
+        postalCode: shippingAddress.postalCode,
+        isDefault: false,
+      });
+
+      if (!addressResponse.success || !addressResponse.data?.id) {
+        throw new Error('Failed to save shipping address');
+      }
+
+      const shippingAddressId = addressResponse.data.id;
+
       for (const item of items) {
-        await api.orders.createOrder({
+        if (!item.designId || !item.fabricId) {
+          continue;
+        }
+
+        await api.orders.createCustomDesignOrder({
           designId: item.designId,
           fabricId: item.fabricId,
-          fabricMeters: item.fabricMeters,
-          measurements: item.measurements,
-          shippingAddress,
+          yards: item.fabricMeters,
+          measurements: item.measurements || {},
+          shippingAddressId,
+          paymentMethod: 'STRIPE',
           paymentIntentId,
-          totalAmount: item.totalPrice,
         });
       }
       clearCart();

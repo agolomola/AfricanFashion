@@ -27,9 +27,13 @@ httpClient.interceptors.request.use(
 httpClient.interceptors.response.use(
   (response) => response,
   (error: AxiosError) => {
-    if (error.response?.status === 401) {
+    const url = error.config?.url || '';
+    const isAuthRequest = url.includes('/auth/login') || url.includes('/auth/register');
+    if (error.response?.status === 401 && !isAuthRequest) {
       useAuthStore.getState().logout();
-      window.location.href = '/login';
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }
@@ -45,6 +49,9 @@ const apiService = {
 
   patch: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
     httpClient.patch<T>(url, data, config).then((res) => res.data),
+
+  put: <T>(url: string, data?: unknown, config?: AxiosRequestConfig) =>
+    httpClient.put<T>(url, data, config).then((res) => res.data),
 
   delete: <T>(url: string, config?: AxiosRequestConfig) =>
     httpClient.delete<T>(url, config).then((res) => res.data),
@@ -85,10 +92,16 @@ const productsApi = {
   getFabric: (id: string) =>
     apiService.get<{ success: boolean; data: any }>(`/products/fabrics/${id}`),
 
+  getFabricById: (id: string) =>
+    apiService.get<{ success: boolean; data: any }>(`/products/fabrics/${id}`),
+
   getDesigns: (params?: { categoryId?: string; country?: string; search?: string; page?: number; limit?: number }) =>
     apiService.get<{ success: boolean; data: { designs: any[]; pagination: any } }>('/products/designs', { params }),
 
   getDesign: (id: string) =>
+    apiService.get<{ success: boolean; data: any }>(`/products/designs/${id}`),
+
+  getDesignById: (id: string) =>
     apiService.get<{ success: boolean; data: any }>(`/products/designs/${id}`),
 
   getReadyToWear: (params?: { categoryId?: string; country?: string; search?: string; page?: number; limit?: number }) =>
@@ -108,6 +121,9 @@ const productsApi = {
 const ordersApi = {
   getOrder: (id: string) =>
     apiService.get<{ success: boolean; data: any }>(`/orders/${id}`),
+
+  createOrder: (data: any) =>
+    apiService.post<{ success: boolean; data: any }>('/orders/custom-design', data),
 
   createCustomDesignOrder: (data: any) =>
     apiService.post<{ success: boolean; data: any }>('/orders/custom-design', data),
@@ -156,6 +172,60 @@ const customerApi = {
 const adminApi = {
   getDashboard: () =>
     apiService.get<{ success: boolean; data: any }>('/admin/dashboard'),
+
+  getDashboardStats: async () => {
+    const response = await apiService.get<{ success: boolean; data: any }>('/admin/dashboard');
+    if (!response.success) {
+      return response;
+    }
+
+    const data = response.data;
+    return {
+      success: true,
+      data: {
+        totalRevenue: Number(data?.orders?.revenue || 0),
+        totalOrders: Number(data?.orders?.total || 0),
+        totalUsers: Number(data?.users?.total || 0),
+        totalProducts: Number(data?.products?.total || 0),
+        pendingOrders: 0,
+        inProductionOrders: 0,
+        revenueChange: 0,
+        orderChange: 0,
+        userChange: 0,
+        productChange: 0,
+        monthlyRevenue: [],
+        ordersByStatus: [],
+        usersByRole: [
+          { label: 'Customers', value: Number(data?.users?.customers || 0) },
+          { label: 'Designers', value: Number(data?.users?.designers || 0) },
+          { label: 'Sellers', value: Number(data?.users?.fabricSellers || 0) },
+          { label: 'QA Team', value: Number(data?.users?.qa || 0) },
+        ],
+      },
+    };
+  },
+
+  getRecentOrders: async () => {
+    const response = await apiService.get<{ success: boolean; data: any }>('/admin/dashboard');
+    if (!response.success) {
+      return response;
+    }
+
+    const recentOrders = (response.data?.recentOrders || []).map((order: any) => ({
+      id: order.id,
+      orderNumber: order.orderNumber,
+      customerName: `${order.customer?.firstName || ''} ${order.customer?.lastName || ''}`.trim() || 'Unknown',
+      totalAmount: Number(order.total || 0),
+      status: order.status,
+      createdAt: order.createdAt,
+      items: 1,
+    }));
+
+    return {
+      success: true,
+      data: recentOrders,
+    };
+  },
 
   getUsers: (params?: { role?: string; status?: string; search?: string; page?: number; limit?: number }) =>
     apiService.get<{ success: boolean; data: { users: any[]; pagination: any } }>('/admin/users', { params }),
@@ -300,7 +370,7 @@ const qaApi = {
 // Payments API
 const paymentsApi = {
   createPaymentIntent: (data: { amount: number; currency: string }) =>
-    apiService.post<{ success: boolean; data: { clientSecret: string } }>('/payments/create-intent', data),
+    apiService.post<{ success: boolean; data: { clientSecret: string; paymentIntentId: string } }>('/payments/create-intent', data),
 
   confirmPayment: (paymentIntentId: string) =>
     apiService.post<{ success: boolean; data: any }>('/payments/confirm', { paymentIntentId }),

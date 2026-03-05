@@ -28,7 +28,7 @@ import {
   LayoutGrid
 } from 'lucide-react';
 
-type UserRole = 'ADMINISTRATOR' | 'FABRIC_SELLER' | 'DESIGNER' | 'QA_TEAM' | 'CUSTOMER';
+type UserRole = 'ADMINISTRATOR' | 'FABRIC_SELLER' | 'FASHION_DESIGNER' | 'QA_TEAM' | 'CUSTOMER';
 type DashboardType = 'admin' | 'seller' | 'designer' | 'qa' | 'customer';
 
 interface NavItem {
@@ -90,6 +90,7 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
 
   const items = navItems[userType] || [];
   const roleLabel = roleLabels[userType] || 'User';
+  const displayName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User';
 
   const handleLogout = () => {
     logout();
@@ -142,11 +143,11 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center">
                     <span className="text-sm font-semibold">
-                      {user?.fullName?.[0] || 'U'}
+                      {displayName[0] || 'U'}
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{user?.fullName || 'User'}</p>
+                    <p className="text-sm font-medium truncate">{displayName}</p>
                     <p className="text-xs text-white/50">{roleLabel}</p>
                   </div>
                 </div>
