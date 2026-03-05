@@ -56,6 +56,8 @@ export default function AdminHomepage() {
   const [loadingHero, setLoadingHero] = useState(true);
   const [showHeroModal, setShowHeroModal] = useState(false);
   const [editingHeroSlide, setEditingHeroSlide] = useState<HeroSlide | null>(null);
+  const [heroFormError, setHeroFormError] = useState('');
+  const [uploadingHeroImage, setUploadingHeroImage] = useState(false);
   const [heroFormData, setHeroFormData] = useState({
     title: '',
     subtitle: '',
@@ -70,6 +72,7 @@ export default function AdminHomepage() {
   const [loadingFeatured, setLoadingFeatured] = useState(true);
   const [showFeaturedModal, setShowFeaturedModal] = useState(false);
   const [editingFeatured, setEditingFeatured] = useState<FeaturedProduct | null>(null);
+  const [featuredFormError, setFeaturedFormError] = useState('');
   const [availableProducts, setAvailableProducts] = useState<AvailableProduct[]>([]);
   const [featuredFormData, setFeaturedFormData] = useState({
     productId: '',
@@ -127,6 +130,7 @@ export default function AdminHomepage() {
   // Hero slide handlers
   const handleCreateHeroSlide = () => {
     setEditingHeroSlide(null);
+    setHeroFormError('');
     setHeroFormData({
       title: '',
       subtitle: '',
@@ -140,6 +144,7 @@ export default function AdminHomepage() {
 
   const handleEditHeroSlide = (slide: HeroSlide) => {
     setEditingHeroSlide(slide);
+    setHeroFormError('');
     setHeroFormData({
       title: slide.title,
       subtitle: slide.subtitle,
@@ -179,6 +184,12 @@ export default function AdminHomepage() {
 
   const handleSubmitHeroSlide = async (e: React.FormEvent) => {
     e.preventDefault();
+    setHeroFormError('');
+
+    if (!heroFormData.image?.trim()) {
+      setHeroFormError('Please provide a hero image before saving.');
+      return;
+    }
 
     try {
       if (editingHeroSlide) {
@@ -200,14 +211,34 @@ export default function AdminHomepage() {
         }
       }
       setShowHeroModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving hero slide:', error);
+      setHeroFormError(error?.response?.data?.message || 'Failed to save hero slide.');
+    }
+  };
+
+  const uploadHeroImage = async (file: File) => {
+    setUploadingHeroImage(true);
+    setHeroFormError('');
+    try {
+      const formData = new FormData();
+      formData.append('image', file);
+      const response = await api.upload.image(formData);
+      if (response.success) {
+        setHeroFormData((prev) => ({ ...prev, image: response.data.url }));
+      }
+    } catch (error) {
+      console.error('Error uploading hero image:', error);
+      setHeroFormError('Image upload failed. Please try again.');
+    } finally {
+      setUploadingHeroImage(false);
     }
   };
 
   // Featured product handlers
   const handleCreateFeatured = () => {
     setEditingFeatured(null);
+    setFeaturedFormError('');
     setFeaturedFormData({
       productId: '',
       productType: 'DESIGN',
@@ -222,6 +253,7 @@ export default function AdminHomepage() {
 
   const handleEditFeatured = (fp: FeaturedProduct) => {
     setEditingFeatured(fp);
+    setFeaturedFormError('');
     setFeaturedFormData({
       productId: fp.productId,
       productType: fp.productType,
@@ -261,9 +293,10 @@ export default function AdminHomepage() {
 
   const handleSubmitFeatured = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFeaturedFormError('');
 
     if (!featuredFormData.productId) {
-      alert('Please select a product');
+      setFeaturedFormError('Please select a product.');
       return;
     }
 
@@ -298,8 +331,9 @@ export default function AdminHomepage() {
         }
       }
       setShowFeaturedModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving featured product:', error);
+      setFeaturedFormError(error?.response?.data?.message || 'Failed to save featured product.');
     }
   };
 
@@ -569,6 +603,11 @@ export default function AdminHomepage() {
               </button>
             </div>
             <form onSubmit={handleSubmitHeroSlide} className="p-6 space-y-4">
+              {heroFormError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {heroFormError}
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Title *
@@ -604,7 +643,7 @@ export default function AdminHomepage() {
                   Image URL *
                 </label>
                 <input
-                  type="url"
+                  type="text"
                   required
                   value={heroFormData.image}
                   onChange={(e) =>
@@ -613,6 +652,22 @@ export default function AdminHomepage() {
                   className="w-full px-3 py-2 border rounded-lg focus:ring-2 focus:ring-coral-500"
                   placeholder="https://..."
                 />
+                <label className="mt-2 inline-flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50 text-sm">
+                  <Upload className="w-4 h-4" />
+                  {uploadingHeroImage ? 'Uploading...' : 'Upload Image'}
+                  <input
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    disabled={uploadingHeroImage}
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        uploadHeroImage(file);
+                      }
+                    }}
+                  />
+                </label>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -695,6 +750,11 @@ export default function AdminHomepage() {
               </button>
             </div>
             <form onSubmit={handleSubmitFeatured} className="p-6 space-y-4">
+              {featuredFormError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {featuredFormError}
+                </div>
+              )}
               {!editingFeatured && (
                 <>
                   <div>

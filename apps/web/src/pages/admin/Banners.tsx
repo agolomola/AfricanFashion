@@ -45,6 +45,8 @@ export default function AdminBanners() {
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingBanner, setEditingBanner] = useState<Banner | null>(null);
+  const [savingBanner, setSavingBanner] = useState(false);
+  const [formError, setFormError] = useState('');
   const [uploading, setUploading] = useState(false);
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -82,6 +84,7 @@ export default function AdminBanners() {
 
   const handleCreate = () => {
     setEditingBanner(null);
+    setFormError('');
     setFormData({
       name: '',
       section: 'BANNER_1',
@@ -98,6 +101,7 @@ export default function AdminBanners() {
 
   const handleEdit = (banner: Banner) => {
     setEditingBanner(banner);
+    setFormError('');
     setFormData({
       name: banner.name,
       section: banner.section,
@@ -140,13 +144,15 @@ export default function AdminBanners() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
 
     if (formData.images.length === 0) {
-      alert('Please upload at least one image');
+      setFormError('Please upload at least one image.');
       return;
     }
 
     try {
+      setSavingBanner(true);
       if (editingBanner) {
         const response = await api.admin.updateBanner(editingBanner.id, formData);
         if (response.success) {
@@ -161,8 +167,11 @@ export default function AdminBanners() {
         }
       }
       setShowModal(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to save banner:', error);
+      setFormError(error?.response?.data?.message || 'Failed to save banner.');
+    } finally {
+      setSavingBanner(false);
     }
   };
 
@@ -380,6 +389,11 @@ export default function AdminBanners() {
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
+              {formError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {formError}
+                </div>
+              )}
               {/* Banner Name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -566,7 +580,7 @@ export default function AdminBanners() {
                 >
                   Cancel
                 </Button>
-                <Button type="submit" className="flex-1">
+                <Button type="submit" className="flex-1" disabled={savingBanner || uploading}>
                   {editingBanner ? 'Update Banner' : 'Create Banner'}
                 </Button>
               </div>

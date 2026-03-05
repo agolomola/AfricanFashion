@@ -33,6 +33,12 @@ const parseSocialLinks = (value?: string | null) => {
   }
 };
 
+const getNonEmptyString = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : undefined;
+};
+
 const validationError = (res: any, error: z.ZodError) =>
   res.status(400).json({
     success: false,
@@ -117,32 +123,62 @@ const footerUpdateSchema = footerCreateSchema;
 
 const normalizeHowItWorksInput = (payload: any) => ({
   ...payload,
-  subtitle: payload.subtitle ?? payload.description,
+  subtitle:
+    getNonEmptyString(payload.subtitle) ??
+    getNonEmptyString(payload.description) ??
+    payload.subtitle ??
+    payload.description,
 });
 
 const normalizeCategoryInput = (payload: any) => ({
   ...payload,
-  key: payload.key || (payload.title ? slugify(payload.title) : undefined),
-  description: payload.description ?? payload.subtitle,
-  ctaText: payload.ctaText ?? 'Shop Now',
-  ctaLink: payload.ctaLink ?? payload.link,
+  key:
+    getNonEmptyString(payload.key) ||
+    (getNonEmptyString(payload.title) ? slugify(payload.title) : undefined),
+  description:
+    getNonEmptyString(payload.description) ??
+    getNonEmptyString(payload.subtitle) ??
+    'Explore this collection',
+  ctaText: getNonEmptyString(payload.ctaText) ?? 'Shop Now',
+  ctaLink:
+    getNonEmptyString(payload.ctaLink) ??
+    getNonEmptyString(payload.link) ??
+    '/designs',
 });
 
 const normalizeDesignerSpotlightInput = (payload: any) => ({
   ...payload,
-  quote: payload.quote ?? payload.headline,
-  bio: payload.bio ?? payload.description,
+  quote:
+    getNonEmptyString(payload.quote) ??
+    getNonEmptyString(payload.headline) ??
+    'Featured designer',
+  bio:
+    getNonEmptyString(payload.bio) ??
+    getNonEmptyString(payload.description) ??
+    getNonEmptyString(payload.quote) ??
+    getNonEmptyString(payload.headline) ??
+    'Design story coming soon.',
 });
 
 const normalizeHeritageInput = (payload: any) => ({
   ...payload,
-  subtitle: payload.subtitle ?? payload.description,
+  subtitle:
+    getNonEmptyString(payload.subtitle) ??
+    getNonEmptyString(payload.description) ??
+    getNonEmptyString(payload.title) ??
+    'Our culture, our craft, our story.',
 });
 
 const normalizeTestimonialInput = (payload: any) => ({
   ...payload,
-  initials: payload.initials || (payload.name ? deriveInitials(payload.name) : undefined),
-  quote: payload.quote ?? payload.text,
+  initials:
+    getNonEmptyString(payload.initials) ||
+    (getNonEmptyString(payload.name) ? deriveInitials(payload.name) : undefined),
+  location: getNonEmptyString(payload.location) ?? 'Unknown',
+  quote:
+    getNonEmptyString(payload.quote) ??
+    getNonEmptyString(payload.text) ??
+    'Great experience.',
 });
 
 const normalizeFooterInput = (payload: any) => ({

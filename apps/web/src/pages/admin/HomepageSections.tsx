@@ -50,6 +50,13 @@ interface DesignerSpotlight {
   };
 }
 
+interface DesignerOption {
+  id: string;
+  businessName: string;
+  country: string;
+  isVerified: boolean;
+}
+
 interface HeritageSection {
   id: string;
   title: string;
@@ -105,10 +112,26 @@ export default function HomepageSections() {
   const [heritageSections, setHeritageSections] = useState<HeritageSection[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [footerContents, setFooterContents] = useState<FooterContent[]>([]);
+  const [designers, setDesigners] = useState<DesignerOption[]>([]);
 
   useEffect(() => {
     fetchData();
   }, [activeTab]);
+
+  useEffect(() => {
+    const loadDesigners = async () => {
+      try {
+        const response = await api.homepageSections.getAdminDesigners();
+        if (response.success) {
+          setDesigners(response.data || []);
+        }
+      } catch (error) {
+        console.error('Error fetching designers:', error);
+      }
+    };
+
+    loadDesigners();
+  }, []);
 
   const fetchData = async () => {
     setLoading(true);
@@ -358,6 +381,7 @@ export default function HomepageSections() {
         <SectionModal
           type={activeTab}
           item={editingItem}
+          designers={designers}
           onClose={closeModal}
           onSave={handleSave}
         />
@@ -707,10 +731,23 @@ function FooterTable({ data, onEdit }: any) {
 }
 
 // Modal Component
-function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item: any; onClose: () => void; onSave: () => void }) {
+function SectionModal({
+  type,
+  item,
+  designers,
+  onClose,
+  onSave,
+}: {
+  type: SectionType;
+  item: any;
+  designers: DesignerOption[];
+  onClose: () => void;
+  onSave: () => void;
+}) {
   const [formData, setFormData] = useState<any>(item || getDefaultFormData(type));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [formError, setFormError] = useState('');
   const uploadField = type === 'testimonials' ? 'avatar' : 'image';
 
   function getDefaultFormData(sectionType: SectionType) {
@@ -756,6 +793,15 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setFormError('');
+    if (
+      ['countries', 'categories', 'designerSpotlight', 'heritage'].includes(type) &&
+      !formData.image
+    ) {
+      setSaving(false);
+      setFormError('Please upload an image before submitting.');
+      return;
+    }
     try {
       let response;
       if (item?.id) {
@@ -812,8 +858,9 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
       if (response?.success) {
         onSave();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error saving item:', error);
+      setFormError(error?.response?.data?.message || 'Failed to save changes.');
     } finally {
       setSaving(false);
     }
@@ -842,6 +889,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 onChange={(e) => setFormData({ ...formData, flag: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 placeholder="🇬🇭"
+                required
               />
             </div>
             <div>
@@ -852,6 +900,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 onChange={(e) => setFormData({ ...formData, fabrics: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 placeholder="Kente, Adinkra"
+                required
               />
             </div>
           </>
@@ -912,6 +961,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 value={formData.subtitle || ''}
                 onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                required
               />
             </div>
             <div>
@@ -922,6 +972,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 onChange={(e) => setFormData({ ...formData, link: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 placeholder="/designs"
+                required
               />
             </div>
           </>
@@ -930,14 +981,20 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Designer ID</label>
-              <input
-                type="text"
+              <label className="block text-sm font-medium text-gray-700 mb-1">Designer</label>
+              <select
                 value={formData.designerId || ''}
                 onChange={(e) => setFormData({ ...formData, designerId: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 required
-              />
+              >
+                <option value="">Select designer</option>
+                {designers.map((designer) => (
+                  <option key={designer.id} value={designer.id}>
+                    {designer.businessName} ({designer.country})
+                  </option>
+                ))}
+              </select>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Headline</label>
@@ -956,6 +1013,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 rows={3}
+                required
               />
             </div>
             <div>
@@ -989,6 +1047,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 value={formData.subtitle || ''}
                 onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                required
               />
             </div>
             <div>
@@ -1023,6 +1082,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                 onChange={(e) => setFormData({ ...formData, location: e.target.value })}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 placeholder="New York, USA"
+                required
               />
             </div>
             <div>
@@ -1090,6 +1150,11 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
         </div>
 
         <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {formError && (
+            <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {formError}
+            </div>
+          )}
           {renderFormFields()}
 
           {/* Image Upload */}

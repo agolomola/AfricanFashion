@@ -949,6 +949,11 @@ const homepageSectionsApi = {
     apiService.get<{ success: boolean; data: any }>('/homepage-sections/footer'),
 
   // Admin endpoints - Countries
+  getAdminDesigners: () =>
+    apiService.get<{ success: boolean; data: Array<{ id: string; businessName: string; country: string; isVerified: boolean }> }>(
+      '/homepage-sections/admin/designers'
+    ),
+
   getAdminCountries: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/admin/countries'),
 

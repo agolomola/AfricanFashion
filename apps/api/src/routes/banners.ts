@@ -42,7 +42,11 @@ router.get('/', async (req, res) => {
 });
 
 // Get all banners for admin (including inactive) - MUST be before /:id
-router.get('/admin/all', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
+router.get(
+  '/admin/all',
+  authenticate,
+  authorizePermissions(Permissions.BANNERS_MANAGE, Permissions.HOMEPAGE_MANAGE),
+  async (req, res) => {
   try {
     const banners = await prisma.banner.findMany({
       orderBy: {
@@ -61,10 +65,15 @@ router.get('/admin/all', authenticate, authorizePermissions(Permissions.BANNERS_
       message: 'Failed to fetch banners',
     });
   }
-});
+  }
+);
 
 // Create new banner (admin only)
-router.post('/', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
+router.post(
+  '/',
+  authenticate,
+  authorizePermissions(Permissions.BANNERS_MANAGE, Permissions.HOMEPAGE_MANAGE),
+  async (req, res) => {
   try {
     const { name, section, title, subtitle, ctaText, ctaLink, images, isActive, displayOrder } = req.body;
 
@@ -110,10 +119,15 @@ router.post('/', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE),
       message: 'Failed to create banner',
     });
   }
-});
+  }
+);
 
 // Toggle banner active status (admin only) - MUST be before /:id
-router.patch('/:id/toggle', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
+router.patch(
+  '/:id/toggle',
+  authenticate,
+  authorizePermissions(Permissions.BANNERS_MANAGE, Permissions.HOMEPAGE_MANAGE),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -147,7 +161,8 @@ router.patch('/:id/toggle', authenticate, authorizePermissions(Permissions.BANNE
       message: 'Failed to toggle banner status',
     });
   }
-});
+  }
+);
 
 // Get banner sections (for dropdown) - MUST be before /:id
 router.get('/meta/sections', async (req, res) => {
@@ -173,7 +188,11 @@ router.get('/meta/sections', async (req, res) => {
 });
 
 // Get banner by ID (admin only) - MUST be after static routes like /admin/all
-router.get('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
+router.get(
+  '/:id',
+  authenticate,
+  authorizePermissions(Permissions.BANNERS_MANAGE, Permissions.HOMEPAGE_MANAGE),
+  async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -199,10 +218,15 @@ router.get('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE
       message: 'Failed to fetch banner',
     });
   }
-});
+  }
+);
 
 // Update banner (admin only)
-router.put('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
+router.put(
+  '/:id',
+  authenticate,
+  authorizePermissions(Permissions.BANNERS_MANAGE, Permissions.HOMEPAGE_MANAGE),
+  async (req, res) => {
   try {
     const { id } = req.params;
     const { name, section, title, subtitle, ctaText, ctaLink, images, isActive, displayOrder } = req.body;
@@ -246,10 +270,15 @@ router.put('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE
       message: 'Failed to update banner',
     });
   }
-});
+  }
+);
 
 // Delete banner (admin only)
-router.delete('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
+router.delete(
+  '/:id',
+  authenticate,
+  authorizePermissions(Permissions.BANNERS_MANAGE, Permissions.HOMEPAGE_MANAGE),
+  async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -280,6 +309,7 @@ router.delete('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MAN
       message: 'Failed to delete banner',
     });
   }
-});
+  }
+);
 
 export default router;

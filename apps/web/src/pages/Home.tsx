@@ -106,6 +106,18 @@ interface FeaturedProduct {
   badge?: string;
 }
 
+interface ManagedBanner {
+  id: string;
+  name: string;
+  section: string;
+  title?: string | null;
+  subtitle?: string | null;
+  ctaText?: string | null;
+  ctaLink?: string | null;
+  images?: string[];
+  displayImage?: string | null;
+}
+
 // Default hero slides as fallback
 const defaultHeroSlides: HeroSlide[] = [
   {
@@ -243,11 +255,19 @@ const countryFlags: Record<string, string> = {
 
 export default function Home() {
   // Fetch hero slides
-  const { data: heroSlidesData, isLoading: heroLoading } = useQuery({
+  const { data: heroSlidesData } = useQuery({
     queryKey: ['heroSlides'],
     queryFn: async () => {
       const response = await api.homepage.getHeroSlides();
       return response.success ? response.data : defaultHeroSlides;
+    },
+  });
+
+  const { data: managedBanners } = useQuery({
+    queryKey: ['homepageBanners'],
+    queryFn: async () => {
+      const response = await api.banners.getBanners();
+      return response.success ? (response.data as ManagedBanner[]) : [];
     },
   });
 
@@ -260,7 +280,47 @@ export default function Home() {
     },
   });
 
-  const heroSlides = heroSlidesData || defaultHeroSlides;
+  const heroBanner = managedBanners?.find((item) => item.section === 'HERO');
+  const bannerOne = managedBanners?.find((item) => item.section === 'BANNER_1');
+  const bannerTwo = managedBanners?.find((item) => item.section === 'BANNER_2');
+  const promoBanner = managedBanners?.find((item) => item.section === 'PROMO');
+
+  const heroSlides: HeroSlide[] = useMemo(() => {
+    const normalized = (Array.isArray(heroSlidesData) && heroSlidesData.length > 0 ? heroSlidesData : defaultHeroSlides).map(
+      (slide: any, index: number) => ({
+        id: String(slide?.id || `hero-${index}`),
+        image: resolveAssetUrl(slide?.image),
+        badge: slide?.badge || 'FEATURED',
+        title: slide?.title || 'African Fashion',
+        subtitle: slide?.subtitle || '',
+        ctaText: slide?.ctaText || 'Shop Now',
+        ctaLink: slide?.ctaLink || '/designs',
+      })
+    );
+
+    if (!heroBanner) {
+      return normalized;
+    }
+
+    const heroBannerImage = resolveAssetUrl(heroBanner.displayImage || heroBanner.images?.[0]);
+    if (!heroBannerImage) {
+      return normalized;
+    }
+
+    return [
+      {
+        id: `banner-hero-${heroBanner.id}`,
+        image: heroBannerImage,
+        badge: heroBanner.name || 'HERO',
+        title: heroBanner.title || normalized[0]?.title || 'African Fashion',
+        subtitle: heroBanner.subtitle || normalized[0]?.subtitle || '',
+        ctaText: heroBanner.ctaText || normalized[0]?.ctaText || 'Shop Now',
+        ctaLink: heroBanner.ctaLink || normalized[0]?.ctaLink || '/designs',
+      },
+      ...normalized,
+    ];
+  }, [heroBanner, heroSlidesData]);
+
   const featuredDesigns = Array.isArray(featuredData?.FEATURED_DESIGNS) ? featuredData.FEATURED_DESIGNS : [];
   const featuredFabrics = Array.isArray(featuredData?.FEATURED_FABRICS) ? featuredData.FEATURED_FABRICS : [];
   const featuredRTW = Array.isArray(featuredData?.FEATURED_READY_TO_WEAR) ? featuredData.FEATURED_READY_TO_WEAR : [];
@@ -435,6 +495,53 @@ export default function Home() {
       </div>
     </Link>
   );
+
+  const renderManagedBanner = ({
+    banner,
+    fallbackImage,
+    fallbackTitle,
+    fallbackSubtitle,
+    fallbackCtaText,
+    fallbackCtaLink,
+  }: {
+    banner?: ManagedBanner;
+    fallbackImage?: string;
+    fallbackTitle?: string;
+    fallbackSubtitle?: string;
+    fallbackCtaText?: string;
+    fallbackCtaLink?: string;
+  }) => {
+    if (!banner && !fallbackImage) return null;
+
+    const image = resolveAssetUrl(banner?.displayImage || banner?.images?.[0] || fallbackImage);
+    if (!image) return null;
+
+    const title = banner?.title || fallbackTitle || '';
+    const subtitle = banner?.subtitle || fallbackSubtitle || '';
+    const ctaText = banner?.ctaText || fallbackCtaText;
+    const ctaLink = banner?.ctaLink || fallbackCtaLink || '#';
+
+    return (
+      <section className="py-12 bg-[#F5F5F0]">
+        <div className="relative h-[250px] md:h-[300px] overflow-hidden">
+          <img src={image} alt={title || 'Promotional banner'} className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-navy-600 bg-opacity-70" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
+            {title && <h2 className="text-3xl md:text-4xl font-bold mb-2">{title}</h2>}
+            {subtitle && <p className="text-white text-opacity-80 mb-6">{subtitle}</p>}
+            {ctaText && (
+              <Link
+                to={ctaLink}
+                className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+              >
+                {ctaText}
+              </Link>
+            )}
+          </div>
+        </div>
+      </section>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#F5F5F0]">
@@ -635,6 +742,10 @@ export default function Home() {
         </div>
       </section>
 
+      {renderManagedBanner({
+        banner: bannerOne,
+      })}
+
       {/* Featured Ready To Wear */}
       <section className="py-12 bg-[#F5F5F0]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -672,6 +783,10 @@ export default function Home() {
           )}
         </div>
       </section>
+
+      {renderManagedBanner({
+        banner: bannerTwo,
+      })}
 
       {/* Featured Fabrics */}
       <section className="py-12 bg-[#F5F5F0]">
@@ -711,35 +826,14 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Fresh Drops Banner */}
-      <section className="py-12 bg-[#F5F5F0]">
-        <div className="relative h-[250px] md:h-[300px] overflow-hidden">
-          <img
-            src="/images/fresh-drops-banner.jpg"
-            alt="Fresh Drops"
-            className="w-full h-full object-cover"
-          />
-          <div className="absolute inset-0 bg-navy-600 bg-opacity-70" />
-          <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
-            <h2 className="text-3xl md:text-4xl font-bold mb-2">Fresh Drops</h2>
-            <p className="text-white text-opacity-80 mb-6">New arrivals from the most talented designers across the continent.</p>
-            <div className="flex gap-4">
-              <Link
-                to="/ready-to-wear"
-                className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
-              >
-                Shop New Arrivals
-              </Link>
-              <Link
-                to="/designs"
-                className="inline-flex items-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white hover:bg-opacity-10 transition-colors"
-              >
-                Explore Collections
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      {renderManagedBanner({
+        banner: promoBanner,
+        fallbackImage: '/images/fresh-drops-banner.jpg',
+        fallbackTitle: 'Fresh Drops',
+        fallbackSubtitle: 'New arrivals from the most talented designers across the continent.',
+        fallbackCtaText: 'Shop New Arrivals',
+        fallbackCtaLink: '/ready-to-wear',
+      })}
 
       {/* Designer Spotlight */}
       <section className="py-12 bg-[#F5F5F0]">
