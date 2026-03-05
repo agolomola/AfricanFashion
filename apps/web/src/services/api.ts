@@ -660,8 +660,12 @@ const sellerApi = {
   updateFabricStock: (fabricId: string, stock: number) =>
     apiService.patch(`/fabric-seller/fabrics/${fabricId}/stock`, { stock }),
 
-  updateOrderStatus: (orderId: string, status: string) =>
-    apiService.patch(`/fabric-seller/orders/${orderId}/status`, { status }),
+  updateOrderStatus: (orderId: string, status: string, options?: { trackingNumber?: string; notes?: string }) =>
+    apiService.patch(`/fabric-seller/orders/${orderId}/status`, {
+      status,
+      trackingNumber: options?.trackingNumber,
+      notes: options?.notes,
+    }),
 };
 
 // Designer API
@@ -772,8 +776,8 @@ const designerApi = {
     }
   },
 
-  updateOrderStatus: (orderId: string, status: string) =>
-    apiService.patch(`/designer/orders/${orderId}/status`, { status }),
+  updateOrderStatus: (orderId: string, status: string, notes?: string) =>
+    apiService.patch(`/designer/orders/${orderId}/status`, { status, notes }),
 };
 
 // QA API

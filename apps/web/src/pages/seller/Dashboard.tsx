@@ -14,6 +14,7 @@ import {
   Upload,
   X
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -89,10 +90,24 @@ export default function SellerDashboard() {
     stockYards: '0',
   });
   const [modalError, setModalError] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/seller/fabrics') {
+      setActiveTab('fabrics');
+      return;
+    }
+    if (location.pathname === '/seller/orders') {
+      setActiveTab('orders');
+      return;
+    }
+    setActiveTab('overview');
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -170,9 +185,13 @@ export default function SellerDashboard() {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+  const handleUpdateOrderStatus = async (
+    orderId: string,
+    status: string,
+    options?: { trackingNumber?: string; notes?: string }
+  ) => {
     try {
-      await api.seller.updateOrderStatus(orderId, status);
+      await api.seller.updateOrderStatus(orderId, status, options);
       fetchDashboardData();
     } catch (error) {
       console.error('Failed to update order status:', error);
@@ -206,6 +225,11 @@ export default function SellerDashboard() {
     });
     setNewFabricImages([]);
     setModalError('');
+  };
+
+  const navigateToTab = (tab: 'overview' | 'fabrics' | 'orders') => {
+    const path = tab === 'overview' ? '/seller' : `/seller/${tab}`;
+    navigate(path);
   };
 
   const handleCreateFabric = async () => {
@@ -254,7 +278,7 @@ export default function SellerDashboard() {
       setShowCreateModal(false);
       resetCreateFabricForm();
       fetchDashboardData();
-      setActiveTab('fabrics');
+      navigateToTab('fabrics');
     } catch (error: any) {
       console.error('Failed to create fabric:', error);
       setModalError(error?.response?.data?.message || 'Failed to create fabric.');
@@ -327,7 +351,7 @@ export default function SellerDashboard() {
           {(['overview', 'fabrics', 'orders'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => navigateToTab(tab)}
               className={`pb-3 text-sm font-medium capitalize transition-colors relative ${
                 activeTab === tab ? 'text-amber-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -364,7 +388,7 @@ export default function SellerDashboard() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setActiveTab('fabrics')}
+                  onClick={() => navigateToTab('fabrics')}
                 >
                   Update Stock
                 </Button>
@@ -411,7 +435,7 @@ export default function SellerDashboard() {
             <div className="bg-white rounded-xl p-6 shadow-sm border">
               <div className="flex items-center justify-between mb-4">
                 <h3 className="text-lg font-semibold text-gray-900">Recent Orders</h3>
-                <Button variant="ghost" size="sm" onClick={() => setActiveTab('orders')}>
+                <Button variant="ghost" size="sm" onClick={() => navigateToTab('orders')}>
                   View All
                   <ArrowRight className="w-4 h-4 ml-1" />
                 </Button>
@@ -425,11 +449,7 @@ export default function SellerDashboard() {
                     </div>
                     <div className="text-right">
                       <p className="font-medium text-amber-700">${order.totalAmount.toFixed(2)}</p>
-                      <Badge variant={
-                        order.status === 'DELIVERED' ? 'green' :
-                        order.status === 'SHIPPED' ? 'blue' :
-                        order.status === 'CONFIRMED' ? 'yellow' : 'gray'
-                      } size="sm">
+                      <Badge variant={getOrderVariant(order.status)} size="sm">
                         {order.status}
                       </Badge>
                     </div>
@@ -508,7 +528,7 @@ export default function SellerDashboard() {
                 <Button variant="outline" size="sm" onClick={() => openStockModal(item)}>
                   <Edit className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="sm">
+                <Button variant="outline" size="sm" onClick={() => navigate(`/fabrics/${item.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
               </div>
@@ -558,15 +578,27 @@ export default function SellerDashboard() {
               {item.status === 'CONFIRMED' && (
                 <Button 
                   size="sm"
-                  onClick={() => handleUpdateOrderStatus(item.id, 'SHIPPED_TO_DESIGNER')}
+                  onClick={() => {
+                    const trackingNumber = window.prompt('Enter tracking number (optional):', '')?.trim() || undefined;
+                    handleUpdateOrderStatus(item.id, 'SHIPPED_TO_DESIGNER', {
+                      trackingNumber,
+                      notes: trackingNumber ? `Shipped with tracking: ${trackingNumber}` : undefined,
+                    });
+                  }}
                 >
                   <Truck className="w-4 h-4 mr-1" />
                   Ship
                 </Button>
               )}
-              <Button variant="outline" size="sm">
-                <Eye className="w-4 h-4" />
-              </Button>
+              {item.status === 'SHIPPED_TO_DESIGNER' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => handleUpdateOrderStatus(item.id, 'DELIVERED', { notes: 'Marked delivered by seller' })}
+                >
+                  Mark Delivered
+                </Button>
+              )}
             </div>
           )}
         />

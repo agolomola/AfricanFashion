@@ -126,6 +126,8 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['FABRIC_SELLER']} />}>
               <Route element={<DashboardLayout userType="seller" />}>
                 <Route path="/seller" element={<SellerDashboard />} />
+                <Route path="/seller/fabrics" element={<SellerDashboard />} />
+                <Route path="/seller/orders" element={<SellerDashboard />} />
               </Route>
             </Route>
 
@@ -133,6 +135,8 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['FASHION_DESIGNER']} />}>
               <Route element={<DashboardLayout userType="designer" />}>
                 <Route path="/designer" element={<DesignerDashboard />} />
+                <Route path="/designer/designs" element={<DesignerDashboard />} />
+                <Route path="/designer/orders" element={<DesignerDashboard />} />
               </Route>
             </Route>
 

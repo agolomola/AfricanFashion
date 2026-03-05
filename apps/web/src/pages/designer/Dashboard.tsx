@@ -4,17 +4,16 @@ import {
   DollarSign, 
   ShoppingBag,
   Plus,
-  Edit,
   Eye,
   Clock,
   CheckCircle,
   AlertCircle,
   Star,
-  ArrowRight,
   Palette,
   Upload,
   X
 } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -92,10 +91,24 @@ export default function DesignerDashboard() {
   const [measurementText, setMeasurementText] = useState('Bust\nWaist\nHip\nLength');
   const [selectedFabrics, setSelectedFabrics] = useState<Record<string, number>>({});
   const [modalError, setModalError] = useState('');
+  const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchDashboardData();
   }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/designer/designs') {
+      setActiveTab('designs');
+      return;
+    }
+    if (location.pathname === '/designer/orders') {
+      setActiveTab('orders');
+      return;
+    }
+    setActiveTab('overview');
+  }, [location.pathname]);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -172,9 +185,9 @@ export default function DesignerDashboard() {
     }
   };
 
-  const handleUpdateOrderStatus = async (orderId: string, status: string) => {
+  const handleUpdateOrderStatus = async (orderId: string, status: string, notes?: string) => {
     try {
-      await api.designer.updateOrderStatus(orderId, status);
+      await api.designer.updateOrderStatus(orderId, status, notes);
       fetchDashboardData();
     } catch (error) {
       console.error('Failed to update order status:', error);
@@ -185,6 +198,7 @@ export default function DesignerDashboard() {
   const getOrderStatusVariant = (status: string) => {
     if (status === 'COMPLETED') return 'green';
     if (status === 'IN_PRODUCTION') return 'purple';
+    if (status === 'READY_FOR_QA') return 'blue';
     if (status === 'PENDING' || status === 'CONFIRMED' || status === 'FABRIC_RECEIVED') return 'yellow';
     if (status === 'QA_REJECTED') return 'red';
     return 'gray';
@@ -201,6 +215,11 @@ export default function DesignerDashboard() {
     setSelectedFabrics({});
     setDesignImages([]);
     setModalError('');
+  };
+
+  const navigateToTab = (tab: 'overview' | 'designs' | 'orders') => {
+    const path = tab === 'overview' ? '/designer' : `/designer/${tab}`;
+    navigate(path);
   };
 
   const toggleFabricSelection = (fabricId: string) => {
@@ -275,7 +294,7 @@ export default function DesignerDashboard() {
       setShowCreateModal(false);
       resetCreateDesignForm();
       fetchDashboardData();
-      setActiveTab('designs');
+      navigateToTab('designs');
     } catch (error: any) {
       console.error('Failed to create design:', error);
       setModalError(error?.response?.data?.message || 'Failed to create design.');
@@ -348,7 +367,7 @@ export default function DesignerDashboard() {
           {(['overview', 'designs', 'orders'] as const).map((tab) => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => navigateToTab(tab)}
               className={`pb-3 text-sm font-medium capitalize transition-colors relative ${
                 activeTab === tab ? 'text-amber-600' : 'text-gray-500 hover:text-gray-700'
               }`}
@@ -452,7 +471,7 @@ export default function DesignerDashboard() {
                 <Button 
                   variant="outline" 
                   size="sm"
-                  onClick={() => setActiveTab('orders')}
+                  onClick={() => navigateToTab('orders')}
                 >
                   View Orders
                 </Button>
@@ -515,11 +534,7 @@ export default function DesignerDashboard() {
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1">
-                      <Edit className="w-4 h-4 mr-1" />
-                      Edit
-                    </Button>
-                    <Button variant="outline" size="sm" className="flex-1">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/designs/${design.id}`)}>
                       <Eye className="w-4 h-4 mr-1" />
                       View
                     </Button>
@@ -567,7 +582,23 @@ export default function DesignerDashboard() {
               {item.status === 'PENDING' && (
                 <Button 
                   size="sm"
-                  onClick={() => handleUpdateOrderStatus(item.id, 'IN_PRODUCTION')}
+                  onClick={() => handleUpdateOrderStatus(item.id, 'CONFIRMED', 'Designer confirmed order')}
+                >
+                  Confirm
+                </Button>
+              )}
+              {item.status === 'CONFIRMED' && (
+                <Button
+                  size="sm"
+                  onClick={() => handleUpdateOrderStatus(item.id, 'FABRIC_RECEIVED', 'Fabric received by designer')}
+                >
+                  Fabric Received
+                </Button>
+              )}
+              {item.status === 'FABRIC_RECEIVED' && (
+                <Button
+                  size="sm"
+                  onClick={() => handleUpdateOrderStatus(item.id, 'IN_PRODUCTION', 'Production started')}
                 >
                   Start
                 </Button>
@@ -575,14 +606,11 @@ export default function DesignerDashboard() {
               {item.status === 'IN_PRODUCTION' && (
                 <Button 
                   size="sm"
-                  onClick={() => handleUpdateOrderStatus(item.id, 'COMPLETED')}
+                  onClick={() => handleUpdateOrderStatus(item.id, 'READY_FOR_QA', 'Production complete and ready for QA')}
                 >
-                  Complete
+                  Send to QA
                 </Button>
               )}
-              <Button variant="outline" size="sm">
-                <Eye className="w-4 h-4" />
-              </Button>
             </div>
           )}
         />
