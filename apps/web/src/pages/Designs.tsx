@@ -685,7 +685,6 @@ export default function Designs() {
             </div>
           </div>
         )}
-      </div>
     </div>
   );
 }
