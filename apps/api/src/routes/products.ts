@@ -4,6 +4,13 @@ import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
 
+function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 20) {
+  const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
 // Public routes (no auth required)
 
 // Get all categories
@@ -43,7 +50,7 @@ router.get('/materials', async (req, res, next) => {
 // Get fabrics with filters
 router.get('/fabrics', async (req, res, next) => {
   try {
-    const { country, materialTypeId, search, page = '1', limit = '20' } = req.query;
+    const { country, materialTypeId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -65,13 +72,13 @@ router.get('/fabrics', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [fabrics, total] = await Promise.all([
       prisma.fabric.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         include: {
           materialType: true,
           seller: {
@@ -89,10 +96,10 @@ router.get('/fabrics', async (req, res, next) => {
       data: {
         fabrics,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -152,7 +159,7 @@ router.get('/fabrics/:id', async (req, res, next) => {
 // Get designs with filters
 router.get('/designs', async (req, res, next) => {
   try {
-    const { categoryId, country, designerId, search, page = '1', limit = '20' } = req.query;
+    const { categoryId, country, designerId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -170,13 +177,13 @@ router.get('/designs', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [designs, total] = await Promise.all([
       prisma.design.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         include: {
           category: true,
           designer: {
@@ -215,10 +222,10 @@ router.get('/designs', async (req, res, next) => {
       data: {
         designs,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -288,7 +295,7 @@ router.get('/designs/:id', async (req, res, next) => {
 // Get ready-to-wear with filters
 router.get('/ready-to-wear', async (req, res, next) => {
   try {
-    const { categoryId, country, designerId, search, page = '1', limit = '20' } = req.query;
+    const { categoryId, country, designerId, search, page, limit } = req.query;
 
     const where: any = {
       status: ProductStatus.APPROVED,
@@ -306,13 +313,13 @@ router.get('/ready-to-wear', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [products, total] = await Promise.all([
       prisma.readyToWear.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         include: {
           category: true,
           designer: {
@@ -338,10 +345,10 @@ router.get('/ready-to-wear', async (req, res, next) => {
       data: {
         products,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });

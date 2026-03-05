@@ -1,8 +1,84 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { prisma } from '../db';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
+
+const countryCreateSchema = z.object({
+  name: z.string().min(1),
+  flag: z.string().min(1),
+  fabrics: z.string().min(1),
+  image: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const countryUpdateSchema = countryCreateSchema.partial();
+
+const howItWorksCreateSchema = z.object({
+  stepNumber: z.number().int().positive(),
+  title: z.string().min(1),
+  subtitle: z.string().min(1),
+  icon: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const howItWorksUpdateSchema = howItWorksCreateSchema.partial();
+
+const shopCategoryCreateSchema = z.object({
+  key: z.string().min(1),
+  title: z.string().min(1),
+  description: z.string().min(1),
+  image: z.string().min(1),
+  ctaText: z.string().min(1),
+  ctaLink: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const shopCategoryUpdateSchema = shopCategoryCreateSchema.partial();
+
+const designerSpotlightCreateSchema = z.object({
+  designerId: z.string().uuid(),
+  quote: z.string().min(1),
+  bio: z.string().min(1),
+  image: z.string().min(1),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const designerSpotlightUpdateSchema = designerSpotlightCreateSchema.partial();
+
+const heritageCreateSchema = z.object({
+  title: z.string().min(1),
+  subtitle: z.string().min(1),
+  image: z.string().min(1),
+  ctaText: z.string().optional(),
+  ctaLink: z.string().optional(),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const heritageUpdateSchema = heritageCreateSchema.partial();
+
+const testimonialCreateSchema = z.object({
+  name: z.string().min(1),
+  initials: z.string().min(1),
+  location: z.string().min(1),
+  quote: z.string().min(1),
+  avatar: z.string().optional(),
+  displayOrder: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+const testimonialUpdateSchema = testimonialCreateSchema.partial();
+
+const footerCreateSchema = z.object({
+  companyName: z.string().optional(),
+  tagline: z.string().optional(),
+  email: z.string().email().optional(),
+  phone: z.string().optional(),
+  address: z.string().optional(),
+  socialLinks: z.string().optional(),
+  copyright: z.string().optional(),
+});
+const footerUpdateSchema = footerCreateSchema;
 
 // ==================== PUBLIC ENDPOINTS ====================
 
@@ -186,7 +262,8 @@ router.get('/admin/countries', authenticate, authorize('ADMINISTRATOR'), async (
 
 router.post('/admin/countries', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const country = await prisma.countryMarquee.create({ data: req.body });
+    const data = countryCreateSchema.parse(req.body);
+    const country = await prisma.countryMarquee.create({ data });
     res.status(201).json({ success: true, data: country });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create country' });
@@ -195,9 +272,10 @@ router.post('/admin/countries', authenticate, authorize('ADMINISTRATOR'), async 
 
 router.put('/admin/countries/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = countryUpdateSchema.parse(req.body);
     const country = await prisma.countryMarquee.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: country });
   } catch (error) {
@@ -228,7 +306,8 @@ router.get('/admin/how-it-works', authenticate, authorize('ADMINISTRATOR'), asyn
 
 router.post('/admin/how-it-works', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const step = await prisma.howItWorksStep.create({ data: req.body });
+    const data = howItWorksCreateSchema.parse(req.body);
+    const step = await prisma.howItWorksStep.create({ data });
     res.status(201).json({ success: true, data: step });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create step' });
@@ -237,9 +316,10 @@ router.post('/admin/how-it-works', authenticate, authorize('ADMINISTRATOR'), asy
 
 router.put('/admin/how-it-works/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = howItWorksUpdateSchema.parse(req.body);
     const step = await prisma.howItWorksStep.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: step });
   } catch (error) {
@@ -270,7 +350,8 @@ router.get('/admin/categories', authenticate, authorize('ADMINISTRATOR'), async 
 
 router.post('/admin/categories', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const category = await prisma.shopCategory.create({ data: req.body });
+    const data = shopCategoryCreateSchema.parse(req.body);
+    const category = await prisma.shopCategory.create({ data });
     res.status(201).json({ success: true, data: category });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create category' });
@@ -279,9 +360,10 @@ router.post('/admin/categories', authenticate, authorize('ADMINISTRATOR'), async
 
 router.put('/admin/categories/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = shopCategoryUpdateSchema.parse(req.body);
     const category = await prisma.shopCategory.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: category });
   } catch (error) {
@@ -328,7 +410,8 @@ router.get('/admin/designer-spotlight', authenticate, authorize('ADMINISTRATOR')
 
 router.post('/admin/designer-spotlight', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const spotlight = await prisma.designerSpotlight.create({ data: req.body });
+    const data = designerSpotlightCreateSchema.parse(req.body);
+    const spotlight = await prisma.designerSpotlight.create({ data });
     res.status(201).json({ success: true, data: spotlight });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create spotlight' });
@@ -337,9 +420,10 @@ router.post('/admin/designer-spotlight', authenticate, authorize('ADMINISTRATOR'
 
 router.put('/admin/designer-spotlight/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = designerSpotlightUpdateSchema.parse(req.body);
     const spotlight = await prisma.designerSpotlight.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: spotlight });
   } catch (error) {
@@ -370,7 +454,8 @@ router.get('/admin/heritage', authenticate, authorize('ADMINISTRATOR'), async (r
 
 router.post('/admin/heritage', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const heritage = await prisma.heritageSection.create({ data: req.body });
+    const data = heritageCreateSchema.parse(req.body);
+    const heritage = await prisma.heritageSection.create({ data });
     res.status(201).json({ success: true, data: heritage });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create heritage' });
@@ -379,9 +464,10 @@ router.post('/admin/heritage', authenticate, authorize('ADMINISTRATOR'), async (
 
 router.put('/admin/heritage/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = heritageUpdateSchema.parse(req.body);
     const heritage = await prisma.heritageSection.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: heritage });
   } catch (error) {
@@ -412,7 +498,8 @@ router.get('/admin/testimonials', authenticate, authorize('ADMINISTRATOR'), asyn
 
 router.post('/admin/testimonials', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const testimonial = await prisma.testimonial.create({ data: req.body });
+    const data = testimonialCreateSchema.parse(req.body);
+    const testimonial = await prisma.testimonial.create({ data });
     res.status(201).json({ success: true, data: testimonial });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create testimonial' });
@@ -421,9 +508,10 @@ router.post('/admin/testimonials', authenticate, authorize('ADMINISTRATOR'), asy
 
 router.put('/admin/testimonials/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = testimonialUpdateSchema.parse(req.body);
     const testimonial = await prisma.testimonial.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: testimonial });
   } catch (error) {
@@ -452,7 +540,8 @@ router.get('/admin/footer', authenticate, authorize('ADMINISTRATOR'), async (req
 
 router.post('/admin/footer', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
-    const footer = await prisma.footerContent.create({ data: req.body });
+    const data = footerCreateSchema.parse(req.body);
+    const footer = await prisma.footerContent.create({ data });
     res.status(201).json({ success: true, data: footer });
   } catch (error) {
     res.status(500).json({ success: false, message: 'Failed to create footer' });
@@ -461,9 +550,10 @@ router.post('/admin/footer', authenticate, authorize('ADMINISTRATOR'), async (re
 
 router.put('/admin/footer/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
   try {
+    const data = footerUpdateSchema.parse(req.body);
     const footer = await prisma.footerContent.update({
       where: { id: req.params.id },
-      data: req.body,
+      data,
     });
     res.json({ success: true, data: footer });
   } catch (error) {

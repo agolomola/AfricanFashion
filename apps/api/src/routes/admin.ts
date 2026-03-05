@@ -5,6 +5,13 @@ import { authenticate, authorize } from '../middleware/auth';
 
 const router = Router();
 
+function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 20) {
+  const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
+  const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
+  const skip = (page - 1) * limit;
+  return { page, limit, skip };
+}
+
 // All admin routes require admin role
 router.use(authenticate);
 router.use(authorize(UserRole.ADMINISTRATOR));
@@ -88,7 +95,7 @@ router.get('/dashboard', async (req, res, next) => {
 // Get all users with filters
 router.get('/users', async (req, res, next) => {
   try {
-    const { role, status, search, page = '1', limit = '20' } = req.query;
+    const { role, status, search, page, limit } = req.query;
 
     const where: any = {};
     if (role) where.role = role;
@@ -101,13 +108,13 @@ router.get('/users', async (req, res, next) => {
       ];
     }
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         orderBy: { createdAt: 'desc' },
         select: {
           id: true,
@@ -128,10 +135,10 @@ router.get('/users', async (req, res, next) => {
       data: {
         users,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -168,7 +175,11 @@ router.get('/users/pending', async (req, res, next) => {
 router.patch('/users/:id/status', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { status, reason } = req.body;
+    const schema = z.object({
+      status: z.nativeEnum(UserStatus),
+      reason: z.string().optional(),
+    });
+    const { status, reason } = schema.parse(req.body);
 
     const user = await prisma.user.update({
       where: { id },
@@ -467,18 +478,18 @@ router.delete('/pricing-rules/:id', async (req, res, next) => {
 // Get all orders
 router.get('/orders', async (req, res, next) => {
   try {
-    const { status, page = '1', limit = '20' } = req.query;
+    const { status, page, limit } = req.query;
 
     const where: any = {};
     if (status) where.status = status;
 
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
+    const pagination = parsePagination(page, limit, 20);
 
     const [orders, total] = await Promise.all([
       prisma.order.findMany({
         where,
-        skip,
-        take: parseInt(limit as string),
+        skip: pagination.skip,
+        take: pagination.limit,
         orderBy: { createdAt: 'desc' },
         include: {
           customer: {
@@ -508,10 +519,10 @@ router.get('/orders', async (req, res, next) => {
       data: {
         orders,
         pagination: {
-          page: parseInt(page as string),
-          limit: parseInt(limit as string),
+          page: pagination.page,
+          limit: pagination.limit,
           total,
-          pages: Math.ceil(total / parseInt(limit as string)),
+          pages: Math.ceil(total / pagination.limit),
         },
       },
     });
@@ -524,7 +535,10 @@ router.get('/orders', async (req, res, next) => {
 router.patch('/orders/:id/assign-qa', async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { qaId } = req.body;
+    const schema = z.object({
+      qaId: z.string().uuid(),
+    });
+    const { qaId } = schema.parse(req.body);
 
     const order = await prisma.order.update({
       where: { id },
