@@ -2,11 +2,13 @@ import { Router } from 'express';
 import Stripe from 'stripe';
 import { z } from 'zod';
 import { prisma, PaymentStatus, OrderStatus } from '../db';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
 router.use(authenticate);
+router.use(authorizePermissions(Permissions.PAYMENTS_CREATE));
 
 function getStripeClient(): Stripe | null {
   const secretKey = process.env.STRIPE_SECRET_KEY;

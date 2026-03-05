@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
 import { randomBytes } from 'crypto';
 import { prisma, UserRole } from '../db';
+import { Permission, hasAnyPermission } from '../rbac';
 
 // JWT Secret - must be set in production
 const JWT_SECRET = process.env.JWT_SECRET;
@@ -107,6 +108,27 @@ export function authorize(...allowedRoles: UserRole[]) {
     }
 
     if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({
+        success: false,
+        message: 'You do not have permission to access this resource.',
+      });
+    }
+
+    next();
+  };
+}
+
+// Permission-based authorization middleware (RBAC)
+export function authorizePermissions(...requiredPermissions: Permission[]) {
+  return (req: Request, res: Response, next: NextFunction) => {
+    if (!req.user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required.',
+      });
+    }
+
+    if (!hasAnyPermission(req.user.role, requiredPermissions)) {
       return res.status(403).json({
         success: false,
         message: 'You do not have permission to access this resource.',

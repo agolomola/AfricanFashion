@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma, UserRole, UserStatus } from '../db';
 import { generateToken, authenticate } from '../middleware/auth';
+import { getRolePermissions, ROLE_HOME_ROUTE } from '../rbac';
 
 const router = Router();
 
@@ -130,6 +131,10 @@ router.post('/register', async (req, res, next) => {
       data: {
         user,
         token,
+        access: {
+          homeRoute: ROLE_HOME_ROUTE[user.role as UserRole],
+          permissions: getRolePermissions(user.role as UserRole),
+        },
       },
     });
   } catch (error) {
@@ -212,6 +217,10 @@ router.post('/login', async (req, res, next) => {
           status: user.status,
         },
         token,
+        access: {
+          homeRoute: ROLE_HOME_ROUTE[user.role],
+          permissions: getRolePermissions(user.role),
+        },
       },
     });
   } catch (error) {
@@ -256,6 +265,10 @@ router.get('/me', authenticate, async (req, res, next) => {
         role: user.role,
         status: user.status,
         profile: user.customerProfile || user.fabricSellerProfile || user.designerProfile || user.qaProfile || user.adminProfile,
+        access: {
+          homeRoute: ROLE_HOME_ROUTE[user.role],
+          permissions: getRolePermissions(user.role),
+        },
       },
     });
   } catch (error) {

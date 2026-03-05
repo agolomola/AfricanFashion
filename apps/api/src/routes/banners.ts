@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
@@ -41,7 +42,7 @@ router.get('/', async (req, res) => {
 });
 
 // Get all banners for admin (including inactive) - MUST be before /:id
-router.get('/admin/all', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/all', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
   try {
     const banners = await prisma.banner.findMany({
       orderBy: {
@@ -63,7 +64,7 @@ router.get('/admin/all', authenticate, authorize('ADMINISTRATOR'), async (req, r
 });
 
 // Create new banner (admin only)
-router.post('/', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
   try {
     const { name, section, title, subtitle, ctaText, ctaLink, images, isActive, displayOrder } = req.body;
 
@@ -112,7 +113,7 @@ router.post('/', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
 });
 
 // Toggle banner active status (admin only) - MUST be before /:id
-router.patch('/:id/toggle', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.patch('/:id/toggle', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -172,7 +173,7 @@ router.get('/meta/sections', async (req, res) => {
 });
 
 // Get banner by ID (admin only) - MUST be after static routes like /admin/all
-router.get('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
     
@@ -201,7 +202,7 @@ router.get('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) =>
 });
 
 // Update banner (admin only)
-router.put('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
     const { name, section, title, subtitle, ctaText, ctaLink, images, isActive, displayOrder } = req.body;
@@ -248,7 +249,7 @@ router.put('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) =>
 });
 
 // Delete banner (admin only)
-router.delete('/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/:id', authenticate, authorizePermissions(Permissions.BANNERS_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
 

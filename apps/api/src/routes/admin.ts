@@ -1,7 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma, UserRole, UserStatus, ProductStatus } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
@@ -14,7 +15,7 @@ function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit =
 
 // All admin routes require admin role
 router.use(authenticate);
-router.use(authorize(UserRole.ADMINISTRATOR));
+router.use(authorizePermissions(Permissions.ADMIN_ACCESS));
 
 // ==================== DASHBOARD STATS ====================
 

@@ -1,12 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma, UserRole, ProductStatus } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
 router.use(authenticate);
-router.use(authorize(UserRole.FABRIC_SELLER));
+router.use(authorizePermissions(Permissions.SELLER_ACCESS));
 
 // Get seller dashboard
 router.get('/dashboard', async (req, res, next) => {

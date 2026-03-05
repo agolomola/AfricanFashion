@@ -1,14 +1,15 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma, UserRole, OrderType, OrderStatus, PaymentStatus, ProductStatus } from '../db';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
 router.use(authenticate);
 
 // Get order by ID (with role-based access)
-router.get('/:id', async (req, res, next) => {
+router.get('/:id', authorizePermissions(Permissions.ORDERS_READ_SELF, Permissions.ORDERS_READ_ASSIGNED, Permissions.ORDERS_READ_ALL), async (req, res, next) => {
   try {
     const { id } = req.params;
     const user = req.user!;
@@ -85,6 +86,20 @@ router.get('/:id', async (req, res, next) => {
       hasAccess = true;
     } else if (user.role === UserRole.CUSTOMER && order.customerId === user.id) {
       hasAccess = true;
+    } else if (user.role === UserRole.FABRIC_SELLER && order.fabricOrder) {
+      const sellerProfile = await prisma.fabricSellerProfile.findFirst({
+        where: { userId: user.id },
+      });
+      if (sellerProfile && order.fabricOrder.sellerId === sellerProfile.id) {
+        hasAccess = true;
+      }
+    } else if (user.role === UserRole.FASHION_DESIGNER && order.designOrder) {
+      const designerProfile = await prisma.designerProfile.findFirst({
+        where: { userId: user.id },
+      });
+      if (designerProfile && order.designOrder.designerId === designerProfile.id) {
+        hasAccess = true;
+      }
     } else if (user.role === UserRole.QA_TEAM && order.qaId) {
       const qaProfile = await prisma.qAProfile.findFirst({
         where: { userId: user.id },
@@ -111,7 +126,7 @@ router.get('/:id', async (req, res, next) => {
 });
 
 // Create custom design order
-router.post('/custom-design', async (req, res, next) => {
+router.post('/custom-design', authorizePermissions(Permissions.ORDERS_CREATE), async (req, res, next) => {
   try {
     const schema = z.object({
       designId: z.string().uuid(),
@@ -290,7 +305,7 @@ router.post('/custom-design', async (req, res, next) => {
 });
 
 // Create ready-to-wear order
-router.post('/ready-to-wear', async (req, res, next) => {
+router.post('/ready-to-wear', authorizePermissions(Permissions.ORDERS_CREATE), async (req, res, next) => {
   try {
     type ValidatedReadyToWearItem = {
       readyToWearId: string;
@@ -463,7 +478,7 @@ router.post('/ready-to-wear', async (req, res, next) => {
 });
 
 // Update order status (for all parties)
-router.patch('/:id/status', async (req, res, next) => {
+router.patch('/:id/status', authorizePermissions(Permissions.ORDERS_UPDATE_SELF, Permissions.ORDERS_UPDATE_ASSIGNED, Permissions.ORDERS_UPDATE_ALL), async (req, res, next) => {
   try {
     const { id } = req.params;
     const schema = z.object({
@@ -609,7 +624,7 @@ router.patch('/:id/status', async (req, res, next) => {
 });
 
 // Add tracking number (QA only)
-router.patch('/:id/tracking', async (req, res, next) => {
+router.patch('/:id/tracking', authorizePermissions(Permissions.ORDERS_UPDATE_ASSIGNED), async (req, res, next) => {
   try {
     const { id } = req.params;
     const { trackingNumber } = req.body;

@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { prisma } from '../db';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 
@@ -285,7 +286,7 @@ router.get('/featured', async (req, res) => {
 // ==================== ADMIN ENDPOINTS ====================
 
 // Get all hero slides (admin)
-router.get('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/hero-slides', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const slides = await prisma.heroSlide.findMany({
       orderBy: { displayOrder: 'asc' },
@@ -305,7 +306,7 @@ router.get('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), async
 });
 
 // Create hero slide (admin)
-router.post('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/hero-slides', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { title, subtitle, image, ctaText, ctaLink, displayOrder } = req.body;
 
@@ -342,7 +343,7 @@ router.post('/admin/hero-slides', authenticate, authorize('ADMINISTRATOR'), asyn
 });
 
 // Update hero slide (admin)
-router.put('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/hero-slides/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, subtitle, image, ctaText, ctaLink, displayOrder, isActive } = req.body;
@@ -375,7 +376,7 @@ router.put('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR'), a
 });
 
 // Delete hero slide (admin)
-router.delete('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/hero-slides/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -397,7 +398,7 @@ router.delete('/admin/hero-slides/:id', authenticate, authorize('ADMINISTRATOR')
 });
 
 // Get all featured products (admin)
-router.get('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const featured = await prisma.featuredProduct.findMany({
       orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
@@ -417,7 +418,7 @@ router.get('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (r
 });
 
 // Add product to featured section (admin)
-router.post('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.post('/admin/featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { productId, productType, section, displayOrder, customTitle, customDescription } = req.body;
 
@@ -471,7 +472,7 @@ router.post('/admin/featured', authenticate, authorize('ADMINISTRATOR'), async (
 });
 
 // Update featured product (admin)
-router.put('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.put('/admin/featured/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
     const { displayOrder, customTitle, customDescription, isActive } = req.body;
@@ -501,7 +502,7 @@ router.put('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), asyn
 });
 
 // Remove product from featured section (admin)
-router.delete('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.delete('/admin/featured/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -523,7 +524,7 @@ router.delete('/admin/featured/:id', authenticate, authorize('ADMINISTRATOR'), a
 });
 
 // Get available products for featuring (admin)
-router.get('/admin/products-for-featured', authenticate, authorize('ADMINISTRATOR'), async (req, res) => {
+router.get('/admin/products-for-featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const { type } = req.query;
 

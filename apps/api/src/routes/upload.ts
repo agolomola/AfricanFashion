@@ -2,7 +2,8 @@ import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
 import { v4 as uuidv4 } from 'uuid';
-import { authenticate } from '../middleware/auth';
+import { authenticate, authorizePermissions } from '../middleware/auth';
+import { Permissions } from '../rbac';
 
 const router = Router();
 const allowedMimeTypes: Record<string, string> = {
@@ -41,7 +42,7 @@ const upload = multer({
 });
 
 // Upload single image
-router.post('/image', authenticate, upload.single('image'), (req, res) => {
+router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), upload.single('image'), (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -70,7 +71,7 @@ router.post('/image', authenticate, upload.single('image'), (req, res) => {
 });
 
 // Upload multiple images
-router.post('/images', authenticate, upload.array('images', 10), (req, res) => {
+router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), upload.array('images', 10), (req, res) => {
   try {
     if (!req.files || (req.files as any[]).length === 0) {
       return res.status(400).json({
