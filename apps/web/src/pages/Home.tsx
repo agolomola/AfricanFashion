@@ -362,24 +362,36 @@ export default function Home() {
         text: t.text 
       })) 
     : defaultTestimonials;
-  const howItWorksContent = howItWorksData?.length
-    ? howItWorksData.map((step: any) => ({
-        icon: howItWorksIconMap[step.icon] || Search,
-        title: step.title,
-        subtitle: step.subtitle || step.description || '',
-      }))
-    : howItWorksSteps;
-  const shopCategoryContent = categoriesData?.length
-    ? categoriesData.map((category: any) => ({
-        title: category.title,
-        description: category.description || category.subtitle || '',
-        image: resolveAssetUrl(category.image) || '/images/placeholder.jpg',
-        link: category.ctaLink || category.link || '/designs',
-      }))
-    : shopCategories;
-  const heritageSection = heritageData
+  const normalizedHowItWorks = (howItWorksData || [])
+    .filter((step: any) => step?.title && (step?.subtitle || step?.description))
+    .sort((a: any, b: any) => Number(a?.stepNumber || 0) - Number(b?.stepNumber || 0))
+    .map((step: any) => ({
+      icon: howItWorksIconMap[step.icon] || Search,
+      title: step.title,
+      subtitle: step.subtitle || step.description || '',
+    }));
+  const hasValidHowItWorks = normalizedHowItWorks.length >= 6;
+  const howItWorksContent = hasValidHowItWorks ? normalizedHowItWorks.slice(0, 6) : howItWorksSteps;
+
+  const normalizedShopCategories = (categoriesData || [])
+    .filter((category: any) => category?.title && category?.image)
+    .sort((a: any, b: any) => Number(a?.displayOrder || 0) - Number(b?.displayOrder || 0))
+    .map((category: any) => ({
+      title: category.title,
+      description: category.description || category.subtitle || '',
+      image: resolveAssetUrl(category.image) || '/images/placeholder.jpg',
+      link: category.ctaLink || category.link || '/designs',
+    }));
+  const hasValidCategories = normalizedShopCategories.length >= 3;
+  const shopCategoryContent = hasValidCategories ? normalizedShopCategories.slice(0, 3) : shopCategories;
+
+  const hasValidHeritage =
+    Boolean(heritageData?.title) &&
+    Boolean(heritageData?.image) &&
+    Boolean(heritageData?.subtitle || heritageData?.description);
+  const heritageSection = hasValidHeritage
     ? {
-        title: heritageData.title || defaultHeritageSection.title,
+        title: heritageData.title,
         subtitle: heritageData.subtitle || heritageData.description || defaultHeritageSection.subtitle,
         image: resolveAssetUrl(heritageData.image) || defaultHeritageSection.image,
         ctaText: heritageData.ctaText || defaultHeritageSection.ctaText,
