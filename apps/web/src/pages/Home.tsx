@@ -25,14 +25,6 @@ const howItWorksSteps = [
   { icon: CheckCircle, title: 'Quality Assured', subtitle: 'Every order is reviewed by QA before shipment.' },
   { icon: Truck, title: 'Delivered to You', subtitle: 'Track your order and receive it at your doorstep.' },
 ];
-const howItWorksIconMap: Record<string, any> = {
-  Search,
-  Eye,
-  Heart,
-  CreditCard,
-  CheckCircle,
-  Truck,
-};
 
 // Shop by Category
 const shopCategories = [
@@ -83,15 +75,6 @@ const defaultTestimonials = [
     text: 'Supporting African designers while getting beautiful clothes—this platform is a gem.',
   },
 ];
-
-const defaultHeritageSection = {
-  title: 'Rooted in Culture',
-  subtitle:
-    "Every pattern carries meaning. From Kente's bold geometry to Ankara's vibrant motifs, African textiles tell stories of identity, celebration, and legacy passed through generations.",
-  image: '/images/heritage.jpg',
-  ctaText: 'Read Our Story',
-  ctaLink: '/about',
-};
 
 interface SpotlightDesigner {
   id: string;
@@ -278,9 +261,9 @@ export default function Home() {
   });
 
   const heroSlides = heroSlidesData || defaultHeroSlides;
-  const featuredDesigns = Array.isArray(featuredData?.FEATURED_DESIGNS) ? featuredData.FEATURED_DESIGNS : [];
-  const featuredFabrics = Array.isArray(featuredData?.FEATURED_FABRICS) ? featuredData.FEATURED_FABRICS : [];
-  const featuredRTW = Array.isArray(featuredData?.FEATURED_READY_TO_WEAR) ? featuredData.FEATURED_READY_TO_WEAR : [];
+  const featuredDesigns = featuredData?.FEATURED_DESIGNS || defaultFeaturedDesigns;
+  const featuredFabrics = featuredData?.FEATURED_FABRICS || defaultFabrics;
+  const featuredRTW = featuredData?.FEATURED_READY_TO_WEAR || defaultReadyToWear;
   const fashionCountryImageMap = useMemo(() => {
     const map = new Map<string, string>();
     const candidates = [...featuredDesigns, ...featuredRTW, ...featuredFabrics];
@@ -310,34 +293,6 @@ export default function Home() {
       return response.success ? response.data : null;
     },
   });
-  const { data: howItWorksData } = useQuery({
-    queryKey: ['homepageHowItWorks'],
-    queryFn: async () => {
-      const response = await api.homepageSections.getHowItWorks();
-      return response.success ? response.data : [];
-    },
-  });
-  const { data: categoriesData } = useQuery({
-    queryKey: ['homepageShopCategories'],
-    queryFn: async () => {
-      const response = await api.homepageSections.getCategories();
-      return response.success ? response.data : [];
-    },
-  });
-  const { data: spotlightsData } = useQuery({
-    queryKey: ['homepageDesignerSpotlights'],
-    queryFn: async () => {
-      const response = await api.homepageSections.getDesignerSpotlights();
-      return response.success ? response.data : [];
-    },
-  });
-  const { data: heritageData } = useQuery({
-    queryKey: ['homepageHeritageSection'],
-    queryFn: async () => {
-      const response = await api.homepageSections.getHeritage();
-      return response.success ? response.data : null;
-    },
-  });
 
   // Use dynamic data or fallback to defaults
   const countries = countriesData?.length > 0 
@@ -362,42 +317,6 @@ export default function Home() {
         text: t.text 
       })) 
     : defaultTestimonials;
-  const normalizedHowItWorks = (howItWorksData || [])
-    .filter((step: any) => step?.title && (step?.subtitle || step?.description))
-    .sort((a: any, b: any) => Number(a?.stepNumber || 0) - Number(b?.stepNumber || 0))
-    .map((step: any) => ({
-      icon: howItWorksIconMap[step.icon] || Search,
-      title: step.title,
-      subtitle: step.subtitle || step.description || '',
-    }));
-  const hasValidHowItWorks = normalizedHowItWorks.length >= 6;
-  const howItWorksContent = hasValidHowItWorks ? normalizedHowItWorks.slice(0, 6) : howItWorksSteps;
-
-  const normalizedShopCategories = (categoriesData || [])
-    .filter((category: any) => category?.title && category?.image)
-    .sort((a: any, b: any) => Number(a?.displayOrder || 0) - Number(b?.displayOrder || 0))
-    .map((category: any) => ({
-      title: category.title,
-      description: category.description || category.subtitle || '',
-      image: resolveAssetUrl(category.image) || '/images/placeholder.jpg',
-      link: category.ctaLink || category.link || '/designs',
-    }));
-  const hasValidCategories = normalizedShopCategories.length >= 3;
-  const shopCategoryContent = hasValidCategories ? normalizedShopCategories.slice(0, 3) : shopCategories;
-
-  const hasValidHeritage =
-    Boolean(heritageData?.title) &&
-    Boolean(heritageData?.image) &&
-    Boolean(heritageData?.subtitle || heritageData?.description);
-  const heritageSection = hasValidHeritage
-    ? {
-        title: heritageData.title,
-        subtitle: heritageData.subtitle || heritageData.description || defaultHeritageSection.subtitle,
-        image: resolveAssetUrl(heritageData.image) || defaultHeritageSection.image,
-        ctaText: heritageData.ctaText || defaultHeritageSection.ctaText,
-        ctaLink: heritageData.ctaLink || defaultHeritageSection.ctaLink,
-      }
-    : defaultHeritageSection;
 
   // Hero carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -432,20 +351,6 @@ export default function Home() {
   }, [featuredDesigns, customFeaturedStart]);
 
   const spotlightDesignerPool = useMemo(() => {
-    const adminSpotlights = (spotlightsData || [])
-      .map((item: any) => {
-        const name = item?.designer?.businessName?.trim();
-        const country = item?.designer?.country?.trim();
-        if (!name || !country || !item?.image) return null;
-        return {
-          id: item.id,
-          name,
-          country,
-          image: resolveAssetUrl(item.image),
-          bio: item.description || item.bio || item.quote || `Signature styles from ${country}.`,
-        } satisfies SpotlightDesigner;
-      })
-      .filter((item: SpotlightDesigner | null): item is SpotlightDesigner => Boolean(item));
     const mappedDesigners = [...featuredDesigns, ...featuredRTW]
       .map((item) => {
         const cleanedName = (item.designer || '').split('•')[0].trim();
@@ -462,13 +367,13 @@ export default function Home() {
       .filter((item): item is SpotlightDesigner => Boolean(item));
 
     const designerMap = new Map<string, SpotlightDesigner>();
-    for (const item of [...adminSpotlights, ...mappedDesigners, ...defaultSpotlightDesigners]) {
+    for (const item of [...mappedDesigners, ...defaultSpotlightDesigners]) {
       if (designerMap.has(item.id)) continue;
       designerMap.set(item.id, item);
     }
 
     return Array.from(designerMap.values());
-  }, [featuredDesigns, featuredRTW, spotlightsData]);
+  }, [featuredDesigns, featuredRTW]);
 
   useEffect(() => {
     setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
@@ -634,7 +539,7 @@ export default function Home() {
             <p className="text-gray-500">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {shopCategoryContent.map((category, index) => (
+            {shopCategories.map((category, index) => (
               <Link
                 key={index}
                 to={category.link}
@@ -669,7 +574,7 @@ export default function Home() {
             </p>
           </div>
           <div className="flex items-start lg:items-stretch justify-between gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-2">
-            {howItWorksContent.map((step, index) => (
+            {howItWorksSteps.map((step, index) => (
               <div key={index} className="min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center">
                 <div className="w-12 h-12 md:w-14 md:h-14 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-3">
                   <step.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
@@ -885,21 +790,24 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden">
             <div className="h-[260px] md:h-full overflow-hidden">
               <img
-                src={heritageSection.image}
+                src="/images/heritage.jpg"
                 alt="African textile heritage"
                 className="w-full h-full object-cover"
               />
             </div>
             <div className="p-6 md:p-8 text-white flex flex-col justify-center">
               <p className="text-coral-500 text-sm font-semibold mb-2">HERITAGE STORY</p>
-              <h2 className="text-2xl md:text-3xl font-bold mb-3">{heritageSection.title}</h2>
-              <p className="text-white text-opacity-85 mb-5">{heritageSection.subtitle}</p>
+              <h2 className="text-2xl md:text-3xl font-bold mb-3">Rooted in Culture</h2>
+              <p className="text-white text-opacity-85 mb-5">
+                Every pattern carries meaning. From Kente&apos;s bold geometry to Ankara&apos;s vibrant motifs,
+                African textiles tell stories of identity, celebration, and legacy passed through generations.
+              </p>
               <div>
                 <Link
-                  to={heritageSection.ctaLink}
+                  to="/about"
                   className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
                 >
-                  {heritageSection.ctaText} <ArrowRight className="w-4 h-4" />
+                  Read Our Story <ArrowRight className="w-4 h-4" />
                 </Link>
               </div>
             </div>
