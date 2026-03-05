@@ -711,6 +711,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
   const [formData, setFormData] = useState<any>(item || getDefaultFormData(type));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const uploadField = type === 'testimonials' ? 'avatar' : 'image';
 
   function getDefaultFormData(sectionType: SectionType) {
     switch (sectionType) {
@@ -1094,10 +1095,10 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
           {/* Image Upload */}
           {(type === 'countries' || type === 'categories' || type === 'designerSpotlight' || type === 'heritage' || type === 'testimonials') && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Image</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">{type === 'testimonials' ? 'Avatar' : 'Image'}</label>
               <div className="flex items-center gap-4">
-                {formData.image && (
-                  <img src={formData.image} alt="Preview" className="h-20 w-20 object-cover" />
+                {formData[uploadField] && (
+                  <img src={formData[uploadField]} alt="Preview" className="h-20 w-20 object-cover" />
                 )}
                 <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
                   <Upload className="w-4 h-4" />
@@ -1105,7 +1106,7 @@ function SectionModal({ type, item, onClose, onSave }: { type: SectionType; item
                   <input
                     type="file"
                     accept="image/*"
-                    onChange={(e) => handleImageUpload(e, 'image')}
+                    onChange={(e) => handleImageUpload(e, uploadField)}
                     className="hidden"
                     disabled={uploading}
                   />

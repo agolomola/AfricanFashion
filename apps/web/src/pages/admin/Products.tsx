@@ -1,86 +1,75 @@
-import { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  Plus,
-  Edit,
-  Eye,
-  MoreVertical,
-  Package,
-  Scissors,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { CheckCircle, Filter, Package, Scissors, Search, Star, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 
+type ProductType = 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR';
+type ModerationAction = 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES' | 'SUSPEND' | 'PUBLISH' | 'UNPUBLISH';
+
 interface Product {
   id: string;
+  type: ProductType;
   name: string;
-  type: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR';
-  price: number;
-  status: string;
-  sellerName?: string;
-  designerName?: string;
+  status: 'DRAFT' | 'PENDING_REVIEW' | 'APPROVED' | 'REJECTED' | 'ARCHIVED';
+  isAvailable: boolean;
+  basePrice: number;
+  finalPrice: number;
+  ownerName: string;
+  ownerCountry?: string;
   category: string;
   orderCount: number;
+  image?: string;
+  isFeatured: boolean;
+  featuredSections: string[];
   createdAt: string;
 }
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [activeTab, setActiveTab] = useState<'all' | 'fabrics' | 'designs' | 'ready-to-wear'>('all');
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [bulkAction, setBulkAction] = useState<ModerationAction>('REQUEST_CHANGES');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    fetchProducts();
-  }, []);
+    void fetchProducts();
+  }, [activeTab, statusFilter, typeFilter, page, limit, search]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [activeTab, statusFilter, typeFilter]);
+
+  const effectiveType = useMemo(() => {
+    if (activeTab === 'fabrics') return 'FABRIC';
+    if (activeTab === 'designs') return 'DESIGN';
+    if (activeTab === 'ready-to-wear') return 'READY_TO_WEAR';
+    return typeFilter || undefined;
+  }, [activeTab, typeFilter]);
 
   const fetchProducts = async () => {
     try {
       setLoading(true);
-      // In a real app, fetch from API
-      // const response = await api.admin.getProducts({ ... });
-      // Mock data for now
-      setProducts([
-        {
-          id: '1',
-          name: 'Premium Ankara Print',
-          type: 'FABRIC',
-          price: 25.00,
-          status: 'ACTIVE',
-          sellerName: 'African Fabrics Co.',
-          category: 'Ankara',
-          orderCount: 45,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '2',
-          name: 'Traditional Kente Cloth',
-          type: 'FABRIC',
-          price: 45.00,
-          status: 'ACTIVE',
-          sellerName: 'Kente Masters',
-          category: 'Kente',
-          orderCount: 32,
-          createdAt: new Date().toISOString(),
-        },
-        {
-          id: '3',
-          name: 'Elegant Dashiki Design',
-          type: 'DESIGN',
-          price: 120.00,
-          status: 'ACTIVE',
-          designerName: 'Fashion House Lagos',
-          category: 'Traditional',
-          orderCount: 28,
-          createdAt: new Date().toISOString(),
-        },
-      ]);
+      const response = await api.admin.getProducts({
+        search: search || undefined,
+        status: statusFilter || undefined,
+        type: effectiveType,
+        page,
+        limit,
+      });
+      if (response.success) {
+        setProducts(response.data.products);
+        setPagination(response.data.pagination || { page: 1, pages: 1, total: 0 });
+        setSelectedIds([]);
+      }
     } catch (error) {
       console.error('Failed to fetch products:', error);
     } finally {
@@ -88,34 +77,99 @@ export default function AdminProducts() {
     }
   };
 
-  const handleApprove = async (id: string) => {
+  const moderateProduct = async (product: Product, action: ModerationAction) => {
     try {
-      // await api.admin.updateProductStatus(id, 'ACTIVE');
-      fetchProducts();
+      setSubmitting(true);
+      const requiresMessage = action === 'REQUEST_CHANGES' || action === 'REJECT' || action === 'SUSPEND';
+      let message: string | undefined;
+      if (requiresMessage) {
+        message = window.prompt('Enter message to vendor (required):', '')?.trim() || undefined;
+        if (!message) {
+          setSubmitting(false);
+          return;
+        }
+      }
+      await api.admin.moderateProduct(product.type, product.id, {
+        action,
+        message,
+        notifyVendor: true,
+      });
+      await fetchProducts();
     } catch (error) {
-      console.error('Failed to approve product:', error);
+      console.error('Failed to moderate product:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const handleReject = async (id: string) => {
+  const toggleFeatured = async (product: Product) => {
     try {
-      // await api.admin.updateProductStatus(id, 'REJECTED');
-      fetchProducts();
+      setSubmitting(true);
+      await api.admin.setProductFeatured(product.type, product.id, {
+        isFeatured: !product.isFeatured,
+      });
+      await fetchProducts();
     } catch (error) {
-      console.error('Failed to reject product:', error);
+      console.error('Failed to toggle featured status:', error);
+    } finally {
+      setSubmitting(false);
     }
   };
 
-  const filteredProducts = products.filter(product => {
-    const matchesSearch = product.name.toLowerCase().includes(search.toLowerCase());
-    const matchesType = !typeFilter || product.type === typeFilter;
-    const matchesStatus = !statusFilter || product.status === statusFilter;
-    const matchesTab = activeTab === 'all' || 
-                      (activeTab === 'fabrics' && product.type === 'FABRIC') ||
-                      (activeTab === 'designs' && product.type === 'DESIGN') ||
-                      (activeTab === 'ready-to-wear' && product.type === 'READY_TO_WEAR');
-    return matchesSearch && matchesType && matchesStatus && matchesTab;
-  });
+  const handleBulkAction = async () => {
+    if (selectedIds.length === 0) return;
+    try {
+      setSubmitting(true);
+      const selectedProducts = products.filter((product) => selectedIds.includes(product.id));
+      const byType = selectedProducts.reduce<Record<ProductType, string[]>>(
+        (acc, product) => {
+          acc[product.type].push(product.id);
+          return acc;
+        },
+        { FABRIC: [], DESIGN: [], READY_TO_WEAR: [] }
+      );
+      const message =
+        bulkAction === 'REQUEST_CHANGES' || bulkAction === 'REJECT' || bulkAction === 'SUSPEND'
+          ? window.prompt('Enter message to affected vendors:', '')?.trim() || undefined
+          : undefined;
+      if ((bulkAction === 'REQUEST_CHANGES' || bulkAction === 'REJECT' || bulkAction === 'SUSPEND') && !message) {
+        setSubmitting(false);
+        return;
+      }
+      await Promise.all(
+        (Object.entries(byType) as [ProductType, string[]][])
+          .filter(([, ids]) => ids.length > 0)
+          .map(([productType, productIds]) =>
+            api.admin.moderateProductsBulk({
+              productType,
+              productIds,
+              action: bulkAction,
+              message,
+              notifyVendor: true,
+            })
+          )
+      );
+      await fetchProducts();
+    } catch (error) {
+      console.error('Failed to run bulk moderation:', error);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const statusLabel = (product: Product) => {
+    if (product.status === 'APPROVED' && !product.isAvailable) return 'UNPUBLISHED';
+    return product.status;
+  };
+
+  const statusVariant = (product: Product) => {
+    if (product.status === 'APPROVED' && !product.isAvailable) return 'gray';
+    if (product.status === 'APPROVED') return 'green';
+    if (product.status === 'PENDING_REVIEW') return 'yellow';
+    if (product.status === 'REJECTED') return 'red';
+    if (product.status === 'ARCHIVED') return 'gray';
+    return 'secondary';
+  };
 
   if (loading) {
     return (
@@ -129,10 +183,7 @@ export default function AdminProducts() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Product Management</h1>
-        <Button>
-          <Plus className="w-4 h-4 mr-2" />
-          Add Product
-        </Button>
+        <div className="text-sm text-gray-500">Total products: {pagination.total}</div>
       </div>
 
       {/* Tabs */}
@@ -163,8 +214,8 @@ export default function AdminProducts() {
             <input
               type="text"
               placeholder="Search products..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg"
             />
           </div>
@@ -185,14 +236,40 @@ export default function AdminProducts() {
           className="px-4 py-2 border rounded-lg"
         >
           <option value="">All Status</option>
-          <option value="ACTIVE">Active</option>
-          <option value="PENDING">Pending</option>
+          <option value="DRAFT">Draft</option>
+          <option value="PENDING_REVIEW">Pending Review</option>
+          <option value="APPROVED">Approved</option>
           <option value="REJECTED">Rejected</option>
-          <option value="INACTIVE">Inactive</option>
+          <option value="ARCHIVED">Archived</option>
         </select>
-        <Button variant="outline" onClick={fetchProducts}>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setPage(1);
+            setSearch(searchInput.trim());
+          }}
+        >
           <Filter className="w-4 h-4 mr-2" />
           Filter
+        </Button>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg p-3">
+        <span className="text-sm font-medium text-amber-900">{selectedIds.length} selected</span>
+        <select
+          value={bulkAction}
+          onChange={(e) => setBulkAction(e.target.value as ModerationAction)}
+          className="px-3 py-2 border rounded-lg bg-white"
+        >
+          <option value="REQUEST_CHANGES">Request changes</option>
+          <option value="APPROVE">Approve + Publish</option>
+          <option value="REJECT">Reject</option>
+          <option value="SUSPEND">Suspend</option>
+          <option value="UNPUBLISH">Unpublish</option>
+          <option value="PUBLISH">Publish</option>
+        </select>
+        <Button onClick={handleBulkAction} disabled={selectedIds.length === 0 || submitting}>
+          Apply to selected
         </Button>
       </div>
 
@@ -202,18 +279,41 @@ export default function AdminProducts() {
           <table className="w-full">
             <thead className="bg-gray-50">
               <tr>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">
+                  <input
+                    type="checkbox"
+                    checked={products.length > 0 && selectedIds.length === products.length}
+                    onChange={(e) =>
+                      setSelectedIds(e.target.checked ? products.map((product) => product.id) : [])
+                    }
+                  />
+                </th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Product</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Type</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Price</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Seller/Designer</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Featured</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Orders</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredProducts.map((product) => (
+              {products.map((product) => (
                 <tr key={product.id} className="border-b last:border-0 hover:bg-gray-50">
+                  <td className="py-3 px-4">
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(product.id)}
+                      onChange={(e) =>
+                        setSelectedIds((prev) =>
+                          e.target.checked
+                            ? [...prev, product.id]
+                            : prev.filter((selectedId) => selectedId !== product.id)
+                        )
+                      }
+                    />
+                  </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
                       <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
@@ -237,52 +337,103 @@ export default function AdminProducts() {
                   <td className="py-3 px-4">
                     <Badge variant="secondary">{product.type}</Badge>
                   </td>
-                  <td className="py-3 px-4 font-medium">${product.price.toFixed(2)}</td>
+                  <td className="py-3 px-4 font-medium">${Number(product.finalPrice || 0).toFixed(2)}</td>
                   <td className="py-3 px-4">
-                    <Badge 
-                      variant={
-                        product.status === 'ACTIVE' ? 'green' :
-                        product.status === 'PENDING' ? 'yellow' :
-                        product.status === 'REJECTED' ? 'red' : 'gray'
-                      }
-                    >
-                      {product.status}
+                    <Badge variant={statusVariant(product)}>
+                      {statusLabel(product)}
                     </Badge>
                   </td>
                   <td className="py-3 px-4 text-gray-600">
-                    {product.sellerName || product.designerName || 'N/A'}
+                    <div>{product.ownerName}</div>
+                    <div className="text-xs text-gray-400">{product.ownerCountry || '-'}</div>
+                  </td>
+                  <td className="py-3 px-4">
+                    <button
+                      onClick={() => toggleFeatured(product)}
+                      className={`p-2 rounded-lg ${product.isFeatured ? 'text-amber-600 bg-amber-50' : 'text-gray-400 hover:bg-gray-100'}`}
+                      title={product.isFeatured ? 'Remove from featured' : 'Add to featured'}
+                      disabled={submitting}
+                    >
+                      <Star className={`w-4 h-4 ${product.isFeatured ? 'fill-current' : ''}`} />
+                    </button>
                   </td>
                   <td className="py-3 px-4 text-gray-600">{product.orderCount}</td>
                   <td className="py-3 px-4">
                     <div className="flex gap-2">
-                      <button className="p-2 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg">
-                        <Eye className="w-4 h-4" />
+                      <button
+                        onClick={() => moderateProduct(product, 'APPROVE')}
+                        className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
+                        title="Approve and publish"
+                        disabled={submitting}
+                      >
+                        <CheckCircle className="w-4 h-4" />
                       </button>
-                      <button className="p-2 text-gray-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg">
-                        <Edit className="w-4 h-4" />
+                      <button
+                        onClick={() => moderateProduct(product, 'REQUEST_CHANGES')}
+                        className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        title="Request corrections"
+                        disabled={submitting}
+                      >
+                        <Scissors className="w-4 h-4" />
                       </button>
-                      {product.status === 'PENDING' && (
-                        <>
-                          <button 
-                            onClick={() => handleApprove(product.id)}
-                            className="p-2 text-green-600 hover:bg-green-50 rounded-lg"
-                          >
-                            <CheckCircle className="w-4 h-4" />
-                          </button>
-                          <button 
-                            onClick={() => handleReject(product.id)}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
-                          >
-                            <XCircle className="w-4 h-4" />
-                          </button>
-                        </>
-                      )}
+                      <button
+                        onClick={() => moderateProduct(product, 'REJECT')}
+                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg"
+                        title="Reject product"
+                        disabled={submitting}
+                      >
+                        <XCircle className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => moderateProduct(product, product.isAvailable ? 'UNPUBLISH' : 'PUBLISH')}
+                        className="px-2 py-1 text-xs border rounded-md hover:bg-gray-50"
+                        disabled={submitting}
+                      >
+                        {product.isAvailable ? 'Unpublish' : 'Publish'}
+                      </button>
                     </div>
                   </td>
                 </tr>
               ))}
+              {products.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
+                    No products found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+          <p className="text-sm text-gray-600">
+            Page {pagination.page} of {Math.max(1, pagination.pages)} • {pagination.total} products
+          </p>
+          <div className="flex items-center gap-2">
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
+              }}
+              className="px-2 py-1 border rounded"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1}>
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((prev) => Math.min(pagination.pages || 1, prev + 1))}
+              disabled={page >= (pagination.pages || 1)}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
     </div>

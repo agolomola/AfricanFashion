@@ -1,14 +1,5 @@
-import { useState, useEffect } from 'react';
-import { 
-  Search, 
-  Filter, 
-  MoreVertical,
-  CheckCircle,
-  XCircle,
-  UserCheck,
-  UserX,
-  Mail
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Filter, Mail, Search, UserCheck, UserX, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -27,16 +18,24 @@ interface User {
 export default function AdminUsers() {
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchInput, setSearchInput] = useState('');
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [showActionModal, setShowActionModal] = useState(false);
   const [actionType, setActionType] = useState<'activate' | 'suspend' | 'reject' | null>(null);
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
 
   useEffect(() => {
-    fetchUsers();
-  }, []);
+    void fetchUsers();
+  }, [search, roleFilter, statusFilter, page, limit]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [roleFilter, statusFilter]);
 
   const fetchUsers = async () => {
     try {
@@ -45,6 +44,8 @@ export default function AdminUsers() {
         search: search || undefined,
         role: roleFilter || undefined,
         status: statusFilter || undefined,
+        page,
+        limit,
       });
       if (response.success) {
         const mappedUsers: User[] = response.data.users.map((user: any) => ({
@@ -53,11 +54,12 @@ export default function AdminUsers() {
           email: user.email,
           role: user.role,
           status: user.status,
-          country: '-',
+          country: user.fabricSellerProfile?.country || user.designerProfile?.country || '-',
           createdAt: user.createdAt,
-          orderCount: 0,
+          orderCount: Number(user?._count?.ordersAsCustomer || 0),
         }));
         setUsers(mappedUsers);
+        setPagination(response.data.pagination || { page: 1, pages: 1, total: 0 });
       }
     } catch (error) {
       console.error('Failed to fetch users:', error);
@@ -76,7 +78,7 @@ export default function AdminUsers() {
       if (actionType === 'reject') newStatus = 'REJECTED';
 
       await api.admin.updateUserStatus(selectedUser.id, newStatus);
-      fetchUsers();
+      await fetchUsers();
       setShowActionModal(false);
       setSelectedUser(null);
       setActionType(null);
@@ -90,14 +92,6 @@ export default function AdminUsers() {
     setActionType(action);
     setShowActionModal(true);
   };
-
-  const filteredUsers = users.filter(user => {
-    const matchesSearch = user.fullName.toLowerCase().includes(search.toLowerCase()) ||
-                         user.email.toLowerCase().includes(search.toLowerCase());
-    const matchesRole = !roleFilter || user.role === roleFilter;
-    const matchesStatus = !statusFilter || user.status === statusFilter;
-    return matchesSearch && matchesRole && matchesStatus;
-  });
 
   if (loading) {
     return (
@@ -125,8 +119,8 @@ export default function AdminUsers() {
             <input
               type="text"
               placeholder="Search users..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border rounded-lg"
             />
           </div>
@@ -156,7 +150,17 @@ export default function AdminUsers() {
         </select>
         <Button variant="outline" onClick={fetchUsers}>
           <Filter className="w-4 h-4 mr-2" />
-          Filter
+          Refresh
+        </Button>
+        <Button
+          variant="outline"
+          onClick={() => {
+            setPage(1);
+            setSearch(searchInput.trim());
+          }}
+        >
+          <Filter className="w-4 h-4 mr-2" />
+          Apply Filter
         </Button>
       </div>
 
@@ -176,7 +180,7 @@ export default function AdminUsers() {
               </tr>
             </thead>
             <tbody>
-              {filteredUsers.map((user) => (
+              {users.map((user) => (
                 <tr key={user.id} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-3">
@@ -243,8 +247,45 @@ export default function AdminUsers() {
                   </td>
                 </tr>
               ))}
+              {users.length === 0 && (
+                <tr>
+                  <td colSpan={7} className="py-8 text-center text-gray-500">
+                    No users found.
+                  </td>
+                </tr>
+              )}
             </tbody>
           </table>
+        </div>
+        <div className="flex items-center justify-between p-4 border-t bg-gray-50">
+          <p className="text-sm text-gray-600">
+            Page {pagination.page} of {Math.max(1, pagination.pages)} • {pagination.total} users
+          </p>
+          <div className="flex items-center gap-2">
+            <select
+              value={limit}
+              onChange={(e) => {
+                setLimit(Number(e.target.value));
+                setPage(1);
+              }}
+              className="px-2 py-1 border rounded"
+            >
+              <option value={10}>10</option>
+              <option value={20}>20</option>
+              <option value={50}>50</option>
+            </select>
+            <Button variant="outline" size="sm" onClick={() => setPage((prev) => Math.max(1, prev - 1))} disabled={page === 1}>
+              Previous
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((prev) => Math.min(pagination.pages || 1, prev + 1))}
+              disabled={page >= (pagination.pages || 1)}
+            >
+              Next
+            </Button>
+          </div>
         </div>
       </div>
 

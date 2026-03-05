@@ -1,14 +1,5 @@
-import { useState, useEffect } from 'react';
-import { 
-  Plus, 
-  Edit, 
-  Trash2, 
-  Percent,
-  DollarSign,
-  Calendar,
-  Tag,
-  Globe
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Calendar, Edit, Globe, Percent, Plus, Tag, Trash2 } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -16,36 +7,58 @@ import Badge from '../../components/ui/Badge';
 interface PricingRule {
   id: string;
   name: string;
-  type: 'MARKUP' | 'MARKDOWN';
-  targetType: 'PRODUCT_TYPE' | 'COUNTRY' | 'DATE_RANGE';
-  targetValue: string;
-  percentage: number;
-  fixedAmount?: number;
+  description?: string;
+  ruleType: 'GLOBAL_MARKUP' | 'CATEGORY_MARKUP' | 'COUNTRY_MARKUP' | 'DATE_BASED';
+  productType?: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR' | null;
+  country?: string | null;
+  adjustmentType: 'PERCENTAGE_MARKUP' | 'PERCENTAGE_DISCOUNT' | 'FIXED_MARKUP' | 'FIXED_DISCOUNT';
+  value: number;
+  priority: number;
+  isSale: boolean;
   startDate?: string;
   endDate?: string;
   isActive: boolean;
 }
+
+interface PricingRuleForm {
+  name: string;
+  description: string;
+  ruleType: 'GLOBAL_MARKUP' | 'CATEGORY_MARKUP' | 'COUNTRY_MARKUP' | 'DATE_BASED';
+  productType: '' | 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR';
+  country: string;
+  adjustmentType: 'PERCENTAGE_MARKUP' | 'PERCENTAGE_DISCOUNT' | 'FIXED_MARKUP' | 'FIXED_DISCOUNT';
+  value: number;
+  priority: number;
+  isSale: boolean;
+  startDate: string;
+  endDate: string;
+  isActive: boolean;
+}
+
+const EMPTY_FORM: PricingRuleForm = {
+  name: '',
+  description: '',
+  ruleType: 'GLOBAL_MARKUP',
+  productType: '',
+  country: '',
+  adjustmentType: 'PERCENTAGE_MARKUP',
+  value: 0,
+  priority: 0,
+  isSale: false,
+  startDate: '',
+  endDate: '',
+  isActive: true,
+};
 
 export default function AdminPricingRules() {
   const [rules, setRules] = useState<PricingRule[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingRule, setEditingRule] = useState<PricingRule | null>(null);
-  
-  const [formData, setFormData] = useState({
-    name: '',
-    type: 'MARKUP' as 'MARKUP' | 'MARKDOWN',
-    targetType: 'PRODUCT_TYPE' as 'PRODUCT_TYPE' | 'COUNTRY' | 'DATE_RANGE',
-    targetValue: '',
-    percentage: 0,
-    fixedAmount: 0,
-    startDate: '',
-    endDate: '',
-    isActive: true,
-  });
+  const [formData, setFormData] = useState<PricingRuleForm>(EMPTY_FORM);
 
   useEffect(() => {
-    fetchRules();
+    void fetchRules();
   }, []);
 
   const fetchRules = async () => {
@@ -53,7 +66,13 @@ export default function AdminPricingRules() {
       setLoading(true);
       const response = await api.admin.getPricingRules();
       if (response.success) {
-        setRules(response.data);
+        setRules(
+          (response.data || []).map((rule: any) => ({
+            ...rule,
+            value: Number(rule.value || 0),
+            priority: Number(rule.priority || 0),
+          }))
+        );
       }
     } catch (error) {
       console.error('Failed to fetch pricing rules:', error);
@@ -65,10 +84,24 @@ export default function AdminPricingRules() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      const payload = {
+        name: formData.name,
+        description: formData.description || undefined,
+        ruleType: formData.ruleType,
+        productType: formData.productType || undefined,
+        country: formData.ruleType === 'COUNTRY_MARKUP' ? formData.country || undefined : undefined,
+        adjustmentType: formData.adjustmentType,
+        value: Number(formData.value),
+        priority: Number(formData.priority),
+        isSale: formData.isSale,
+        startDate: formData.startDate || undefined,
+        endDate: formData.endDate || undefined,
+        isActive: formData.isActive,
+      };
       if (editingRule) {
-        await api.admin.updatePricingRule(editingRule.id, formData);
+        await api.admin.updatePricingRule(editingRule.id, payload);
       } else {
-        await api.admin.createPricingRule(formData);
+        await api.admin.createPricingRule(payload);
       }
       setShowForm(false);
       setEditingRule(null);
@@ -93,38 +126,33 @@ export default function AdminPricingRules() {
     setEditingRule(rule);
     setFormData({
       name: rule.name,
-      type: rule.type,
-      targetType: rule.targetType,
-      targetValue: rule.targetValue,
-      percentage: rule.percentage,
-      fixedAmount: rule.fixedAmount || 0,
-      startDate: rule.startDate || '',
-      endDate: rule.endDate || '',
+      description: rule.description || '',
+      ruleType: rule.ruleType,
+      productType: rule.productType || '',
+      country: rule.country || '',
+      adjustmentType: rule.adjustmentType,
+      value: Number(rule.value || 0),
+      priority: Number(rule.priority || 0),
+      isSale: Boolean(rule.isSale),
+      startDate: rule.startDate ? String(rule.startDate).split('T')[0] : '',
+      endDate: rule.endDate ? String(rule.endDate).split('T')[0] : '',
       isActive: rule.isActive,
     });
     setShowForm(true);
   };
 
   const resetForm = () => {
-    setFormData({
-      name: '',
-      type: 'MARKUP',
-      targetType: 'PRODUCT_TYPE',
-      targetValue: '',
-      percentage: 0,
-      fixedAmount: 0,
-      startDate: '',
-      endDate: '',
-      isActive: true,
-    });
+    setFormData(EMPTY_FORM);
   };
 
-  const getTargetIcon = (targetType: string) => {
-    switch (targetType) {
-      case 'PRODUCT_TYPE': return <Tag className="w-4 h-4" />;
-      case 'COUNTRY': return <Globe className="w-4 h-4" />;
-      case 'DATE_RANGE': return <Calendar className="w-4 h-4" />;
-      default: return <Tag className="w-4 h-4" />;
+  const getRuleIcon = (ruleType: PricingRule['ruleType']) => {
+    switch (ruleType) {
+      case 'COUNTRY_MARKUP':
+        return <Globe className="w-4 h-4" />;
+      case 'DATE_BASED':
+        return <Calendar className="w-4 h-4" />;
+      default:
+        return <Tag className="w-4 h-4" />;
     }
   };
 
@@ -172,106 +200,96 @@ export default function AdminPricingRules() {
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Rule Type *
+                  Pricing Rule Type *
                 </label>
                 <select
-                  value={formData.type}
-                  onChange={(e) => setFormData({ ...formData, type: e.target.value as 'MARKUP' | 'MARKDOWN' })}
+                  value={formData.ruleType}
+                  onChange={(e) => setFormData({ ...formData, ruleType: e.target.value as PricingRuleForm['ruleType'] })}
                   className="w-full px-4 py-2 border rounded-lg"
                   required
                 >
-                  <option value="MARKUP">Markup (+)</option>
-                  <option value="MARKDOWN">Markdown (-)</option>
+                  <option value="GLOBAL_MARKUP">Global Markup</option>
+                  <option value="CATEGORY_MARKUP">Category/Product Markup</option>
+                  <option value="COUNTRY_MARKUP">Country Markup</option>
+                  <option value="DATE_BASED">Date-based Rule</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Target Type *
+                  Adjustment Type *
                 </label>
                 <select
-                  value={formData.targetType}
-                  onChange={(e) => setFormData({ ...formData, targetType: e.target.value as any })}
+                  value={formData.adjustmentType}
+                  onChange={(e) =>
+                    setFormData({ ...formData, adjustmentType: e.target.value as PricingRuleForm['adjustmentType'] })
+                  }
                   className="w-full px-4 py-2 border rounded-lg"
                   required
                 >
-                  <option value="PRODUCT_TYPE">Product Type</option>
-                  <option value="COUNTRY">Country</option>
-                  <option value="DATE_RANGE">Date Range</option>
+                  <option value="PERCENTAGE_MARKUP">Percentage Markup (+%)</option>
+                  <option value="PERCENTAGE_DISCOUNT">Percentage Discount (-%)</option>
+                  <option value="FIXED_MARKUP">Fixed Markup (+amount)</option>
+                  <option value="FIXED_DISCOUNT">Fixed Discount (-amount)</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Target Value *
+                  Product Type (optional)
                 </label>
-                {formData.targetType === 'PRODUCT_TYPE' ? (
-                  <select
-                    value={formData.targetValue}
-                    onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                    required
-                  >
-                    <option value="">Select product type</option>
-                    <option value="FABRIC">Fabric</option>
-                    <option value="DESIGN">Design</option>
-                    <option value="READY_TO_WEAR">Ready to Wear</option>
-                  </select>
-                ) : formData.targetType === 'COUNTRY' ? (
-                  <select
-                    value={formData.targetValue}
-                    onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
-                    className="w-full px-4 py-2 border rounded-lg"
-                    required
-                  >
-                    <option value="">Select country</option>
-                    <option value="NG">Nigeria</option>
-                    <option value="GH">Ghana</option>
-                    <option value="KE">Kenya</option>
-                    <option value="ZA">South Africa</option>
-                    <option value="US">United States</option>
-                    <option value="GB">United Kingdom</option>
-                  </select>
-                ) : (
+                <select
+                  value={formData.productType}
+                  onChange={(e) => setFormData({ ...formData, productType: e.target.value as PricingRuleForm['productType'] })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                >
+                  <option value="">All Product Types</option>
+                  <option value="FABRIC">Fabric</option>
+                  <option value="DESIGN">Design</option>
+                  <option value="READY_TO_WEAR">Ready To Wear</option>
+                </select>
+              </div>
+              {formData.ruleType === 'COUNTRY_MARKUP' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Country Code *
+                  </label>
                   <input
                     type="text"
-                    value={formData.targetValue}
-                    onChange={(e) => setFormData({ ...formData, targetValue: e.target.value })}
-                    placeholder="Enter description"
+                    value={formData.country}
+                    onChange={(e) => setFormData({ ...formData, country: e.target.value.toUpperCase() })}
+                    placeholder="e.g., NG"
                     className="w-full px-4 py-2 border rounded-lg"
                     required
                   />
-                )}
-              </div>
+                </div>
+              )}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Percentage (%)
+                  Value
                 </label>
                 <div className="relative">
                   <Percent className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
                   <input
                     type="number"
                     step="0.01"
-                    value={formData.percentage}
-                    onChange={(e) => setFormData({ ...formData, percentage: parseFloat(e.target.value) })}
+                    value={formData.value}
+                    onChange={(e) => setFormData({ ...formData, value: parseFloat(e.target.value) || 0 })}
                     className="w-full pl-10 pr-4 py-2 border rounded-lg"
+                    required
                   />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Fixed Amount ($)
+                  Priority
                 </label>
-                <div className="relative">
-                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                  <input
-                    type="number"
-                    step="0.01"
-                    value={formData.fixedAmount}
-                    onChange={(e) => setFormData({ ...formData, fixedAmount: parseFloat(e.target.value) })}
-                    className="w-full pl-10 pr-4 py-2 border rounded-lg"
-                  />
-                </div>
+                <input
+                  type="number"
+                  value={formData.priority}
+                  onChange={(e) => setFormData({ ...formData, priority: Number(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 border rounded-lg"
+                />
               </div>
-              {formData.targetType === 'DATE_RANGE' && (
+              {formData.ruleType === 'DATE_BASED' && (
                 <>
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -297,6 +315,27 @@ export default function AdminPricingRules() {
                   </div>
                 </>
               )}
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
+              <textarea
+                value={formData.description}
+                onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                className="w-full px-4 py-2 border rounded-lg"
+                rows={2}
+              />
+            </div>
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="isSale"
+                checked={formData.isSale}
+                onChange={(e) => setFormData({ ...formData, isSale: e.target.checked })}
+                className="w-4 h-4"
+              />
+              <label htmlFor="isSale" className="text-sm text-gray-700">
+                Mark as sale rule
+              </label>
             </div>
             <div className="flex items-center gap-2">
               <input
@@ -334,7 +373,7 @@ export default function AdminPricingRules() {
               <tr>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Rule</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Type</th>
-                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Target</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Scope</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Adjustment</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Actions</th>
@@ -345,30 +384,30 @@ export default function AdminPricingRules() {
                 <tr key={rule.id} className="border-b last:border-0 hover:bg-gray-50">
                   <td className="py-3 px-4">
                     <p className="font-medium text-gray-900">{rule.name}</p>
-                    {rule.startDate && (
+                    {rule.description && <p className="text-xs text-gray-500">{rule.description}</p>}
+                    {rule.startDate && rule.endDate && (
                       <p className="text-xs text-gray-500">
                         {new Date(rule.startDate).toLocaleDateString()} - {rule.endDate ? new Date(rule.endDate).toLocaleDateString() : 'Ongoing'}
                       </p>
                     )}
                   </td>
                   <td className="py-3 px-4">
-                    <Badge variant={rule.type === 'MARKUP' ? 'green' : 'red'}>
-                      {rule.type}
+                    <Badge variant="secondary">
+                      {rule.ruleType}
                     </Badge>
                   </td>
                   <td className="py-3 px-4">
                     <div className="flex items-center gap-2">
-                      {getTargetIcon(rule.targetType)}
-                      <span className="text-sm">{rule.targetValue}</span>
+                      {getRuleIcon(rule.ruleType)}
+                      <span className="text-sm">
+                        {rule.country || rule.productType || 'Global'}
+                      </span>
                     </div>
                   </td>
                   <td className="py-3 px-4">
-                    {rule.percentage > 0 && (
-                      <span className="font-medium">{rule.percentage}%</span>
-                    )}
-                    {rule.fixedAmount && rule.fixedAmount > 0 && (
-                      <span className="font-medium ml-2">${rule.fixedAmount}</span>
-                    )}
+                    <span className="font-medium">
+                      {rule.adjustmentType} ({Number(rule.value || 0)})
+                    </span>
                   </td>
                   <td className="py-3 px-4">
                     <Badge variant={rule.isActive ? 'green' : 'gray'}>

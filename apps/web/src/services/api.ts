@@ -453,6 +453,52 @@ const adminApi = {
   deletePricingRule: (id: string) =>
     apiService.delete(`/admin/pricing-rules/${id}`),
 
+  getProducts: async (params?: { type?: string; status?: string; search?: string; page?: number; limit?: number }) => {
+    const response = await apiService.get<{ success: boolean; data: { products: any[]; pagination: any } }>('/admin/products', { params });
+    if (!response.success) {
+      return response;
+    }
+
+    const products = (response.data?.products || []).map((product: any) => ({
+      ...product,
+      basePrice: Number(product?.basePrice || 0),
+      finalPrice: Number(product?.finalPrice || 0),
+      image: resolveAssetUrl(product?.image),
+    }));
+
+    return {
+      success: true,
+      data: {
+        products,
+        pagination: response.data?.pagination,
+      },
+    };
+  },
+
+  moderateProduct: (
+    productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR',
+    productId: string,
+    data: {
+      action: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES' | 'SUSPEND' | 'PUBLISH' | 'UNPUBLISH';
+      message?: string;
+      notifyVendor?: boolean;
+    }
+  ) => apiService.patch(`/admin/products/${productType}/${productId}/moderate`, data),
+
+  moderateProductsBulk: (data: {
+    productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR';
+    productIds: string[];
+    action: 'APPROVE' | 'REJECT' | 'REQUEST_CHANGES' | 'SUSPEND' | 'PUBLISH' | 'UNPUBLISH';
+    message?: string;
+    notifyVendor?: boolean;
+  }) => apiService.post('/admin/products/moderate-bulk', data),
+
+  setProductFeatured: (
+    productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR',
+    productId: string,
+    data: { isFeatured: boolean; section?: string; displayOrder?: number }
+  ) => apiService.patch(`/admin/products/${productType}/${productId}/featured`, data),
+
   getOrders: async (params?: { status?: string; page?: number; limit?: number }) => {
     const response = await apiService.get<{ success: boolean; data: { orders: any[]; pagination: any } }>('/admin/orders', { params });
     if (!response.success) {
@@ -479,6 +525,15 @@ const adminApi = {
         designStatus: order.designOrder?.status || 'N/A',
         fabricStatus: order.fabricOrder?.status || 'N/A',
         qaStatus,
+        trackingNumber: order.trackingNumber || '',
+        timeline: (order.timeline || []).map((entry: any) => ({
+          id: entry.id,
+          status: entry.status,
+          notes: entry.notes,
+          updatedByRole: entry.updatedByRole,
+          updatedById: entry.updatedById,
+          createdAt: entry.createdAt,
+        })),
         createdAt: order.createdAt,
       };
     });
@@ -494,6 +549,20 @@ const adminApi = {
 
   assignQA: (orderId: string, qaId: string) =>
     apiService.patch(`/admin/orders/${orderId}/assign-qa`, { qaId }),
+
+  forceOrderStatus: (orderId: string, status: string, notes?: string) =>
+    apiService.patch(`/admin/orders/${orderId}/status`, { status, notes }),
+
+  updateOrderTracking: (orderId: string, trackingNumber: string, notes?: string) =>
+    apiService.patch(`/admin/orders/${orderId}/tracking`, { trackingNumber, notes }),
+
+  sendOrderMessage: (
+    orderId: string,
+    data: { recipient: 'CUSTOMER' | 'VENDORS' | 'QA' | 'INTERNAL'; message: string }
+  ) => apiService.post(`/admin/orders/${orderId}/messages`, data),
+
+  getOrderMessages: (orderId: string) =>
+    apiService.get<{ success: boolean; data: any[] }>(`/admin/orders/${orderId}/messages`),
 
   // Banner Management
   getBanners: () =>
