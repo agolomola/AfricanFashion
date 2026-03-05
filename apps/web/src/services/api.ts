@@ -1,10 +1,9 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios';
 import { useAuthStore } from '../store/authStore';
 
-const defaultApiUrl =
-  typeof window !== 'undefined' && window.location.hostname !== 'localhost'
-    ? 'https://african-fashion-api.onrender.com/api'
-    : 'http://localhost:3001/api';
+const defaultApiUrl = import.meta.env.DEV
+  ? 'http://localhost:3001/api'
+  : `${window.location.origin}/api`;
 const API_URL = import.meta.env.VITE_API_URL || defaultApiUrl;
 
 // Create axios instance
