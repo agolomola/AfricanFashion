@@ -79,9 +79,6 @@ const productsApi = {
   getMaterials: () =>
     apiService.get<{ success: boolean; data: any[] }>('/products/materials'),
 
-  getMaterialTypes: () =>
-    apiService.get<{ success: boolean; data: any[] }>('/products/material-types'),
-
   getFabrics: (params?: { country?: string; materialTypeId?: string; search?: string; page?: number; limit?: number }) =>
     apiService.get<{ success: boolean; data: { fabrics: any[]; pagination: any } }>('/products/fabrics', { params }),
 

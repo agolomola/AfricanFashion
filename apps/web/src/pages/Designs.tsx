@@ -1,7 +1,7 @@
 // Cache bust: v9103
 import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart, ArrowRight } from 'lucide-react';
+import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { api } from '../services/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
@@ -361,29 +361,9 @@ export default function Designs() {
     filters.maxPrice,
   ].filter(Boolean).length;
 
-  // Filter Bar Component - Single row with search
+  // Filter Bar Component - Single row
   const FilterBar = () => (
     <div className="flex flex-wrap items-center gap-2 md:gap-3">
-      {/* Search Bar - Moved here */}
-      <div className="relative flex-shrink-0">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-        <input
-          type="text"
-          value={filters.search}
-          onChange={(e) => updateFilter('search', e.target.value)}
-          placeholder="Search designs..."
-          className="w-40 md:w-48 pl-9 pr-8 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500 focus:outline-none"
-        />
-        {filters.search && (
-          <button
-            onClick={() => updateFilter('search', '')}
-            className="absolute right-2 top-1/2 -translate-y-1/2"
-          >
-            <X className="w-4 h-4 text-gray-400 hover:text-gray-600" />
-          </button>
-        )}
-      </div>
-
       {/* Categories Dropdown */}
       <div className="relative">
         <select
@@ -474,8 +454,8 @@ export default function Designs() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Hero Banner - Height increased by 20% */}
-      <section className="relative h-96 md:h-[28rem] lg:h-[32rem] overflow-hidden">
+      {/* Hero Banner with Search */}
+      <section className="relative h-72 md:h-80 overflow-hidden">
         <img
           src="/images/hero-designs.jpg"
           alt="African Fashion Designs"
@@ -486,13 +466,37 @@ export default function Designs() {
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
             <div className="max-w-3xl">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
-                Custom To Wear
+                Designer Collections
               </h1>
-              <p className="text-base md:text-lg text-white/80 mb-6">
-                Bespoke African fashion made to your measurements. Choose your design and we'll tailor it just for you.
+              <p className="text-base md:text-lg text-white/80 mb-4">
+                Discover unique African fashion designs from talented designers across the continent.
               </p>
               
-              <div className="flex flex-wrap gap-2">
+              {/* Search Bar on Banner - Longer */}
+              <div className="relative max-w-2xl">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+                <input
+                  type="text"
+                  value={filters.search}
+                  onChange={(e) => updateFilter('search', e.target.value)}
+                  placeholder="Search designs, designers, styles..."
+                  className="w-full pl-12 pr-12 py-3.5 rounded-full bg-white shadow-lg focus:ring-2 focus:ring-coral-500 focus:outline-none text-base"
+                />
+                {filters.search ? (
+                  <button
+                    onClick={() => updateFilter('search', '')}
+                    className="absolute right-4 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
+                  </button>
+                ) : (
+                  <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-coral-500 text-white px-4 py-1.5 rounded-full text-sm font-medium hover:bg-coral-600 transition-colors">
+                    Search
+                  </button>
+                )}
+              </div>
+              
+              <div className="flex flex-wrap gap-2 mt-4">
                 <Badge variant="info" className="bg-white/20 text-white border-0 text-xs">
                   {pagination?.total || 0}+ Designs
                 </Badge>
@@ -504,49 +508,6 @@ export default function Designs() {
                 </Badge>
               </div>
             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Banner Section - 2 Columns */}
-      <section className="bg-gray-50 py-6">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {/* Banner 1 */}
-            <Link to="/ready-to-wear" className="group relative h-48 md:h-56 rounded-lg overflow-hidden">
-              <img
-                src="/images/banner-new-arrivals.jpg"
-                alt="New Arrivals"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-navy-900/70 to-transparent" />
-              <div className="absolute inset-0 flex flex-col justify-center p-6">
-                <span className="text-coral-400 text-sm font-semibold mb-1">NEW ARRIVALS</span>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">Fresh Styles</h3>
-                <p className="text-white/80 text-sm mb-3">Discover the latest from top designers</p>
-                <span className="inline-flex items-center gap-2 text-white font-medium group-hover:gap-3 transition-all">
-                  Shop Now <ArrowRight className="w-4 h-4" />
-                </span>
-              </div>
-            </Link>
-
-            {/* Banner 2 */}
-            <Link to="/fabrics" className="group relative h-48 md:h-56 rounded-lg overflow-hidden">
-              <img
-                src="/images/banner-fabrics.jpg"
-                alt="Premium Fabrics"
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0 bg-gradient-to-r from-coral-600/70 to-transparent" />
-              <div className="absolute inset-0 flex flex-col justify-center p-6">
-                <span className="text-white text-sm font-semibold mb-1">PREMIUM FABRICS</span>
-                <h3 className="text-2xl md:text-3xl font-bold text-white mb-2">By The Yard</h3>
-                <p className="text-white/80 text-sm mb-3">Authentic textiles from across Africa</p>
-                <span className="inline-flex items-center gap-2 text-white font-medium group-hover:gap-3 transition-all">
-                  Explore <ArrowRight className="w-4 h-4" />
-                </span>
-              </div>
-            </Link>
           </div>
         </div>
       </section>
@@ -708,7 +669,7 @@ export default function Designs() {
         {showMobileFilters && (
           <div className="fixed inset-0 z-50 lg:hidden">
             <div 
-              className="absolute inset-0 bg-black bg-opacity-50"
+              className="absolute inset-0 bg-black/50"
               onClick={() => setShowMobileFilters(false)}
             />
             <div className="absolute right-0 top-0 bottom-0 w-80 bg-white overflow-auto p-6">
