@@ -4,6 +4,7 @@ import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Truck, Check, Loader2 } f
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { api, resolveAssetUrl } from '../services/api';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface ReadyToWearProduct {
   id: string;
@@ -43,6 +44,7 @@ const countryFlags: Record<string, string> = {
 };
 
 export default function ReadyToWearDetail() {
+  const { formatFromUsd } = useCurrency();
   const { id } = useParams();
   const [product, setProduct] = useState<ReadyToWearProduct | null>(null);
   const [loading, setLoading] = useState(true);
@@ -209,9 +211,9 @@ export default function ReadyToWearDetail() {
 
             {/* Price */}
             <div className="flex items-baseline gap-3">
-              <p className="text-3xl font-bold text-coral-500">${product.price}</p>
+              <p className="text-3xl font-bold text-coral-500">{formatFromUsd(product.price)}</p>
               {hasDiscount && (
-                <p className="text-xl text-gray-400 line-through">${product.originalPrice}</p>
+                <p className="text-xl text-gray-400 line-through">{formatFromUsd(Number(product.originalPrice || 0))}</p>
               )}
             </div>
 

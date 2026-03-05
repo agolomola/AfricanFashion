@@ -5,6 +5,7 @@ import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List,
 import { api } from '../services/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface Design {
   id: string;
@@ -214,6 +215,7 @@ const sampleDesigns: Design[] = [
 ];
 
 export default function Designs() {
+  const { formatFromUsd } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
   
   // Data states
@@ -602,7 +604,7 @@ export default function Designs() {
                           <p className="text-sm text-gray-500 mt-1">
                             {design.designer?.businessName}
                           </p>
-                          <p className="text-coral-500 font-semibold mt-2">${design.finalPrice}</p>
+                          <p className="text-coral-500 font-semibold mt-2">{formatFromUsd(design.finalPrice)}</p>
                         </div>
                       </div>
                     </Link>

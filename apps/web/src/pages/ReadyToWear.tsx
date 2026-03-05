@@ -4,6 +4,7 @@ import { Search, Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../services/api';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface Product {
   id: string;
@@ -36,6 +37,7 @@ const countryFlags: Record<string, string> = {
 };
 
 export default function ReadyToWear() {
+  const { formatFromUsd } = useCurrency();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [countries, setCountries] = useState<string[]>([]);
@@ -248,7 +250,7 @@ export default function ReadyToWear() {
                         {product.name}
                       </h3>
                       <p className="text-sm text-gray-500 mt-1">{product.designer?.businessName}</p>
-                      <p className="text-coral-500 font-semibold mt-2">${product.price.toFixed(2)}</p>
+                      <p className="text-coral-500 font-semibold mt-2">{formatFromUsd(product.price)}</p>
                       <div className="flex flex-wrap gap-1 mt-2">
                         {product.sizes.slice(0, 4).map((size) => (
                           <span key={size} className="text-xs bg-gray-100 px-2 py-1 rounded">

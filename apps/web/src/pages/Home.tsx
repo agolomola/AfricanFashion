@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, Search, Eye, CreditCard, CheckCircle, Truck } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 // Default countries as fallback
 const defaultCountries = [
@@ -254,6 +255,7 @@ const countryFlags: Record<string, string> = {
 };
 
 export default function Home() {
+  const { formatFromUsd } = useCurrency();
   // Fetch hero slides
   const { data: heroSlidesData } = useQuery({
     queryKey: ['heroSlides'],
@@ -491,7 +493,10 @@ export default function Home() {
           {product.name}
         </h3>
         <p className="text-sm text-gray-500 mt-1">{product.designer}</p>
-        <p className="font-bold text-coral-600 mt-2">${product.price}{product.productType === 'FABRIC' && <span className="text-sm font-normal text-gray-500">/yard</span>}</p>
+        <p className="font-bold text-coral-600 mt-2">
+          {formatFromUsd(product.price)}
+          {product.productType === 'FABRIC' && <span className="text-sm font-normal text-gray-500">/yard</span>}
+        </p>
       </div>
     </Link>
   );

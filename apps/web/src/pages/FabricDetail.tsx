@@ -4,6 +4,7 @@ import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Ruler, Loader2 } from 'lu
 import Button from '../components/ui/Button';
 import { api, resolveAssetUrl } from '../services/api';
 import Badge from '../components/ui/Badge';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface Fabric {
   id: string;
@@ -41,6 +42,7 @@ const countryFlags: Record<string, string> = {
 };
 
 export default function FabricDetail() {
+  const { formatFromUsd } = useCurrency();
   const { id } = useParams();
   const [fabric, setFabric] = useState<Fabric | null>(null);
   const [loading, setLoading] = useState(true);
@@ -182,7 +184,7 @@ export default function FabricDetail() {
             </div>
 
             <p className="text-3xl font-bold text-coral-500">
-              ${fabric.pricePerMeter}<span className="text-lg text-gray-500 font-normal">/meter</span>
+              {formatFromUsd(fabric.pricePerMeter)}<span className="text-lg text-gray-500 font-normal">/meter</span>
             </p>
 
             <p className="text-gray-600 leading-relaxed">{fabric.description}</p>
@@ -212,7 +214,7 @@ export default function FabricDetail() {
             <div className="bg-gray-100 p-4 rounded-lg">
               <div className="flex justify-between items-center">
                 <span className="text-gray-600">Total:</span>
-                <span className="text-2xl font-bold text-coral-500">${(fabric.pricePerMeter * quantity).toFixed(2)}</span>
+                <span className="text-2xl font-bold text-coral-500">{formatFromUsd(fabric.pricePerMeter * quantity)}</span>
               </div>
             </div>
 

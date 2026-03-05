@@ -19,6 +19,7 @@ import { useAuthStore } from '../store/authStore';
 import { api } from '../services/api';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface ShippingAddress {
   fullName: string;
@@ -33,6 +34,7 @@ interface ShippingAddress {
 
 export default function Checkout() {
   const navigate = useNavigate();
+  const { formatFromUsd } = useCurrency();
   const stripe = useStripe();
   const elements = useElements();
   const { user } = useAuthStore();
@@ -410,7 +412,7 @@ export default function Checkout() {
                     className="flex-1"
                     disabled={!stripe || loading}
                   >
-                    {loading ? 'Processing...' : `Pay $${finalTotal.toFixed(2)}`}
+                    {loading ? 'Processing...' : `Pay ${formatFromUsd(finalTotal)} (charged in USD)`}
                   </Button>
                 </div>
               </form>
@@ -450,7 +452,7 @@ export default function Checkout() {
                       <p className="text-xs text-gray-500">{item.fabricName}</p>
                       <p className="text-xs text-gray-500">{item.fabricMeters}m fabric</p>
                     </div>
-                    <p className="font-medium text-sm">${item.totalPrice.toFixed(2)}</p>
+                    <p className="font-medium text-sm">{formatFromUsd(item.totalPrice)}</p>
                   </div>
                 ))}
               </div>
@@ -458,12 +460,12 @@ export default function Checkout() {
               <div className="space-y-2 py-4 border-t">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal</span>
-                  <span className="font-medium">${totalPrice.toFixed(2)}</span>
+                  <span className="font-medium">{formatFromUsd(totalPrice)}</span>
                 </div>
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Shipping</span>
                   <span className={shipping === 0 ? 'text-green-600' : ''}>
-                    {shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`}
+                    {shipping === 0 ? 'FREE' : formatFromUsd(shipping)}
                   </span>
                 </div>
               </div>
@@ -471,7 +473,7 @@ export default function Checkout() {
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-2xl font-bold text-amber-700">
-                  ${finalTotal.toFixed(2)}
+                  {formatFromUsd(finalTotal)}
                 </span>
               </div>
             </div>

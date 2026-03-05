@@ -4,6 +4,7 @@ import { Search, Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react'
 import { api } from '../services/api';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface FabricCard {
   id: string;
@@ -35,6 +36,7 @@ const countryFlags: Record<string, string> = {
 };
 
 export default function Fabrics() {
+  const { formatFromUsd } = useCurrency();
   const [fabrics, setFabrics] = useState<FabricCard[]>([]);
   const [materials, setMaterials] = useState<Array<{ id: string; name: string }>>([]);
   const [countries, setCountries] = useState<string[]>([]);
@@ -240,7 +242,9 @@ export default function Fabrics() {
                         {fabric.name}
                       </h3>
                       <p className="text-sm text-gray-500 mt-1">{fabric.seller?.businessName}</p>
-                      <p className="text-coral-500 font-semibold mt-2">${fabric.pricePerMeter}/yard</p>
+                      <p className="text-coral-500 font-semibold mt-2">
+                        {formatFromUsd(fabric.pricePerMeter)}/yard
+                      </p>
                     </div>
                   </div>
                 </Link>

@@ -40,6 +40,9 @@ interface Fabric {
   id: string;
   name: string;
   pricePerMeter: number;
+  currencyCode?: string;
+  localSellerPrice?: number;
+  sellerPriceUsd?: number;
   stockMeters: number;
   images: string[];
   orderCount: number;
@@ -88,9 +91,13 @@ export default function SellerDashboard() {
     description: '',
     materialTypeId: '',
     sellerPrice: '',
+    currencyCode: 'USD',
     minYards: '1',
     stockYards: '0',
   });
+  const [vendorCurrencyOptions, setVendorCurrencyOptions] = useState<string[]>(['USD']);
+  const [usdPerUnitByCurrency, setUsdPerUnitByCurrency] = useState<Record<string, number>>({ USD: 1 });
+  const [defaultCurrency, setDefaultCurrency] = useState('USD');
   const [modalError, setModalError] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
@@ -115,13 +122,25 @@ export default function SellerDashboard() {
     if (!showCreateModal) return;
     (async () => {
       try {
-        const response = await api.products.getMaterials();
-        if (response.success) {
-          setMaterials(response.data || []);
+        const [materialsRes, currencyRes] = await Promise.all([
+          api.products.getMaterials(),
+          api.currency.getMyOptions(),
+        ]);
+        if (materialsRes.success) {
+          setMaterials(materialsRes.data || []);
+        }
+        if (currencyRes.success) {
+          setVendorCurrencyOptions(currencyRes.data.allowedCurrencies || ['USD']);
+          setUsdPerUnitByCurrency(currencyRes.data.usdPerUnitByCurrency || { USD: 1 });
+          setDefaultCurrency(currencyRes.data.defaultCurrency || 'USD');
+          setNewFabric((prev) => ({
+            ...prev,
+            currencyCode: prev.currencyCode || currencyRes.data.defaultCurrency || 'USD',
+          }));
         }
       } catch (error) {
         console.error('Failed to load material types:', error);
-        toast.error('Failed to load material types.');
+        toast.error('Failed to load listing options.');
       }
     })();
   }, [showCreateModal, toast]);
@@ -242,6 +261,7 @@ export default function SellerDashboard() {
       description: '',
       materialTypeId: '',
       sellerPrice: '',
+      currencyCode: defaultCurrency || 'USD',
       minYards: '1',
       stockYards: '0',
     });
@@ -287,6 +307,7 @@ export default function SellerDashboard() {
         description: newFabric.description.trim(),
         materialTypeId: newFabric.materialTypeId,
         sellerPrice: Number(newFabric.sellerPrice),
+        currencyCode: newFabric.currencyCode || defaultCurrency || 'USD',
         minYards: Number(newFabric.minYards),
         stockYards: Number(newFabric.stockYards),
         images: uploadedImages,
@@ -320,7 +341,10 @@ export default function SellerDashboard() {
         toast.error('Description must be at least 10 characters.');
         return;
       }
-      const sellerPriceRaw = window.prompt('Seller price:', String(fabric.pricePerMeter))?.trim();
+      const sellerPriceRaw = window.prompt(
+        `Seller price in ${fabric.currencyCode || defaultCurrency || 'USD'}:`,
+        String(fabric.localSellerPrice ?? fabric.pricePerMeter)
+      )?.trim();
       if (!sellerPriceRaw) return;
       const sellerPrice = Number(sellerPriceRaw);
       if (!Number.isFinite(sellerPrice) || sellerPrice <= 0) {
@@ -332,6 +356,7 @@ export default function SellerDashboard() {
         name,
         description,
         sellerPrice,
+        currencyCode: fabric.currencyCode || defaultCurrency || 'USD',
       });
       toast.success('Fabric updated and sent for re-approval.');
       await fetchDashboardData();
@@ -551,7 +576,12 @@ export default function SellerDashboard() {
               { 
                 key: 'pricePerMeter', 
                 header: 'Price',
-                render: (item) => `$${item.pricePerMeter}/m`
+                render: (item) => (
+                  <div>
+                    <p className="font-medium">{item.currencyCode || 'USD'} {Number(item.localSellerPrice ?? item.pricePerMeter).toFixed(2)}/yd</p>
+                    <p className="text-xs text-gray-500">USD {Number(item.sellerPriceUsd ?? item.pricePerMeter).toFixed(2)}</p>
+                  </div>
+                )
               },
               { 
                 key: 'stockMeters', 
@@ -760,7 +790,9 @@ export default function SellerDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Seller Base Price per yard (USD) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Seller Base Price per yard ({newFabric.currencyCode || 'USD'}) *
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -770,7 +802,28 @@ export default function SellerDashboard() {
                   className="w-full px-3 py-2 border rounded-lg"
                   placeholder="e.g. 24.99"
                 />
-                <p className="text-xs text-gray-500 mt-1">Admin markups/rules apply to this base price.</p>
+                <p className="text-xs text-gray-500 mt-1">Set in your listing currency. Admin markups/rules apply after USD conversion.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Listing Currency *</label>
+                <select
+                  value={newFabric.currencyCode}
+                  onChange={(e) => setNewFabric((prev) => ({ ...prev, currencyCode: e.target.value }))}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {vendorCurrencyOptions.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Estimated USD: $
+                  {(
+                    Number(newFabric.sellerPrice || 0) *
+                    Number(usdPerUnitByCurrency[newFabric.currencyCode || 'USD'] || 1)
+                  ).toFixed(2)}
+                </p>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Minimum Order Quantity (yards)</label>

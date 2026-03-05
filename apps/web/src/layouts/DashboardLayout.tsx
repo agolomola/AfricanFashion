@@ -43,6 +43,7 @@ const navItems: Record<DashboardType, NavItem[]> = {
     { label: 'Users', href: '/admin/users', icon: Users },
     { label: 'Products', href: '/admin/products', icon: Package },
     { label: 'Pricing Rules', href: '/admin/pricing', icon: DollarSign },
+    { label: 'Currency Matrix', href: '/admin/currency', icon: Tag },
     { label: 'Orders', href: '/admin/orders', icon: ShoppingBag },
     { label: 'Traffic Reports', href: '/admin/traffic', icon: Tag },
     { label: 'Banners', href: '/admin/banners', icon: ImageIcon },

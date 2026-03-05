@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { api, resolveAssetUrl } from '../services/api';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 export default function VendorStore() {
+  const { formatFromUsd } = useCurrency();
   const { role = '', userId = '' } = useParams();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -98,6 +100,9 @@ export default function VendorStore() {
                   <div className="p-4">
                     <h3 className="font-semibold text-gray-900">{item.name}</h3>
                     <p className="mt-1 text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                    <p className="mt-2 text-sm font-semibold text-coral-600">
+                      {formatFromUsd(Number(item.finalPrice || item.basePrice || 0))}
+                    </p>
                   </div>
                 </Link>
               );
@@ -125,6 +130,9 @@ export default function VendorStore() {
                     <div className="p-4">
                       <h3 className="font-semibold text-gray-900">{item.name}</h3>
                       <p className="mt-1 text-sm text-gray-500 line-clamp-2">{item.description}</p>
+                      <p className="mt-2 text-sm font-semibold text-coral-600">
+                        {formatFromUsd(Number(item.basePrice || 0))}
+                      </p>
                     </div>
                   </Link>
                 );

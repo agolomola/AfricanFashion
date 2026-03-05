@@ -106,6 +106,51 @@ const authApi = {
     apiService.post('/auth/logout'),
 };
 
+const currencyApi = {
+  getConfig: () =>
+    apiService.get<{
+      success: boolean;
+      data: {
+        defaultCurrency: string;
+        supportedCurrencies: string[];
+        matrix: Array<{
+          countryCode: string;
+          country: string;
+          currencyCode: string;
+          currencyName: string;
+          usdPerUnit: number;
+        }>;
+      };
+    }>('/currency/config'),
+
+  getMyOptions: () =>
+    apiService.get<{
+      success: boolean;
+      data: {
+        country: string;
+        defaultCurrency: string;
+        allowedCurrencies: string[];
+        usdPerUnitByCurrency: Record<string, number>;
+      };
+    }>('/currency/my-options'),
+
+  getAdminMatrix: () =>
+    apiService.get<{ success: boolean; data: { matrix: any[]; rules: any[] } }>('/currency/admin/matrix'),
+
+  updateCountryRate: (data: {
+    countryCode: string;
+    country: string;
+    currencyCode: string;
+    currencyName: string;
+    usdPerUnit: number;
+  }) => apiService.put('/currency/admin/rate', data),
+
+  updateRules: (rules: Array<{ id: string; scopeType: 'COUNTRY' | 'USER' | 'ROLE'; scopeValue: string; currencies: string[] }>) =>
+    apiService.put('/currency/admin/rules', { rules }),
+
+  refreshRates: () => apiService.post('/currency/admin/refresh'),
+};
+
 // Products API
 const productsApi = {
   getCategories: () =>
@@ -661,6 +706,9 @@ const sellerApi = {
         id: fabric.id,
         name: fabric.name,
         pricePerMeter: Number(fabric.finalPrice || fabric.sellerPrice || 0),
+        currencyCode: fabric.currencyCode || 'USD',
+        localSellerPrice: Number(fabric.localSellerPrice || 0),
+        sellerPriceUsd: Number(fabric.sellerPriceUsd || fabric.sellerPrice || 0),
         stockMeters: Number(fabric.stockYards || 0),
         images: (fabric.images || []).map((img: any) => resolveAssetUrl(img.url)).filter(Boolean),
         orderCount: Number(fabric?._count?.orderItems || 0),
@@ -751,6 +799,9 @@ const designerApi = {
         id: design.id,
         name: design.name,
         basePrice: Number(design.basePrice || 0),
+        currencyCode: design.currencyCode || 'USD',
+        localBasePrice: Number(design.localBasePrice || 0),
+        basePriceUsd: Number(design.basePriceUsd || design.basePrice || 0),
         images: (design.images || []).map((img: any) => resolveAssetUrl(img.url)).filter(Boolean),
         category: design.category,
         rating: Number(design.designer?.rating || 0),
@@ -779,6 +830,9 @@ const designerApi = {
       success: true,
       data: (response.data || []).map((product: any) => ({
         ...product,
+        currencyCode: product.currencyCode || 'USD',
+        localBasePrice: Number(product.localBasePrice || 0),
+        basePriceUsd: Number(product.basePriceUsd || product.basePrice || 0),
         images: (product.images || []).map((img: any) => ({
           ...img,
           url: resolveAssetUrl(img.url),
@@ -1082,6 +1136,7 @@ const homepageSectionsApi = {
 // Export combined API
 export const api = {
   auth: authApi,
+  currency: currencyApi,
   products: productsApi,
   orders: ordersApi,
   customer: customerApi,
@@ -1099,6 +1154,7 @@ export const api = {
 // Named exports for direct import
 export {
   authApi,
+  currencyApi,
   productsApi,
   ordersApi,
   customerApi,

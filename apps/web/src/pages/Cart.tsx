@@ -15,9 +15,11 @@ import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { getHomeRouteForRole, isCustomerRole } from '../auth/rbac';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 export default function Cart() {
   const navigate = useNavigate();
+  const { formatFromUsd } = useCurrency();
   const { user } = useAuthStore();
   const { items, removeItem, updateItem, clearCart, totalPrice } = useCartStore();
   const [promoCode, setPromoCode] = useState('');
@@ -164,10 +166,10 @@ export default function Cart() {
                       </div>
                       <div className="text-right">
                         <p className="text-lg font-bold text-amber-700">
-                          ${item.totalPrice.toFixed(2)}
+                          {formatFromUsd(item.totalPrice)}
                         </p>
                         <p className="text-xs text-gray-500">
-                          ${item.basePrice} + ${(item.fabricPrice * item.fabricMeters).toFixed(2)}
+                          {formatFromUsd(item.basePrice)} + {formatFromUsd(item.fabricPrice * item.fabricMeters)}
                         </p>
                       </div>
                     </div>
@@ -218,18 +220,18 @@ export default function Cart() {
               <div className="space-y-2 py-4 border-t">
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Subtotal ({items.length} items)</span>
-                  <span className="font-medium">${totalPrice.toFixed(2)}</span>
+                  <span className="font-medium">{formatFromUsd(totalPrice)}</span>
                 </div>
                 {promoApplied && (
                   <div className="flex justify-between text-sm text-green-600">
                     <span>Discount (10%)</span>
-                    <span>-${discount.toFixed(2)}</span>
+                    <span>-{formatFromUsd(discount)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-gray-600">Shipping</span>
                   <span className={shipping === 0 ? 'text-green-600' : ''}>
-                    {shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`}
+                    {shipping === 0 ? 'FREE' : formatFromUsd(shipping)}
                   </span>
                 </div>
               </div>
@@ -237,7 +239,7 @@ export default function Cart() {
               <div className="flex justify-between items-center pt-4 border-t">
                 <span className="text-lg font-semibold">Total</span>
                 <span className="text-2xl font-bold text-amber-700">
-                  ${finalTotal.toFixed(2)}
+                  {formatFromUsd(finalTotal)}
                 </span>
               </div>
 

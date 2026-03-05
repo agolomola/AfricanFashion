@@ -40,6 +40,9 @@ interface Design {
   id: string;
   name: string;
   basePrice: number;
+  currencyCode?: string;
+  localBasePrice?: number;
+  basePriceUsd?: number;
   images: string[];
   category: { name: string };
   rating: number;
@@ -85,6 +88,10 @@ export default function DesignerDashboard() {
   const [measurementTemplates, setMeasurementTemplates] = useState<
     Array<{ name: string; unit?: string; isRequired?: boolean; instructions?: string }>
   >([]);
+  const [vendorCurrencyOptions, setVendorCurrencyOptions] = useState<string[]>(['USD']);
+  const [usdPerUnitByCurrency, setUsdPerUnitByCurrency] = useState<Record<string, number>>({ USD: 1 });
+  const [defaultCurrency, setDefaultCurrency] = useState('USD');
+  const [listingCurrency, setListingCurrency] = useState('USD');
   const [selectedMeasurements, setSelectedMeasurements] = useState<string[]>([]);
   const [stockDrafts, setStockDrafts] = useState<Record<string, Record<string, number>>>({});
   const [savingStockProductId, setSavingStockProductId] = useState<string | null>(null);
@@ -133,6 +140,13 @@ export default function DesignerDashboard() {
             name: f.name,
           }));
           setAvailableFabrics(rows);
+        }
+        const currencyRes = await api.currency.getMyOptions();
+        if (currencyRes.success) {
+          setVendorCurrencyOptions(currencyRes.data.allowedCurrencies || ['USD']);
+          setUsdPerUnitByCurrency(currencyRes.data.usdPerUnitByCurrency || { USD: 1 });
+          setDefaultCurrency(currencyRes.data.defaultCurrency || 'USD');
+          setListingCurrency(currencyRes.data.defaultCurrency || 'USD');
         }
         const measurementRes = await api.designer.getMeasurementTemplates();
         if (measurementRes.success) {
@@ -255,6 +269,7 @@ export default function DesignerDashboard() {
       categoryId: '',
       basePrice: '',
     });
+    setListingCurrency(defaultCurrency || 'USD');
     setSelectedMeasurements(measurementTemplates.filter((item) => item.isRequired).map((item) => item.name));
     setSelectedFabrics({});
     setDesignImages([]);
@@ -331,6 +346,7 @@ export default function DesignerDashboard() {
         description: newDesign.description.trim(),
         categoryId: newDesign.categoryId,
         basePrice: Number(newDesign.basePrice),
+        currencyCode: listingCurrency || defaultCurrency || 'USD',
         suitableFabricIds,
         measurementVariables,
         images: uploadedImages,
@@ -365,6 +381,7 @@ export default function DesignerDashboard() {
       await api.designer.updateDesign(design.id, {
         name,
         description,
+        currencyCode: design.currencyCode || defaultCurrency || 'USD',
       });
       await fetchDashboardData();
     } catch (error) {
@@ -590,8 +607,13 @@ export default function DesignerDashboard() {
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-4">
                     <div>
-                      <p className="text-xs text-gray-500">Price</p>
-                      <p className="font-medium text-amber-700">${Number(design.basePrice || 0).toFixed(2)}</p>
+                        <p className="text-xs text-gray-500">Price</p>
+                        <p className="font-medium text-amber-700">
+                          {design.currencyCode || 'USD'} {Number(design.localBasePrice ?? (design.basePrice || 0)).toFixed(2)}
+                        </p>
+                        <p className="text-[11px] text-gray-500">
+                          USD {Number(design.basePriceUsd ?? (design.basePrice || 0)).toFixed(2)}
+                        </p>
                     </div>
                     <div>
                       <p className="text-xs text-gray-500">Rating</p>
@@ -797,7 +819,9 @@ export default function DesignerDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Base Price (USD) *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Base Price ({listingCurrency || 'USD'}) *
+                </label>
                 <input
                   type="number"
                   min="0"
@@ -808,6 +832,27 @@ export default function DesignerDashboard() {
                   placeholder="e.g. 120.00"
                 />
                 <p className="text-xs text-gray-500 mt-1">Designer base price before admin markups/rules.</p>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Listing Currency *</label>
+                <select
+                  value={listingCurrency}
+                  onChange={(e) => setListingCurrency(e.target.value)}
+                  className="w-full px-3 py-2 border rounded-lg"
+                >
+                  {vendorCurrencyOptions.map((code) => (
+                    <option key={code} value={code}>
+                      {code}
+                    </option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 mt-1">
+                  Estimated USD: $
+                  {(
+                    Number(newDesign.basePrice || 0) *
+                    Number(usdPerUnitByCurrency[listingCurrency || 'USD'] || 1)
+                  ).toFixed(2)}
+                </p>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">

@@ -4,12 +4,14 @@ import { ShoppingBag, User, Menu, X, Search, Heart } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import Footer from '../components/Footer';
+import { useCurrency } from '../components/ui/CurrencyProvider';
 
 export default function MainLayout() {
   const [isScrolled, setIsScrolled] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuthStore();
   const { getItemCount } = useCartStore();
+  const { selectedCurrency, supportedCurrencies, setSelectedCurrency } = useCurrency();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -81,6 +83,19 @@ export default function MainLayout() {
 
             {/* Right Actions */}
             <div className="flex items-center gap-2 lg:gap-4">
+              <select
+                value={selectedCurrency}
+                onChange={(e) => setSelectedCurrency(e.target.value)}
+                className={`hidden sm:block rounded-md border px-2 py-1 text-xs ${
+                  isScrolled ? 'bg-white text-gray-700 border-gray-300' : 'bg-white/90 text-navy-700 border-white/40'
+                }`}
+              >
+                {supportedCurrencies.slice(0, 25).map((currency) => (
+                  <option key={currency} value={currency}>
+                    {currency}
+                  </option>
+                ))}
+              </select>
               <button
                 className={`p-2 rounded-full transition-colors ${
                   isScrolled
@@ -173,6 +188,20 @@ export default function MainLayout() {
         {isMobileMenuOpen && (
           <div className="lg:hidden bg-white border-t border-gray-100">
             <div className="px-4 py-4 space-y-2">
+              <div className="px-4 pb-2">
+                <label className="block text-xs text-gray-500 mb-1">Currency</label>
+                <select
+                  value={selectedCurrency}
+                  onChange={(e) => setSelectedCurrency(e.target.value)}
+                  className="w-full border rounded-lg px-3 py-2 text-sm"
+                >
+                  {supportedCurrencies.slice(0, 25).map((currency) => (
+                    <option key={currency} value={currency}>
+                      {currency}
+                    </option>
+                  ))}
+                </select>
+              </div>
               {navLinks.map((link) => (
                 <Link
                   key={link.label}

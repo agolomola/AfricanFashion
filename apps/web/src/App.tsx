@@ -39,6 +39,7 @@ import AdminHomepage from './pages/admin/Homepage';
 import AdminHomepageSections from './pages/admin/HomepageSections';
 import AdminTraffic from './pages/admin/Traffic';
 import AdminMeasurementTemplates from './pages/admin/MeasurementTemplates';
+import AdminCurrencyMatrix from './pages/admin/CurrencyMatrix';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
@@ -54,6 +55,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import { useAuthStore } from './store/authStore';
 import { getHomeRouteForRole } from './auth/rbac';
 import { ToastProvider } from './components/ui/ToastProvider';
+import { CurrencyProvider } from './components/ui/CurrencyProvider';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -74,8 +76,9 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <Elements stripe={stripePromise}>
         <ToastProvider>
-          <Router>
-            <Routes>
+          <CurrencyProvider>
+            <Router>
+              <Routes>
             {/* Public Routes */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
@@ -122,6 +125,7 @@ function App() {
                 <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/orders/:id" element={<AdminOrders />} />
                 <Route path="/admin/pricing" element={<AdminPricingRules />} />
+                <Route path="/admin/currency" element={<AdminCurrencyMatrix />} />
                 <Route path="/admin/traffic" element={<AdminTraffic />} />
                 <Route path="/admin/banners" element={<AdminBanners />} />
                 <Route path="/admin/homepage" element={<AdminHomepage />} />
@@ -157,8 +161,9 @@ function App() {
 
             {/* Fallback */}
             <Route path="*" element={<Navigate to="/" />} />
-            </Routes>
-          </Router>
+              </Routes>
+            </Router>
+          </CurrencyProvider>
         </ToastProvider>
       </Elements>
     </QueryClientProvider>
