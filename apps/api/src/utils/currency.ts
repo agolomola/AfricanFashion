@@ -1,0 +1,269 @@
+import { prisma, UserRole } from '../db';
+import { AFRICAN_CURRENCY_BASELINE, type AfricanCurrencyRow } from '../constants/africanCurrencies';
+
+export type CurrencyScopeType = 'COUNTRY' | 'USER' | 'ROLE';
+
+export interface CurrencyListingRule {
+  id: string;
+  scopeType: CurrencyScopeType;
+  scopeValue: string;
+  currencies: string[];
+}
+
+export interface CurrencyMatrixState {
+  matrix: AfricanCurrencyRow[];
+  rules: CurrencyListingRule[];
+}
+
+const MATRIX_ACTION = 'CURRENCY_MATRIX_UPDATED';
+const RULES_ACTION = 'CURRENCY_OPTIONS_UPDATED';
+const PRODUCT_CURRENCY_ACTION = 'PRODUCT_CURRENCY_METADATA';
+
+const byCountryCode = new Map(AFRICAN_CURRENCY_BASELINE.map((row) => [row.countryCode.toUpperCase(), row]));
+const byCountryName = new Map(AFRICAN_CURRENCY_BASELINE.map((row) => [normalizeCountry(row.country), row]));
+
+export function normalizeCountry(value: string | null | undefined) {
+  return String(value || '')
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, ' ');
+}
+
+function normalizeCurrency(value: string | null | undefined) {
+  return String(value || '').trim().toUpperCase();
+}
+
+function sanitizeMatrix(rows: unknown): AfricanCurrencyRow[] {
+  if (!Array.isArray(rows)) return [...AFRICAN_CURRENCY_BASELINE];
+  const mapped = rows
+    .map((row: any) => ({
+      countryCode: String(row?.countryCode || '').toUpperCase(),
+      country: String(row?.country || '').trim(),
+      currencyCode: normalizeCurrency(row?.currencyCode),
+      currencyName: String(row?.currencyName || '').trim(),
+      usdPerUnit: Number(row?.usdPerUnit || 0),
+    }))
+    .filter(
+      (row) =>
+        row.countryCode &&
+        row.country &&
+        row.currencyCode &&
+        row.currencyName &&
+        Number.isFinite(row.usdPerUnit) &&
+        row.usdPerUnit > 0
+    );
+  return mapped.length > 0 ? mapped : [...AFRICAN_CURRENCY_BASELINE];
+}
+
+function sanitizeRules(rows: unknown): CurrencyListingRule[] {
+  if (!Array.isArray(rows)) return [];
+  return rows
+    .map((row: any) => ({
+      id: String(row?.id || ''),
+      scopeType: String(row?.scopeType || '').toUpperCase() as CurrencyScopeType,
+      scopeValue: String(row?.scopeValue || '').trim(),
+      currencies: Array.isArray(row?.currencies)
+        ? row.currencies.map((item: any) => normalizeCurrency(item)).filter(Boolean)
+        : [],
+    }))
+    .filter(
+      (row) =>
+        row.id &&
+        ['COUNTRY', 'USER', 'ROLE'].includes(row.scopeType) &&
+        row.scopeValue &&
+        row.currencies.length > 0
+    );
+}
+
+export async function getCurrencyState(): Promise<CurrencyMatrixState> {
+  const [matrixLog, rulesLog] = await Promise.all([
+    prisma.activityLog.findFirst({
+      where: { action: MATRIX_ACTION },
+      orderBy: { createdAt: 'desc' },
+      select: { details: true },
+    }),
+    prisma.activityLog.findFirst({
+      where: { action: RULES_ACTION },
+      orderBy: { createdAt: 'desc' },
+      select: { details: true },
+    }),
+  ]);
+
+  return {
+    matrix: sanitizeMatrix((matrixLog?.details as any)?.matrix),
+    rules: sanitizeRules((rulesLog?.details as any)?.rules),
+  };
+}
+
+export async function saveCurrencyMatrix(userId: string, matrix: AfricanCurrencyRow[]) {
+  const sanitized = sanitizeMatrix(matrix);
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: MATRIX_ACTION,
+      details: { matrix: sanitized } as any,
+    },
+  });
+}
+
+export async function saveCurrencyRules(userId: string, rules: CurrencyListingRule[]) {
+  const sanitized = sanitizeRules(rules);
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: RULES_ACTION,
+      details: { rules: sanitized } as any,
+    },
+  });
+}
+
+export function getDefaultCurrencyForCountry(country: string | null | undefined, matrix: AfricanCurrencyRow[]) {
+  const normalized = normalizeCountry(country);
+  if (!normalized) return 'USD';
+  return matrix.find((row) => normalizeCountry(row.country) === normalized)?.currencyCode || 'USD';
+}
+
+export function getUsdPerUnit(currencyCode: string, matrix: AfricanCurrencyRow[]) {
+  const code = normalizeCurrency(currencyCode);
+  if (!code || code === 'USD') return 1;
+  return matrix.find((row) => row.currencyCode === code)?.usdPerUnit || 0;
+}
+
+export function convertLocalToUsd(amountLocal: number, currencyCode: string, matrix: AfricanCurrencyRow[]) {
+  const code = normalizeCurrency(currencyCode);
+  if (!Number.isFinite(amountLocal) || amountLocal < 0) return 0;
+  if (code === 'USD') return amountLocal;
+  const usdPerUnit = getUsdPerUnit(code, matrix);
+  if (usdPerUnit <= 0) return amountLocal;
+  return Number((amountLocal * usdPerUnit).toFixed(2));
+}
+
+export function convertUsdToLocal(amountUsd: number, currencyCode: string, matrix: AfricanCurrencyRow[]) {
+  const code = normalizeCurrency(currencyCode);
+  if (!Number.isFinite(amountUsd) || amountUsd < 0) return 0;
+  if (code === 'USD') return amountUsd;
+  const usdPerUnit = getUsdPerUnit(code, matrix);
+  if (usdPerUnit <= 0) return amountUsd;
+  return Number((amountUsd / usdPerUnit).toFixed(2));
+}
+
+export function getAllowedCurrenciesForVendor(params: {
+  role: UserRole;
+  userId: string;
+  country: string;
+  matrix: AfricanCurrencyRow[];
+  rules: CurrencyListingRule[];
+}) {
+  const { role, userId, country, matrix, rules } = params;
+  const defaultCurrency = getDefaultCurrencyForCountry(country, matrix);
+  const allowed = new Set<string>([defaultCurrency]);
+
+  for (const rule of rules) {
+    if (
+      (rule.scopeType === 'USER' && rule.scopeValue === userId) ||
+      (rule.scopeType === 'ROLE' && rule.scopeValue.toUpperCase() === role) ||
+      (rule.scopeType === 'COUNTRY' && normalizeCountry(rule.scopeValue) === normalizeCountry(country))
+    ) {
+      for (const code of rule.currencies) {
+        allowed.add(code);
+      }
+    }
+  }
+
+  allowed.add('USD');
+  return {
+    defaultCurrency,
+    allowedCurrencies: Array.from(allowed).filter((code) => code === 'USD' || getUsdPerUnit(code, matrix) > 0),
+  };
+}
+
+export function inferCountryFromHeaders(headers: Record<string, string | string[] | undefined>) {
+  const maybeCode = String(
+    headers['x-vercel-ip-country'] ||
+      headers['cf-ipcountry'] ||
+      headers['x-country-code'] ||
+      headers['x-geo-country'] ||
+      ''
+  )
+    .trim()
+    .toUpperCase();
+  if (!maybeCode) return null;
+  return byCountryCode.get(maybeCode) || null;
+}
+
+export async function refreshMatrixFromThirdParty(matrix: AfricanCurrencyRow[]) {
+  const endpoint = process.env.EXCHANGE_RATE_API_URL || 'https://open.er-api.com/v6/latest/USD';
+  const response = await fetch(endpoint);
+  if (!response.ok) {
+    throw new Error('Failed to fetch exchange rates from provider.');
+  }
+  const payload = (await response.json()) as any;
+  const rates = payload?.rates || payload?.conversion_rates;
+  if (!rates || typeof rates !== 'object') {
+    throw new Error('Invalid exchange-rate provider response.');
+  }
+
+  return matrix.map((row) => {
+    const unitsPerUsd = Number(rates[row.currencyCode]);
+    if (!Number.isFinite(unitsPerUsd) || unitsPerUsd <= 0) {
+      return row;
+    }
+    const usdPerUnit = Number((1 / unitsPerUsd).toFixed(8));
+    return {
+      ...row,
+      usdPerUnit,
+    };
+  });
+}
+
+export function mapCountryToBaseline(country: string) {
+  return byCountryName.get(normalizeCountry(country)) || null;
+}
+
+export async function setProductCurrencyMetadata(params: {
+  userId: string;
+  productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR';
+  productId: string;
+  currencyCode: string;
+  localPrice: number;
+  usdPrice: number;
+  exchangeRate: number;
+}) {
+  await prisma.activityLog.create({
+    data: {
+      userId: params.userId,
+      action: PRODUCT_CURRENCY_ACTION,
+      details: {
+        productType: params.productType,
+        productId: params.productId,
+        currencyCode: normalizeCurrency(params.currencyCode),
+        localPrice: Number(params.localPrice || 0),
+        usdPrice: Number(params.usdPrice || 0),
+        exchangeRate: Number(params.exchangeRate || 1),
+      },
+    },
+  });
+}
+
+export async function getProductCurrencyMetadata(productType: 'FABRIC' | 'DESIGN' | 'READY_TO_WEAR', productId: string) {
+  const row = await prisma.activityLog.findFirst({
+    where: {
+      action: PRODUCT_CURRENCY_ACTION,
+      details: {
+        path: ['productType'],
+        equals: productType,
+      },
+      AND: [
+        {
+          details: {
+            path: ['productId'],
+            equals: productId,
+          },
+        },
+      ],
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { details: true },
+  });
+  return (row?.details as any) || null;
+}

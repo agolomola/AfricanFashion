@@ -27,6 +27,7 @@ import bannerRoutes from './routes/banners';
 import homepageRoutes from './routes/homepage';
 import homepageSectionsRoutes from './routes/homepage-sections';
 import paymentRoutes from './routes/payments';
+import currencyRoutes from './routes/currency';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -83,6 +84,7 @@ app.use('/api/banners', bannerRoutes);
 app.use('/api/homepage', homepageRoutes);
 app.use('/api/homepage-sections', homepageSectionsRoutes);
 app.use('/api/payments', paymentRoutes);
+app.use('/api/currency', currencyRoutes);
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
