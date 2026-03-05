@@ -261,8 +261,8 @@ export default function SellerDashboard() {
         setModalError('Please fill all required fields.');
         return;
       }
-      if (newFabricImages.length === 0) {
-        setModalError('Please upload at least one image.');
+      if (newFabricImages.length < 3 || newFabricImages.length > 4) {
+        setModalError('Fabric products require 3-4 images.');
         return;
       }
       setCreatingFabric(true);
@@ -308,6 +308,36 @@ export default function SellerDashboard() {
       toast.error(error?.response?.data?.message || 'Failed to create fabric.');
     } finally {
       setCreatingFabric(false);
+    }
+  };
+
+  const handleEditFabric = async (fabric: Fabric) => {
+    try {
+      const name = window.prompt('Fabric name:', fabric.name)?.trim();
+      if (!name) return;
+      const description = window.prompt('Description (min 10 chars):', '')?.trim();
+      if (!description || description.length < 10) {
+        toast.error('Description must be at least 10 characters.');
+        return;
+      }
+      const sellerPriceRaw = window.prompt('Seller price:', String(fabric.pricePerMeter))?.trim();
+      if (!sellerPriceRaw) return;
+      const sellerPrice = Number(sellerPriceRaw);
+      if (!Number.isFinite(sellerPrice) || sellerPrice <= 0) {
+        toast.error('Seller price must be a positive number.');
+        return;
+      }
+
+      await api.seller.updateFabric(fabric.id, {
+        name,
+        description,
+        sellerPrice,
+      });
+      toast.success('Fabric updated and sent for re-approval.');
+      await fetchDashboardData();
+    } catch (error: any) {
+      console.error('Failed to update fabric:', error);
+      toast.error(error?.response?.data?.message || 'Failed to update fabric.');
     }
   };
 
@@ -552,6 +582,9 @@ export default function SellerDashboard() {
                 <Button variant="outline" size="sm" onClick={() => openStockModal(item)}>
                   <Edit className="w-4 h-4" />
                 </Button>
+                <Button variant="outline" size="sm" onClick={() => handleEditFabric(item)}>
+                  Edit Product
+                </Button>
                 <Button variant="outline" size="sm" onClick={() => navigate(`/fabrics/${item.id}`)}>
                   <Eye className="w-4 h-4" />
                 </Button>
@@ -767,6 +800,7 @@ export default function SellerDashboard() {
                 {newFabricImages.length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">{newFabricImages.length} image(s) selected</p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">Image rule: minimum 3 and maximum 4.</p>
               </div>
             </div>
 

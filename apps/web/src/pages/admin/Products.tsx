@@ -42,7 +42,7 @@ interface ProductFormState {
   finalPrice: number;
   minYards: number;
   stockYards: number;
-  image: string;
+  images: string[];
   isFeatured: boolean;
   featuredSection: string;
 }
@@ -60,7 +60,7 @@ const EMPTY_FORM: ProductFormState = {
   finalPrice: 0,
   minYards: 1,
   stockYards: 0,
-  image: '',
+  images: [],
   isFeatured: false,
   featuredSection: '',
 };
@@ -89,6 +89,11 @@ export default function AdminProducts() {
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [sellerUsers, setSellerUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
   const [designerUsers, setDesignerUsers] = useState<Array<{ id: string; firstName: string; lastName: string; email: string }>>([]);
+
+  const getImageRule = (type: ProductType) => {
+    if (type === 'FABRIC') return { min: 3, max: 4 };
+    return { min: 4, max: 6 };
+  };
 
   useEffect(() => {
     void fetchProducts();
@@ -172,7 +177,7 @@ export default function AdminProducts() {
           finalPrice: Number(details.data.finalPrice || 0),
           minYards: Number(details.data.minYards || 1),
           stockYards: Number(details.data.stockYards || 0),
-          image: details.data.image || '',
+          images: (details.data.images || []).map((img: any) => img.url).filter(Boolean),
           isFeatured: (details.data.featuredSections || []).length > 0,
           featuredSection: details.data.featuredSections?.[0] || '',
         });
@@ -193,7 +198,11 @@ export default function AdminProducts() {
       data.append('image', file);
       const response = await api.upload.image(data);
       if (response.success) {
-        setProductForm((prev) => ({ ...prev, image: response.data.url }));
+        setProductForm((prev) => {
+          const rule = getImageRule(prev.type);
+          if (prev.images.length >= rule.max) return prev;
+          return { ...prev, images: [...prev.images, response.data.url] };
+        });
       }
     } catch (error) {
       console.error('Failed to upload image:', error);
@@ -218,6 +227,15 @@ export default function AdminProducts() {
         setFormError('Please select a category.');
         return;
       }
+      const imageRule = getImageRule(productForm.type);
+      if (productForm.images.length < imageRule.min || productForm.images.length > imageRule.max) {
+        setFormError(
+          `Please upload ${imageRule.min}-${imageRule.max} images for ${
+            productForm.type === 'FABRIC' ? 'fabric' : 'design/ready-to-wear'
+          } products.`
+        );
+        return;
+      }
 
       const payload = {
         type: productForm.type,
@@ -232,7 +250,7 @@ export default function AdminProducts() {
         finalPrice: Number(productForm.finalPrice || productForm.basePrice || 0),
         minYards: productForm.type === 'FABRIC' ? Number(productForm.minYards || 1) : undefined,
         stockYards: productForm.type === 'FABRIC' ? Number(productForm.stockYards || 0) : undefined,
-        image: productForm.image || undefined,
+        images: productForm.images,
       };
 
       let productId = editingProduct?.id;
@@ -648,12 +666,9 @@ export default function AdminProducts() {
                 placeholder="Product name"
                 className="px-3 py-2 border rounded-lg"
               />
-              <input
-                value={productForm.image}
-                onChange={(e) => setProductForm({ ...productForm, image: e.target.value })}
-                placeholder="Image URL"
-                className="px-3 py-2 border rounded-lg"
-              />
+              <div className="px-3 py-2 border rounded-lg text-sm text-gray-600 flex items-center">
+                Images: {productForm.images.length} selected (required {getImageRule(productForm.type).min}-{getImageRule(productForm.type).max})
+              </div>
             </div>
             <textarea
               value={productForm.description}
@@ -676,10 +691,31 @@ export default function AdminProducts() {
                   }}
                 />
               </label>
-              {productForm.image && (
-                <img src={productForm.image} alt="Preview" className="h-14 w-14 object-cover rounded-md border" />
-              )}
+              <span className="text-xs text-gray-500">
+                {`Required: ${getImageRule(productForm.type).min}-${getImageRule(productForm.type).max} images`}
+              </span>
             </div>
+            {productForm.images.length > 0 && (
+              <div className="grid grid-cols-4 gap-2">
+                {productForm.images.map((url, index) => (
+                  <div key={`${url}-${index}`} className="relative group">
+                    <img src={url} alt={`Product ${index + 1}`} className="h-16 w-full object-cover rounded-md border" />
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setProductForm((prev) => ({
+                          ...prev,
+                          images: prev.images.filter((_, idx) => idx !== index),
+                        }))
+                      }
+                      className="absolute -top-2 -right-2 bg-white rounded-full shadow p-0.5 text-red-600"
+                    >
+                      <XCircle className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="grid grid-cols-2 gap-3">
               {productForm.type === 'FABRIC' ? (

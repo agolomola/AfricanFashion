@@ -44,9 +44,11 @@ const navItems: Record<DashboardType, NavItem[]> = {
     { label: 'Products', href: '/admin/products', icon: Package },
     { label: 'Pricing Rules', href: '/admin/pricing', icon: DollarSign },
     { label: 'Orders', href: '/admin/orders', icon: ShoppingBag },
+    { label: 'Traffic Reports', href: '/admin/traffic', icon: Tag },
     { label: 'Banners', href: '/admin/banners', icon: ImageIcon },
     { label: 'Homepage', href: '/admin/homepage', icon: LayoutTemplate },
     { label: 'Homepage Sections', href: '/admin/homepage-sections', icon: LayoutGrid },
+    { label: 'Measurement Templates', href: '/admin/measurement-templates', icon: Ruler },
   ],
   seller: [
     { label: 'Dashboard', href: '/seller', icon: LayoutDashboard },
@@ -91,6 +93,12 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
   const items = navItems[userType] || [];
   const roleLabel = roleLabels[userType] || 'User';
   const displayName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User';
+  const viewStoreHref =
+    userType === 'seller' && user?.id
+      ? `/vendor/seller/${user.id}`
+      : userType === 'designer' && user?.id
+        ? `/vendor/designer/${user.id}`
+        : '/';
 
   const handleLogout = () => {
     logout();
@@ -184,7 +192,7 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
 
           <div className="flex items-center gap-4">
             <Link
-              to="/"
+              to={viewStoreHref}
               className="text-sm text-gray-600 hover:text-coral-500 transition-colors"
             >
               View Store

@@ -73,6 +73,7 @@ interface Activity {
 export default function DesignerDashboard() {
   const [stats, setStats] = useState<DesignerStats | null>(null);
   const [designs, setDesigns] = useState<Design[]>([]);
+  const [readyToWearProducts, setReadyToWearProducts] = useState<any[]>([]);
   const [orders, setOrders] = useState<DesignOrder[]>([]);
   const [activities, setActivities] = useState<Activity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,12 @@ export default function DesignerDashboard() {
   const [creatingDesign, setCreatingDesign] = useState(false);
   const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
   const [availableFabrics, setAvailableFabrics] = useState<Array<{ id: string; name: string }>>([]);
+  const [measurementTemplates, setMeasurementTemplates] = useState<
+    Array<{ name: string; unit?: string; isRequired?: boolean; instructions?: string }>
+  >([]);
+  const [selectedMeasurements, setSelectedMeasurements] = useState<string[]>([]);
+  const [stockDrafts, setStockDrafts] = useState<Record<string, Record<string, number>>>({});
+  const [savingStockProductId, setSavingStockProductId] = useState<string | null>(null);
   const [designImages, setDesignImages] = useState<File[]>([]);
   const [newDesign, setNewDesign] = useState({
     name: '',
@@ -88,7 +95,6 @@ export default function DesignerDashboard() {
     categoryId: '',
     basePrice: '',
   });
-  const [measurementText, setMeasurementText] = useState('Bust\nWaist\nHip\nLength');
   const [selectedFabrics, setSelectedFabrics] = useState<Record<string, number>>({});
   const [modalError, setModalError] = useState('');
   const location = useLocation();
@@ -128,6 +134,14 @@ export default function DesignerDashboard() {
           }));
           setAvailableFabrics(rows);
         }
+        const measurementRes = await api.designer.getMeasurementTemplates();
+        if (measurementRes.success) {
+          const templates = measurementRes.data || [];
+          setMeasurementTemplates(templates);
+          setSelectedMeasurements(
+            templates.filter((row: any) => row?.isRequired).map((row: any) => String(row?.name || ''))
+          );
+        }
       } catch (error) {
         console.error('Failed to load design form options:', error);
       }
@@ -137,15 +151,28 @@ export default function DesignerDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, designsRes, ordersRes] = await Promise.all([
+      const [statsRes, designsRes, ordersRes, readyToWearRes] = await Promise.all([
         api.designer.getStats(),
         api.designer.getDesigns(),
-        api.designer.getOrders()
+        api.designer.getOrders(),
+        api.designer.getReadyToWear(),
       ]);
       
       if (statsRes.success) setStats(statsRes.data);
       if (designsRes.success) setDesigns(designsRes.data);
       if (ordersRes.success) setOrders(ordersRes.data);
+      if (readyToWearRes.success) {
+        const rows = readyToWearRes.data || [];
+        setReadyToWearProducts(rows);
+        const drafts: Record<string, Record<string, number>> = {};
+        rows.forEach((product: any) => {
+          drafts[product.id] = {};
+          (product.sizeVariations || []).forEach((size: any) => {
+            drafts[product.id][size.id] = Number(size.stock || 0);
+          });
+        });
+        setStockDrafts(drafts);
+      }
       
       // Mock activities
       setActivities([
@@ -194,6 +221,23 @@ export default function DesignerDashboard() {
     }
   };
 
+  const handleUpdateReadyToWearStock = async (productId: string) => {
+    try {
+      setSavingStockProductId(productId);
+      const draft = stockDrafts[productId] || {};
+      const payload = Object.entries(draft).map(([id, stock]) => ({
+        id,
+        stock: Number(stock || 0),
+      }));
+      await api.designer.updateReadyToWearStock(productId, payload);
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to update ready-to-wear stock:', error);
+    } finally {
+      setSavingStockProductId(null);
+    }
+  };
+
   const pendingOrders = orders.filter(o => o.status === 'PENDING');
   const getOrderStatusVariant = (status: string) => {
     if (status === 'COMPLETED') return 'green';
@@ -211,7 +255,7 @@ export default function DesignerDashboard() {
       categoryId: '',
       basePrice: '',
     });
-    setMeasurementText('Bust\nWaist\nHip\nLength');
+    setSelectedMeasurements(measurementTemplates.filter((item) => item.isRequired).map((item) => item.name));
     setSelectedFabrics({});
     setDesignImages([]);
     setModalError('');
@@ -241,7 +285,11 @@ export default function DesignerDashboard() {
         return;
       }
       if (designImages.length === 0) {
-        setModalError('Please upload at least one design image.');
+        setModalError('Please upload between 4 and 6 design images.');
+        return;
+      }
+      if (designImages.length < 4 || designImages.length > 6) {
+        setModalError('Designs require 4-6 images.');
         return;
       }
       setCreatingDesign(true);
@@ -260,16 +308,18 @@ export default function DesignerDashboard() {
         return;
       }
 
-      const measurementVariables = measurementText
-        .split('\n')
-        .map((line) => line.trim())
-        .filter(Boolean)
-        .map((name) => ({
-          name,
-          unit: 'cm',
-          isRequired: true,
-          instructions: '',
+      const measurementVariables = measurementTemplates
+        .filter((template) => selectedMeasurements.includes(template.name))
+        .map((template) => ({
+          name: template.name,
+          unit: template.unit || 'cm',
+          isRequired: template.isRequired ?? true,
+          instructions: template.instructions || '',
         }));
+      if (measurementVariables.length === 0) {
+        setModalError('Please select at least one measurement variable.');
+        return;
+      }
 
       const suitableFabricIds = Object.entries(selectedFabrics).map(([fabricId, yardsNeeded]) => ({
         fabricId,
@@ -300,6 +350,25 @@ export default function DesignerDashboard() {
       setModalError(error?.response?.data?.message || 'Failed to create design.');
     } finally {
       setCreatingDesign(false);
+    }
+  };
+
+  const handleEditDesign = async (design: Design) => {
+    try {
+      const name = window.prompt('Design name:', design.name)?.trim();
+      if (!name) return;
+      const description = window.prompt('Description (min 10 chars):', '')?.trim();
+      if (!description || description.length < 10) {
+        setModalError('Description must be at least 10 characters.');
+        return;
+      }
+      await api.designer.updateDesign(design.id, {
+        name,
+        description,
+      });
+      await fetchDashboardData();
+    } catch (error) {
+      console.error('Failed to edit design:', error);
     }
   };
 
@@ -534,6 +603,9 @@ export default function DesignerDashboard() {
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
+                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditDesign(design)}>
+                      Edit
+                    </Button>
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/designs/${design.id}`)}>
                       <Eye className="w-4 h-4 mr-1" />
                       View
@@ -542,6 +614,57 @@ export default function DesignerDashboard() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-8 border-t pt-6">
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Ready-to-Wear Stock Management</h3>
+            <div className="space-y-4">
+              {readyToWearProducts.map((product) => (
+                <div key={product.id} className="rounded-lg border p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-gray-900">{product.name}</p>
+                      <p className="text-xs text-gray-500">{product.category?.name || 'Category not set'}</p>
+                    </div>
+                    <Badge variant={product.status === 'APPROVED' ? 'green' : 'yellow'}>{product.status}</Badge>
+                  </div>
+                  <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
+                    {(product.sizeVariations || []).map((size: any) => (
+                      <div key={size.id} className="rounded border p-2">
+                        <p className="text-xs text-gray-500 mb-1">Size {size.size}</p>
+                        <input
+                          type="number"
+                          min={0}
+                          value={stockDrafts[product.id]?.[size.id] ?? size.stock}
+                          onChange={(e) =>
+                            setStockDrafts((prev) => ({
+                              ...prev,
+                              [product.id]: {
+                                ...(prev[product.id] || {}),
+                                [size.id]: Number(e.target.value || 0),
+                              },
+                            }))
+                          }
+                          className="w-full rounded border px-2 py-1 text-sm"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                  <div className="mt-3">
+                    <Button
+                      size="sm"
+                      onClick={() => handleUpdateReadyToWearStock(product.id)}
+                      disabled={savingStockProductId === product.id}
+                    >
+                      {savingStockProductId === product.id ? 'Saving stock...' : 'Save stock'}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+              {readyToWearProducts.length === 0 && (
+                <p className="text-sm text-gray-500">No ready-to-wear products yet.</p>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -685,13 +808,36 @@ export default function DesignerDashboard() {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Measurement Variables (one per line)
+                  Measurement Variables *
                 </label>
-                <textarea
-                  value={measurementText}
-                  onChange={(e) => setMeasurementText(e.target.value)}
-                  className="w-full px-3 py-2 border rounded-lg h-28 resize-none"
-                />
+                <div className="max-h-40 overflow-auto border rounded-lg p-2 space-y-2">
+                  {measurementTemplates.map((item) => {
+                    const checked = selectedMeasurements.includes(item.name);
+                    return (
+                      <label key={item.name} className="flex items-start gap-2 p-2 hover:bg-gray-50 rounded text-sm">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={(e) => {
+                            setSelectedMeasurements((prev) =>
+                              e.target.checked
+                                ? Array.from(new Set([...prev, item.name]))
+                                : prev.filter((name) => name !== item.name)
+                            );
+                          }}
+                        />
+                        <span>
+                          <span className="font-medium text-gray-800">{item.name}</span>{' '}
+                          <span className="text-gray-500">({item.unit || 'cm'})</span>
+                          {item.isRequired ? <span className="ml-1 text-xs text-amber-700">required</span> : null}
+                        </span>
+                      </label>
+                    );
+                  })}
+                  {measurementTemplates.length === 0 && (
+                    <p className="text-xs text-gray-500">No templates configured yet by admin.</p>
+                  )}
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
@@ -734,6 +880,7 @@ export default function DesignerDashboard() {
                 {designImages.length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">{designImages.length} image(s) selected</p>
                 )}
+                <p className="text-xs text-gray-500 mt-1">Design image rule: minimum 4, maximum 6.</p>
               </div>
             </div>
 

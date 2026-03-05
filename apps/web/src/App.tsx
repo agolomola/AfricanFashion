@@ -18,6 +18,7 @@ import ReadyToWearDetail from './pages/ReadyToWearDetail';
 import TryOn from './pages/TryOn';
 import Cart from './pages/Cart';
 import Checkout from './pages/Checkout';
+import VendorStore from './pages/VendorStore';
 import Login from './pages/Login';
 import Register from './pages/Register';
 
@@ -36,6 +37,8 @@ import AdminPricingRules from './pages/admin/PricingRules';
 import AdminBanners from './pages/admin/Banners';
 import AdminHomepage from './pages/admin/Homepage';
 import AdminHomepageSections from './pages/admin/HomepageSections';
+import AdminTraffic from './pages/admin/Traffic';
+import AdminMeasurementTemplates from './pages/admin/MeasurementTemplates';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
@@ -84,6 +87,7 @@ function App() {
               <Route path="/ready-to-wear/:id" element={<ReadyToWearDetail />} />
               <Route path="/try-on/:id" element={<TryOn />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/vendor/:role/:userId" element={<VendorStore />} />
             </Route>
 
             {/* Auth Routes */}
@@ -118,9 +122,11 @@ function App() {
                 <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/orders/:id" element={<AdminOrders />} />
                 <Route path="/admin/pricing" element={<AdminPricingRules />} />
+                <Route path="/admin/traffic" element={<AdminTraffic />} />
                 <Route path="/admin/banners" element={<AdminBanners />} />
                 <Route path="/admin/homepage" element={<AdminHomepage />} />
                 <Route path="/admin/homepage-sections" element={<AdminHomepageSections />} />
+                <Route path="/admin/measurement-templates" element={<AdminMeasurementTemplates />} />
               </Route>
             </Route>
 
