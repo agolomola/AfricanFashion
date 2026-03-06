@@ -161,7 +161,9 @@ const currencyApi = {
   updateRules: (rules: Array<{ id: string; scopeType: 'COUNTRY' | 'USER' | 'ROLE'; scopeValue: string; currencies: string[] }>) =>
     apiService.put('/currency/admin/rules', { rules }),
 
-  refreshRates: () => apiService.post('/currency/admin/refresh'),
+  refreshRates: (preserveOverrides = true) => apiService.post('/currency/admin/refresh', { preserveOverrides }),
+
+  clearOverride: (countryCode: string) => apiService.delete(`/currency/admin/override/${countryCode}`),
 };
 
 // Products API

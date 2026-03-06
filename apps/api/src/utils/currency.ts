@@ -155,19 +155,26 @@ export async function getCurrencyOverrides() {
   return sanitizeOverrides((overridesLog?.details as any)?.overrides);
 }
 
+export async function saveCurrencyOverridesMap(
+  userId: string,
+  overrides: Record<string, AfricanCurrencyRow>
+) {
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: OVERRIDES_ACTION,
+      details: { overrides } as any,
+    },
+  });
+}
+
 export async function upsertCurrencyOverride(userId: string, row: AfricanCurrencyRow) {
   const current = await getCurrencyOverrides();
   const next = {
     ...current,
     [row.countryCode.toUpperCase()]: row,
   };
-  await prisma.activityLog.create({
-    data: {
-      userId,
-      action: OVERRIDES_ACTION,
-      details: { overrides: next } as any,
-    },
-  });
+  await saveCurrencyOverridesMap(userId, next);
 }
 
 export function applyOverridesToMatrix(

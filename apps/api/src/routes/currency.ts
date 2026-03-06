@@ -17,6 +17,7 @@ import {
   mapCountryToBaseline,
   refreshMatrixFromThirdParty,
   saveCurrencyMatrix,
+  saveCurrencyOverridesMap,
   saveCurrencyRules,
   upsertCurrencyOverride,
 } from '../utils/currency';
@@ -191,19 +192,69 @@ router.put('/admin/rules', authenticate, authorizePermissions(Permissions.ADMIN_
 
 router.post('/admin/refresh', authenticate, authorizePermissions(Permissions.ADMIN_ACCESS), async (req, res, next) => {
   try {
+    const schema = z.object({
+      preserveOverrides: z.boolean().optional().default(true),
+    });
+    const { preserveOverrides } = schema.parse(req.body || {});
+
     const [{ matrix }, overrides] = await Promise.all([getCurrencyState(), getCurrencyOverrides()]);
     const refreshed = await refreshMatrixFromThirdParty(matrix);
-    const merged = applyOverridesToMatrix(refreshed, overrides);
+    const merged = preserveOverrides ? applyOverridesToMatrix(refreshed, overrides) : refreshed;
     await saveCurrencyMatrix(req.user!.id, merged, { source: 'provider' });
+    if (!preserveOverrides) {
+      await saveCurrencyOverridesMap(req.user!.id, {});
+    }
     res.json({
       success: true,
-      message: 'Exchange rates refreshed from provider.',
+      message: preserveOverrides
+        ? 'Exchange rates refreshed from provider. Admin overrides were preserved.'
+        : 'Exchange rates refreshed from provider. Admin overrides were cleared.',
       data: merged,
     });
   } catch (error) {
     next(error);
   }
 });
+
+router.delete(
+  '/admin/override/:countryCode',
+  authenticate,
+  authorizePermissions(Permissions.ADMIN_ACCESS),
+  async (req, res, next) => {
+    try {
+      const countryCode = String(req.params.countryCode || '').toUpperCase();
+      if (!countryCode) {
+        return res.status(400).json({
+          success: false,
+          message: 'countryCode is required.',
+        });
+      }
+
+      const [{ matrix }, overrides] = await Promise.all([getCurrencyState(), getCurrencyOverrides()]);
+      const nextOverrides = { ...overrides };
+      delete nextOverrides[countryCode];
+
+      const refreshed = await refreshMatrixFromThirdParty(matrix);
+      const merged = applyOverridesToMatrix(refreshed, nextOverrides);
+
+      await Promise.all([
+        saveCurrencyOverridesMap(req.user!.id, nextOverrides),
+        saveCurrencyMatrix(req.user!.id, merged, { source: 'provider' }),
+      ]);
+
+      res.json({
+        success: true,
+        message: `Override cleared for ${countryCode}. Provider rate restored.`,
+        data: {
+          countryCode,
+          hasOverride: false,
+        },
+      });
+    } catch (error) {
+      next(error);
+    }
+  }
+);
 
 router.post('/admin/preview-convert', authenticate, authorizePermissions(Permissions.ADMIN_ACCESS), async (req, res, next) => {
   try {

@@ -105,20 +105,38 @@ export default function AdminCurrencyMatrix() {
             Manage African country exchange rates (to USD) and vendor multi-currency permissions.
           </p>
         </div>
-        <Button
-          onClick={async () => {
-            setSaving(true);
-            try {
-              await api.currency.refreshRates();
-              await load();
-            } finally {
-              setSaving(false);
-            }
-          }}
-          disabled={saving}
-        >
-          Refresh From Provider
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={async () => {
+              setSaving(true);
+              try {
+                await api.currency.refreshRates(true);
+                await load();
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+          >
+            Refresh (Keep Overrides)
+          </Button>
+          <Button
+            variant="outline"
+            onClick={async () => {
+              if (!window.confirm('Clear all admin currency overrides and restore provider rates?')) return;
+              setSaving(true);
+              try {
+                await api.currency.refreshRates(false);
+                await load();
+              } finally {
+                setSaving(false);
+              }
+            }}
+            disabled={saving}
+          >
+            Refresh & Clear Overrides
+          </Button>
+        </div>
       </div>
 
       {health && (
@@ -219,19 +237,38 @@ export default function AdminCurrencyMatrix() {
                     />
                   </td>
                   <td className="py-2">
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={async () => {
-                        try {
-                          await api.currency.updateCountryRate(row);
-                        } catch (err: any) {
-                          setError(err?.response?.data?.message || 'Failed to update country rate.');
-                        }
-                      }}
-                    >
-                      Save
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={async () => {
+                          try {
+                            await api.currency.updateCountryRate(row);
+                            await load();
+                          } catch (err: any) {
+                            setError(err?.response?.data?.message || 'Failed to update country rate.');
+                          }
+                        }}
+                      >
+                        Save
+                      </Button>
+                      {isAdminOverride && (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={async () => {
+                            try {
+                              await api.currency.clearOverride(row.countryCode);
+                              await load();
+                            } catch (err: any) {
+                              setError(err?.response?.data?.message || 'Failed to clear override.');
+                            }
+                          }}
+                        >
+                          Use Provider
+                        </Button>
+                      )}
+                    </div>
                   </td>
                 </tr>
                 );
