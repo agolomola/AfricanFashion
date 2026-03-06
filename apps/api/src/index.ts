@@ -92,11 +92,31 @@ startCurrencyAutoSync();
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
-  const statusCode = err.status || 500;
+  const prismaCode = typeof err?.code === 'string' ? err.code : '';
+  const mappedStatusFromPrisma =
+    prismaCode === 'P2002'
+      ? 409
+      : prismaCode === 'P2003' || prismaCode === 'P2014'
+        ? 400
+        : prismaCode === 'P2025'
+          ? 404
+          : undefined;
+  const statusCode = err.status || mappedStatusFromPrisma || 500;
   const isClientError = statusCode >= 400 && statusCode < 500;
-  res.status(err.status || 500).json({
+  const prismaField = err?.meta?.field_name || err?.meta?.target;
+  const prismaMessage =
+    prismaCode === 'P2002'
+      ? `Duplicate value for ${Array.isArray(prismaField) ? prismaField.join(', ') : prismaField || 'a unique field'}.`
+      : prismaCode === 'P2003'
+        ? `Invalid reference for ${Array.isArray(prismaField) ? prismaField.join(', ') : prismaField || 'related field'}.`
+        : prismaCode === 'P2014'
+          ? 'Relationship constraint failed for related records.'
+          : prismaCode === 'P2025'
+            ? 'Requested record was not found.'
+            : null;
+  res.status(statusCode).json({
     success: false,
-    message: isClientError ? (err.message || 'Request failed') : 'Internal server error',
+    message: isClientError ? (prismaMessage || err.message || 'Request failed') : 'Internal server error',
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });
