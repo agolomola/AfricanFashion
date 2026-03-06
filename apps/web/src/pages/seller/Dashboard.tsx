@@ -277,8 +277,34 @@ export default function SellerDashboard() {
   const handleCreateFabric = async () => {
     try {
       setModalError('');
-      if (!newFabric.name || !newFabric.description || !newFabric.materialTypeId || !newFabric.sellerPrice) {
+      const trimmedName = newFabric.name.trim();
+      const trimmedDescription = newFabric.description.trim();
+      const sellerPrice = Number(newFabric.sellerPrice);
+      const minYards = Number(newFabric.minYards);
+      const stockYards = Number(newFabric.stockYards);
+
+      if (!trimmedName || !trimmedDescription || !newFabric.materialTypeId || !newFabric.sellerPrice) {
         setModalError('Please fill all required fields.');
+        return;
+      }
+      if (trimmedName.length < 2) {
+        setModalError('Fabric name must be at least 2 characters.');
+        return;
+      }
+      if (trimmedDescription.length < 10) {
+        setModalError('Description must be at least 10 characters.');
+        return;
+      }
+      if (!Number.isFinite(sellerPrice) || sellerPrice <= 0) {
+        setModalError('Seller base price must be greater than 0.');
+        return;
+      }
+      if (!Number.isFinite(minYards) || minYards < 1) {
+        setModalError('Minimum order quantity must be at least 1 yard.');
+        return;
+      }
+      if (!Number.isFinite(stockYards) || stockYards < 0) {
+        setModalError('Available stock cannot be negative.');
         return;
       }
       if (newFabricImages.length < 3 || newFabricImages.length > 4) {
@@ -303,13 +329,13 @@ export default function SellerDashboard() {
       }
 
       const createResponse = await api.seller.createFabric({
-        name: newFabric.name.trim(),
-        description: newFabric.description.trim(),
+        name: trimmedName,
+        description: trimmedDescription,
         materialTypeId: newFabric.materialTypeId,
-        sellerPrice: Number(newFabric.sellerPrice),
+        sellerPrice,
         currencyCode: newFabric.currencyCode || defaultCurrency || 'USD',
-        minYards: Number(newFabric.minYards),
-        stockYards: Number(newFabric.stockYards),
+        minYards,
+        stockYards,
         images: uploadedImages,
       });
 

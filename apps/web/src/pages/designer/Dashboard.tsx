@@ -295,8 +295,23 @@ export default function DesignerDashboard() {
   const handleCreateDesign = async () => {
     try {
       setModalError('');
-      if (!newDesign.name || !newDesign.description || !newDesign.categoryId || !newDesign.basePrice) {
+      const trimmedName = newDesign.name.trim();
+      const trimmedDescription = newDesign.description.trim();
+      const basePrice = Number(newDesign.basePrice);
+      if (!trimmedName || !trimmedDescription || !newDesign.categoryId || !newDesign.basePrice) {
         setModalError('Please fill all required fields.');
+        return;
+      }
+      if (trimmedName.length < 2) {
+        setModalError('Design name must be at least 2 characters.');
+        return;
+      }
+      if (trimmedDescription.length < 10) {
+        setModalError('Description must be at least 10 characters.');
+        return;
+      }
+      if (!Number.isFinite(basePrice) || basePrice <= 0) {
+        setModalError('Base price must be greater than 0.');
         return;
       }
       if (designImages.length === 0) {
@@ -342,10 +357,10 @@ export default function DesignerDashboard() {
       }));
 
       const response = await api.designer.createDesign({
-        name: newDesign.name.trim(),
-        description: newDesign.description.trim(),
+        name: trimmedName,
+        description: trimmedDescription,
         categoryId: newDesign.categoryId,
-        basePrice: Number(newDesign.basePrice),
+        basePrice,
         currencyCode: listingCurrency || defaultCurrency || 'USD',
         suitableFabricIds,
         measurementVariables,
@@ -363,7 +378,12 @@ export default function DesignerDashboard() {
       navigateToTab('designs');
     } catch (error: any) {
       console.error('Failed to create design:', error);
-      setModalError(error?.response?.data?.message || 'Failed to create design.');
+      const firstIssue = error?.response?.data?.errors?.[0];
+      const issuePath = Array.isArray(firstIssue?.path) ? firstIssue.path.join('.') : '';
+      const issueMessage = firstIssue?.message
+        ? `${issuePath ? `${issuePath}: ` : ''}${firstIssue.message}`
+        : '';
+      setModalError(issueMessage || error?.response?.data?.message || 'Failed to create design.');
     } finally {
       setCreatingDesign(false);
     }

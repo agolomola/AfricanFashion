@@ -23,6 +23,23 @@ const DESIGN_IMAGE_MAX = 6;
 const RTW_IMAGE_MIN = 4;
 const RTW_IMAGE_MAX = 6;
 
+const uploadedImageSchema = z
+  .union([
+    z.string().trim().min(1),
+    z.object({
+      url: z.string().trim().min(1),
+      alt: z.string().optional(),
+    }),
+  ])
+  .transform((value) =>
+    typeof value === 'string'
+      ? {
+          url: value,
+          alt: undefined,
+        }
+      : value
+  );
+
 function percentageChange(currentValue: number, previousValue: number) {
   if (previousValue === 0) {
     return currentValue > 0 ? 100 : 0;
@@ -303,11 +320,11 @@ router.post('/designs', async (req, res, next) => {
       name: z.string().min(2),
       description: z.string().min(10),
       categoryId: z.string().uuid(),
-      basePrice: z.number().positive(),
+      basePrice: z.coerce.number().positive(),
       currencyCode: z.string().min(3).optional(),
       suitableFabricIds: z.array(z.object({
         fabricId: z.string().uuid(),
-        yardsNeeded: z.number().min(1),
+        yardsNeeded: z.coerce.number().min(1),
       })),
       measurementVariables: z.array(z.object({
         name: z.string(),
@@ -315,10 +332,7 @@ router.post('/designs', async (req, res, next) => {
         isRequired: z.boolean().default(true),
         instructions: z.string().optional(),
       })).min(1),
-      images: z.array(z.object({
-        url: z.string().url(),
-        alt: z.string().optional(),
-      })).min(DESIGN_IMAGE_MIN).max(DESIGN_IMAGE_MAX),
+      images: z.array(uploadedImageSchema).min(DESIGN_IMAGE_MIN).max(DESIGN_IMAGE_MAX),
     });
 
     const data = schema.parse(req.body);
@@ -419,6 +433,15 @@ router.post('/designs', async (req, res, next) => {
       data: design,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid design payload.',
+        errors: error.issues,
+      });
+    }
     next(error);
   }
 });
@@ -429,13 +452,13 @@ router.patch('/designs/:id', async (req, res, next) => {
       name: z.string().min(2).optional(),
       description: z.string().min(10).optional(),
       categoryId: z.string().uuid().optional(),
-      basePrice: z.number().positive().optional(),
+      basePrice: z.coerce.number().positive().optional(),
       currencyCode: z.string().min(3).optional(),
       suitableFabricIds: z
         .array(
           z.object({
             fabricId: z.string().uuid(),
-            yardsNeeded: z.number().min(1),
+            yardsNeeded: z.coerce.number().min(1),
           })
         )
         .optional(),
@@ -451,12 +474,7 @@ router.patch('/designs/:id', async (req, res, next) => {
         .min(1)
         .optional(),
       images: z
-        .array(
-          z.object({
-            url: z.string().url(),
-            alt: z.string().optional(),
-          })
-        )
+        .array(uploadedImageSchema)
         .min(DESIGN_IMAGE_MIN)
         .max(DESIGN_IMAGE_MAX)
         .optional(),
@@ -576,6 +594,15 @@ router.patch('/designs/:id', async (req, res, next) => {
       data: updated,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid design payload.',
+        errors: error.issues,
+      });
+    }
     next(error);
   }
 });
@@ -643,17 +670,14 @@ router.post('/ready-to-wear', async (req, res, next) => {
       name: z.string().min(2),
       description: z.string().min(10),
       categoryId: z.string().uuid(),
-      basePrice: z.number().positive(),
+      basePrice: z.coerce.number().positive(),
       currencyCode: z.string().min(3).optional(),
       sizes: z.array(z.object({
         size: z.string(),
-        price: z.number().positive(),
-        stock: z.number().min(0),
+        price: z.coerce.number().positive(),
+        stock: z.coerce.number().int().min(0),
       })).min(1),
-      images: z.array(z.object({
-        url: z.string().url(),
-        alt: z.string().optional(),
-      })).min(RTW_IMAGE_MIN).max(RTW_IMAGE_MAX),
+      images: z.array(uploadedImageSchema).min(RTW_IMAGE_MIN).max(RTW_IMAGE_MAX),
     });
 
     const data = schema.parse(req.body);
@@ -729,6 +753,15 @@ router.post('/ready-to-wear', async (req, res, next) => {
       data: product,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid ready-to-wear payload.',
+        errors: error.issues,
+      });
+    }
     next(error);
   }
 });
@@ -739,25 +772,20 @@ router.patch('/ready-to-wear/:id', async (req, res, next) => {
       name: z.string().min(2).optional(),
       description: z.string().min(10).optional(),
       categoryId: z.string().uuid().optional(),
-      basePrice: z.number().positive().optional(),
+      basePrice: z.coerce.number().positive().optional(),
       currencyCode: z.string().min(3).optional(),
       sizes: z
         .array(
           z.object({
             size: z.string(),
-            price: z.number().positive(),
-            stock: z.number().int().min(0),
+            price: z.coerce.number().positive(),
+            stock: z.coerce.number().int().min(0),
           })
         )
         .min(1)
         .optional(),
       images: z
-        .array(
-          z.object({
-            url: z.string().url(),
-            alt: z.string().optional(),
-          })
-        )
+        .array(uploadedImageSchema)
         .min(RTW_IMAGE_MIN)
         .max(RTW_IMAGE_MAX)
         .optional(),
@@ -863,6 +891,15 @@ router.patch('/ready-to-wear/:id', async (req, res, next) => {
       data: updated,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid ready-to-wear payload.',
+        errors: error.issues,
+      });
+    }
     next(error);
   }
 });

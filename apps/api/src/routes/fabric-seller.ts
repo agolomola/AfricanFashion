@@ -22,6 +22,23 @@ router.use(authorizePermissions(Permissions.SELLER_ACCESS));
 const FABRIC_IMAGE_MIN = 3;
 const FABRIC_IMAGE_MAX = 4;
 
+const uploadedImageSchema = z
+  .union([
+    z.string().trim().min(1),
+    z.object({
+      url: z.string().trim().min(1),
+      alt: z.string().optional(),
+    }),
+  ])
+  .transform((value) =>
+    typeof value === 'string'
+      ? {
+          url: value,
+          alt: undefined,
+        }
+      : value
+  );
+
 function percentageChange(currentValue: number, previousValue: number) {
   if (previousValue === 0) {
     return currentValue > 0 ? 100 : 0;
@@ -286,19 +303,11 @@ router.post('/fabrics', async (req, res, next) => {
       name: z.string().min(2),
       description: z.string().min(10),
       materialTypeId: z.string().uuid(),
-      sellerPrice: z.number().positive(),
+      sellerPrice: z.coerce.number().positive(),
       currencyCode: z.string().min(3).optional(),
-      minYards: z.number().min(1),
-      stockYards: z.number().min(0),
-      images: z
-        .array(
-          z.object({
-            url: z.string().url(),
-            alt: z.string().optional(),
-          })
-        )
-        .min(FABRIC_IMAGE_MIN)
-        .max(FABRIC_IMAGE_MAX),
+      minYards: z.coerce.number().int().min(1),
+      stockYards: z.coerce.number().int().min(0),
+      images: z.array(uploadedImageSchema).min(FABRIC_IMAGE_MIN).max(FABRIC_IMAGE_MAX),
     });
 
     const data = schema.parse(req.body);
@@ -378,6 +387,15 @@ router.post('/fabrics', async (req, res, next) => {
       data: fabric,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid fabric payload.',
+        errors: error.issues,
+      });
+    }
     next(error);
   }
 });
@@ -389,17 +407,12 @@ router.patch('/fabrics/:id', async (req, res, next) => {
       name: z.string().min(2).optional(),
       description: z.string().min(10).optional(),
       materialTypeId: z.string().uuid().optional(),
-      sellerPrice: z.number().positive().optional(),
+      sellerPrice: z.coerce.number().positive().optional(),
       currencyCode: z.string().min(3).optional(),
-      minYards: z.number().int().min(1).optional(),
-      stockYards: z.number().int().min(0).optional(),
+      minYards: z.coerce.number().int().min(1).optional(),
+      stockYards: z.coerce.number().int().min(0).optional(),
       images: z
-        .array(
-          z.object({
-            url: z.string().url(),
-            alt: z.string().optional(),
-          })
-        )
+        .array(uploadedImageSchema)
         .min(FABRIC_IMAGE_MIN)
         .max(FABRIC_IMAGE_MAX)
         .optional(),
@@ -496,6 +509,15 @@ router.patch('/fabrics/:id', async (req, res, next) => {
       data: updated,
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid fabric payload.',
+        errors: error.issues,
+      });
+    }
     next(error);
   }
 });

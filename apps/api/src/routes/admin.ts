@@ -87,6 +87,16 @@ const productFeaturedSchema = z.object({
   displayOrder: z.coerce.number().int().min(0).optional(),
 });
 
+const productImageInputSchema = z
+  .union([
+    z.string().trim().min(1),
+    z.object({
+      url: z.string().trim().min(1),
+      alt: z.string().optional(),
+    }),
+  ])
+  .transform((value) => (typeof value === 'string' ? value : value.url));
+
 const adminProductCreateSchema = z.object({
   type: adminProductTypeSchema,
   ownerUserId: z.string().uuid(),
@@ -100,7 +110,7 @@ const adminProductCreateSchema = z.object({
   finalPrice: z.coerce.number().positive().optional(),
   minYards: z.coerce.number().int().min(1).optional(),
   stockYards: z.coerce.number().int().min(0).optional(),
-  images: z.array(z.string().url()).optional(),
+  images: z.array(productImageInputSchema).optional(),
 });
 
 const adminProductUpdateSchema = z.object({
@@ -114,7 +124,7 @@ const adminProductUpdateSchema = z.object({
   finalPrice: z.coerce.number().positive().optional(),
   minYards: z.coerce.number().int().min(1).optional(),
   stockYards: z.coerce.number().int().min(0).optional(),
-  images: z.array(z.string().url()).optional(),
+  images: z.array(productImageInputSchema).optional(),
 });
 
 const bulkModerationSchema = z.object({
@@ -1395,9 +1405,11 @@ router.post('/products', async (req, res, next) => {
     res.status(201).json({ success: true, message: 'Ready-to-wear product created.', data: created });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
       return res.status(400).json({
         success: false,
-        message: 'Invalid product payload.',
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid product payload.',
         errors: error.issues,
       });
     }
@@ -1501,9 +1513,11 @@ router.patch('/products/:productType/:id', async (req, res, next) => {
     res.json({ success: true, message: 'Ready-to-wear updated successfully.', data: updated });
   } catch (error) {
     if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
       return res.status(400).json({
         success: false,
-        message: 'Invalid product payload.',
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid product payload.',
         errors: error.issues,
       });
     }

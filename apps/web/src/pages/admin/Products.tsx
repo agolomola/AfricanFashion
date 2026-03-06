@@ -215,8 +215,28 @@ export default function AdminProducts() {
     try {
       setSavingProduct(true);
       setFormError('');
-      if (!productForm.name || !productForm.description || !productForm.ownerUserId) {
+      const trimmedName = productForm.name.trim();
+      const trimmedDescription = productForm.description.trim();
+      const basePrice = Number(productForm.basePrice);
+      const finalPrice = Number(productForm.finalPrice || productForm.basePrice);
+      if (!trimmedName || !trimmedDescription || !productForm.ownerUserId) {
         setFormError('Please fill owner, name, and description.');
+        return;
+      }
+      if (trimmedName.length < 2) {
+        setFormError('Product name must be at least 2 characters.');
+        return;
+      }
+      if (trimmedDescription.length < 10) {
+        setFormError('Description must be at least 10 characters.');
+        return;
+      }
+      if (!Number.isFinite(basePrice) || basePrice <= 0) {
+        setFormError('Base price must be greater than 0.');
+        return;
+      }
+      if (!Number.isFinite(finalPrice) || finalPrice <= 0) {
+        setFormError('Final price must be greater than 0.');
         return;
       }
       if (productForm.type === 'FABRIC' && !productForm.materialTypeId) {
@@ -240,14 +260,14 @@ export default function AdminProducts() {
       const payload = {
         type: productForm.type,
         ownerUserId: productForm.ownerUserId,
-        name: productForm.name.trim(),
-        description: productForm.description.trim(),
+        name: trimmedName,
+        description: trimmedDescription,
         status: productForm.status,
         isAvailable: productForm.isAvailable,
         materialTypeId: productForm.type === 'FABRIC' ? productForm.materialTypeId : undefined,
         categoryId: productForm.type !== 'FABRIC' ? productForm.categoryId : undefined,
-        basePrice: Number(productForm.basePrice || 0),
-        finalPrice: Number(productForm.finalPrice || productForm.basePrice || 0),
+        basePrice,
+        finalPrice,
         minYards: productForm.type === 'FABRIC' ? Number(productForm.minYards || 1) : undefined,
         stockYards: productForm.type === 'FABRIC' ? Number(productForm.stockYards || 0) : undefined,
         images: productForm.images,
@@ -271,7 +291,12 @@ export default function AdminProducts() {
       setShowProductModal(false);
       await fetchProducts();
     } catch (error: any) {
-      setFormError(error?.response?.data?.message || 'Failed to save product.');
+      const firstIssue = error?.response?.data?.errors?.[0];
+      const issuePath = Array.isArray(firstIssue?.path) ? firstIssue.path.join('.') : '';
+      const issueMessage = firstIssue?.message
+        ? `${issuePath ? `${issuePath}: ` : ''}${firstIssue.message}`
+        : '';
+      setFormError(issueMessage || error?.response?.data?.message || 'Failed to save product.');
     } finally {
       setSavingProduct(false);
     }
