@@ -9,14 +9,10 @@ const router = Router();
 router.use(async (_req, res, next) => {
   try {
     await ensureBannerSchema();
-    next();
   } catch (error) {
     console.error('Failed to ensure banner schema:', error);
-    res.status(503).json({
-      success: false,
-      message: 'Banner storage is not initialized. Please retry in a few moments.',
-    });
   }
+  next();
 });
 
 // Get all banners (public - for frontend display)

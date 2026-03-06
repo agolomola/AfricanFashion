@@ -20,14 +20,10 @@ const AUTO_FEATURED_LIMIT = 6;
 router.use(async (_req, res, next) => {
   try {
     await ensureHomepageSchema();
-    next();
   } catch (error) {
     console.error('Failed to ensure homepage schema:', error);
-    res.status(503).json({
-      success: false,
-      message: 'Homepage data storage is not initialized. Please retry in a few moments.',
-    });
   }
+  next();
 });
 
 function isFeaturedTableMissingError(error: any) {
