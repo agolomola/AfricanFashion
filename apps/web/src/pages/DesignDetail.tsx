@@ -10,8 +10,7 @@ import {
   ShoppingBag,
   Eye,
   ChevronLeft,
-  ChevronRight,
-  Check
+  ChevronRight
 } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
 import { useAuthStore } from '../store/authStore';
@@ -227,7 +226,7 @@ export default function DesignDetail() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-coral-500"></div>
       </div>
     );
   }
@@ -251,7 +250,7 @@ export default function DesignDetail() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <button 
             onClick={() => navigate('/designs')}
-            className="flex items-center text-gray-600 hover:text-amber-600 transition-colors"
+            className="flex items-center text-gray-600 hover:text-coral-500 transition-colors"
           >
             <ChevronLeft className="w-4 h-4 mr-1" />
             Back to Designs
@@ -301,7 +300,7 @@ export default function DesignDetail() {
                     key={idx}
                     onClick={() => setSelectedImage(idx)}
                     className={`flex-shrink-0 w-20 h-20 overflow-hidden border-2 transition-colors ${
-                      selectedImage === idx ? 'border-amber-600' : 'border-transparent'
+                      selectedImage === idx ? 'border-coral-500' : 'border-transparent'
                     }`}
                   >
                     <img src={img} alt="" className="w-full h-full object-cover" />
@@ -331,7 +330,7 @@ export default function DesignDetail() {
               <h1 className="text-3xl font-bold text-gray-900 mb-2">{design.name}</h1>
               <div className="flex items-center gap-4 text-sm">
                 <div className="flex items-center gap-1">
-                  <Star className="w-4 h-4 fill-amber-400 text-amber-400" />
+                  <Star className="w-4 h-4 fill-coral-500 text-coral-500" />
                   <span className="font-medium">{design.rating.toFixed(1)}</span>
                   <span className="text-gray-500">({design.reviewCount} reviews)</span>
                 </div>
@@ -341,9 +340,9 @@ export default function DesignDetail() {
             </div>
 
             {/* Designer Info */}
-            <div className="flex items-center gap-4 p-4 bg-white rounded-xl border">
-              <div className="w-14 h-14 bg-amber-100 rounded-full flex items-center justify-center">
-                <span className="text-xl font-bold text-amber-700">
+            <div className="flex items-center gap-4 p-4 bg-white rounded-xl border border-gray-200">
+              <div className="w-14 h-14 bg-coral-100 rounded-full flex items-center justify-center">
+                <span className="text-xl font-bold text-coral-600">
                   {design.designer.businessName.charAt(0)}
                 </span>
               </div>
@@ -358,9 +357,9 @@ export default function DesignDetail() {
             </div>
 
             {/* Price */}
-            <div className="p-4 bg-amber-50 rounded-xl">
+            <div className="p-4 bg-coral-50 rounded-xl border border-coral-100">
               <div className="flex items-baseline gap-2">
-                <span className="text-3xl font-bold text-amber-700">
+                <span className="text-3xl font-bold text-coral-600">
                   {formatFromUsd(calculateTotal())}
                 </span>
                 <span className="text-gray-500">total price</span>
@@ -378,12 +377,12 @@ export default function DesignDetail() {
                     key={tab}
                     onClick={() => setActiveTab(tab)}
                     className={`pb-3 text-sm font-medium capitalize transition-colors relative ${
-                      activeTab === tab ? 'text-amber-600' : 'text-gray-500 hover:text-gray-700'
+                      activeTab === tab ? 'text-coral-500' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     {tab}
                     {activeTab === tab && (
-                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />
+                      <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-coral-500" />
                     )}
                   </button>
                 ))}
@@ -397,14 +396,14 @@ export default function DesignDetail() {
                   <p className="text-gray-600 leading-relaxed">{design.description}</p>
                   <div className="grid grid-cols-2 gap-4">
                     <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
-                      <Shirt className="w-5 h-5 text-amber-600" />
+                      <Shirt className="w-5 h-5 text-coral-500" />
                       <div>
                         <p className="text-sm font-medium">Custom Made</p>
                         <p className="text-xs text-gray-500">To your measurements</p>
                       </div>
                     </div>
                     <div className="flex items-center gap-3 p-3 bg-white rounded-lg border">
-                      <Ruler className="w-5 h-5 text-amber-600" />
+                      <Ruler className="w-5 h-5 text-coral-500" />
                       <div>
                         <p className="text-sm font-medium">Perfect Fit</p>
                         <p className="text-xs text-gray-500">Guaranteed fit policy</p>
@@ -426,8 +425,8 @@ export default function DesignDetail() {
                         onClick={() => setSelectedFabric(fabric.id)}
                         className={`p-4 rounded-xl border-2 cursor-pointer transition-all ${
                           selectedFabric === fabric.id 
-                            ? 'border-amber-600 bg-amber-50' 
-                            : 'border-gray-200 hover:border-amber-300'
+                            ? 'border-coral-500 bg-coral-50' 
+                            : 'border-gray-200 hover:border-coral-300'
                         }`}
                       >
                         <div className="flex gap-4">
@@ -444,7 +443,7 @@ export default function DesignDetail() {
                                 <p className="text-sm text-gray-500">{fabric.seller.country}</p>
                               </div>
                               <div className="text-right">
-                                <p className="font-semibold text-amber-700">
+                                <p className="font-semibold text-coral-600">
                                   {formatFromUsd(fabric.pricePerMeter)}/meter
                                 </p>
                                 <p className="text-xs text-gray-500">
@@ -453,7 +452,7 @@ export default function DesignDetail() {
                               </div>
                             </div>
                             {selectedFabric === fabric.id && (
-                              <div className="mt-3 pt-3 border-t border-amber-200">
+                              <div className="mt-3 pt-3 border-t border-coral-200">
                                 <label className="text-sm font-medium text-gray-700">
                                   Meters: {fabricMeters[fabric.id]}
                                 </label>
@@ -487,7 +486,7 @@ export default function DesignDetail() {
                     </p>
                     <button
                       onClick={() => setShowMeasurementModal(true)}
-                      className="text-sm text-amber-600 hover:text-amber-700 font-medium"
+                      className="text-sm text-coral-500 hover:text-coral-600 font-medium"
                     >
                       How to measure?
                     </button>
@@ -506,7 +505,7 @@ export default function DesignDetail() {
                             value={measurements[measurement.name] || ''}
                             onChange={(e) => handleMeasurementChange(measurement.name, parseFloat(e.target.value))}
                             placeholder={measurement.description}
-                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-amber-500 focus:border-transparent"
+                            className="w-full px-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-coral-500 focus:border-transparent"
                           />
                           <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-gray-400">
                             {measurement.unit}
@@ -541,7 +540,7 @@ export default function DesignDetail() {
             </div>
 
             {!selectedFabric && (
-              <p className="text-sm text-amber-600 text-center">
+              <p className="text-sm text-coral-500 text-center">
                 Please select a fabric to continue
               </p>
             )}
@@ -573,7 +572,7 @@ export default function DesignDetail() {
                   <div key={m.name} className="p-4 bg-gray-50 rounded-lg">
                     <h4 className="font-semibold mb-1">{m.name}</h4>
                     <p className="text-sm text-gray-600">{m.description}</p>
-                    <p className="text-sm text-amber-600 mt-1">Unit: {m.unit}</p>
+                    <p className="text-sm text-coral-500 mt-1">Unit: {m.unit}</p>
                   </div>
                 ))}
               </div>
