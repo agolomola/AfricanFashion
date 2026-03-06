@@ -5,6 +5,7 @@ import { AdjustmentType, FeaturedSection, PricingRuleType, ProductTypeForPricing
 import { prisma, UserRole, UserStatus, ProductStatus, OrderStatus, ProductType, VendorProfileStatus } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
+import { ensureHomepageSchema } from '../utils/frontpage-schema';
 import {
   getVendorProfileFields,
   normalizeVendorProfileFieldInput,
@@ -226,6 +227,25 @@ function isFeaturedTableMissingError(error: any) {
   const table = String(error?.meta?.table || '');
   const message = String(error?.message || '');
   return error?.code === 'P2021' && (table.includes('FeaturedProduct') || message.includes('FeaturedProduct'));
+}
+
+function isFeaturedUnavailableError(error: any) {
+  const code = String(error?.code || '');
+  const table = String(error?.meta?.table || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  if (isFeaturedTableMissingError(error)) return true;
+  if (code === 'P2022') return true; // column missing
+  if (code === '42804') return true; // postgres datatype mismatch
+  if (code === '22P02') return true; // invalid enum cast/input
+
+  if (table.includes('featuredproduct')) return true;
+  if (message.includes('featuredproduct')) return true;
+  if (message.includes('featuredsection')) return true;
+  if (message.includes('producttype')) return true;
+  if (message.includes('enum') && message.includes('featured')) return true;
+
+  return false;
 }
 
 function getPrismaValidationErrorMessage(error: any) {
@@ -1521,6 +1541,7 @@ router.patch('/users/:id/status', async (req, res, next) => {
 
 router.get('/products', async (req, res, next) => {
   try {
+    await ensureHomepageSchema();
     const requestedType = req.query.type ? adminProductTypeSchema.parse(String(req.query.type)) : null;
     const requestedStatus = req.query.status ? z.nativeEnum(ProductStatus).parse(String(req.query.status)) : null;
     const search = typeof req.query.search === 'string' ? req.query.search.trim() : '';
@@ -1711,7 +1732,7 @@ router.get('/products', async (req, res, next) => {
           },
         });
       } catch (error) {
-        if (!isFeaturedTableMissingError(error)) {
+        if (!isFeaturedUnavailableError(error)) {
           throw error;
         }
       }
@@ -1844,6 +1865,7 @@ router.get('/products', async (req, res, next) => {
 
 router.get('/products/:productType/:id', async (req, res, next) => {
   try {
+    await ensureHomepageSchema();
     const productType = adminProductTypeSchema.parse(req.params.productType);
     const { id } = req.params;
 
@@ -1873,7 +1895,7 @@ router.get('/products/:productType/:id', async (req, res, next) => {
           select: { section: true },
         });
       } catch (error) {
-        if (!isFeaturedTableMissingError(error)) {
+        if (!isFeaturedUnavailableError(error)) {
           throw error;
         }
       }
@@ -1930,7 +1952,7 @@ router.get('/products/:productType/:id', async (req, res, next) => {
           select: { section: true },
         });
       } catch (error) {
-        if (!isFeaturedTableMissingError(error)) {
+        if (!isFeaturedUnavailableError(error)) {
           throw error;
         }
       }
@@ -1984,7 +2006,7 @@ router.get('/products/:productType/:id', async (req, res, next) => {
         select: { section: true },
       });
     } catch (error) {
-      if (!isFeaturedTableMissingError(error)) {
+      if (!isFeaturedUnavailableError(error)) {
         throw error;
       }
     }
@@ -2323,7 +2345,7 @@ router.patch('/products/:productType/:id/moderate', async (req, res, next) => {
           where: { productId: id, productType },
         });
       } catch (error) {
-        if (!isFeaturedTableMissingError(error)) {
+        if (!isFeaturedUnavailableError(error)) {
           throw error;
         }
       }
@@ -2473,7 +2495,7 @@ router.post('/products/moderate-bulk', async (req, res, next) => {
           },
         });
       } catch (error) {
-        if (!isFeaturedTableMissingError(error)) {
+        if (!isFeaturedUnavailableError(error)) {
           throw error;
         }
       }
@@ -2513,6 +2535,7 @@ router.post('/products/moderate-bulk', async (req, res, next) => {
 
 router.patch('/products/:productType/:id/featured', async (req, res, next) => {
   try {
+    await ensureHomepageSchema();
     const productType = adminProductTypeSchema.parse(req.params.productType);
     const { id } = req.params;
     const payload = productFeaturedSchema.parse(req.body);
@@ -2550,11 +2573,12 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
           },
         });
       } catch (error) {
-        if (isFeaturedTableMissingError(error)) {
+        if (isFeaturedUnavailableError(error)) {
           return res.json({
             success: true,
-            warning: 'FEATURED_TABLE_MISSING',
-            message: 'Product saved. Featured tagging unavailable until database migration is applied.',
+            warning: 'FEATURED_SCHEMA_UNAVAILABLE',
+            message:
+              'Product saved. Featured tagging is temporarily unavailable due to database schema mismatch. Please run latest schema patch.',
             data: null,
           });
         }
@@ -2577,11 +2601,12 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
         },
       });
     } catch (error) {
-      if (isFeaturedTableMissingError(error)) {
+      if (isFeaturedUnavailableError(error)) {
         return res.json({
           success: true,
-          warning: 'FEATURED_TABLE_MISSING',
-          message: 'Product updated. Featured tagging unavailable until database migration is applied.',
+          warning: 'FEATURED_SCHEMA_UNAVAILABLE',
+          message:
+            'Product updated. Featured tagging is temporarily unavailable due to database schema mismatch. Please run latest schema patch.',
         });
       }
       throw error;
