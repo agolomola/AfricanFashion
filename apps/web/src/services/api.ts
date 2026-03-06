@@ -5,19 +5,52 @@ const defaultApiUrl = import.meta.env.DEV
   ? 'http://localhost:3001/api'
   : `${window.location.origin}/api`;
 const API_URL = import.meta.env.VITE_API_URL || defaultApiUrl;
-const API_ORIGIN = API_URL.replace(/\/api\/?$/, '');
+
+function getApiAssetOrigin(apiUrl: string): string {
+  const trimmed = String(apiUrl || '').trim();
+  if (!trimmed) {
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  }
+
+  // Absolute URL -> always use plain origin for static assets like /uploads/*
+  if (/^https?:\/\//i.test(trimmed)) {
+    try {
+      const parsed = new URL(trimmed);
+      return parsed.origin;
+    } catch {
+      return trimmed.replace(/\/api\/?$/, '');
+    }
+  }
+
+  // Relative API path (e.g. /api) -> use current site origin
+  if (trimmed.startsWith('/')) {
+    return typeof window !== 'undefined' ? window.location.origin : '';
+  }
+
+  return trimmed.replace(/\/api\/?$/, '');
+}
+
+const API_ORIGIN = getApiAssetOrigin(API_URL);
 
 export function resolveAssetUrl(url: string | undefined | null): string {
   if (!url) {
     return '';
   }
-  if (/^https?:\/\//i.test(url)) {
-    return url;
+  const normalized = String(url).trim();
+  if (!normalized) {
+    return '';
   }
-  if (url.startsWith('/')) {
-    return `${API_ORIGIN}${url}`;
+  if (/^https?:\/\//i.test(normalized)) {
+    // Normalize legacy URLs that accidentally stored /api/uploads/*
+    return normalized.replace(/\/api\/uploads\//i, '/uploads/');
   }
-  return `${API_ORIGIN}/${url}`;
+  if (normalized.startsWith('/api/uploads/')) {
+    return `${API_ORIGIN}${normalized.replace(/^\/api/, '')}`;
+  }
+  if (normalized.startsWith('/')) {
+    return `${API_ORIGIN}${normalized}`;
+  }
+  return `${API_ORIGIN}/${normalized}`;
 }
 
 // Create axios instance

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, Search, Eye, CreditCard, CheckCircle, Truck } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
@@ -7,6 +7,15 @@ import { useCurrency } from '../components/ui/CurrencyProvider';
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
   `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 // How It Works steps
 const howItWorksSteps = [
@@ -457,6 +466,7 @@ export default function Home() {
         <img
           src={product.image}
           alt={product.name}
+          onError={handleImageFallback(`product-${product.id}`)}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         {product.badge && (
@@ -619,6 +629,7 @@ export default function Home() {
                 <img
                   src={country.image}
                   alt={country.name}
+                  onError={handleImageFallback(`country-${country.name}`, 640, 360)}
                   className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                 />
                 <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
@@ -870,6 +881,7 @@ export default function Home() {
                     <img
                       src={designer.image}
                       alt={`${designer.name} from ${designer.country}`}
+                      onError={handleImageFallback(`designer-${designer.id}`, 900, 1200)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>
