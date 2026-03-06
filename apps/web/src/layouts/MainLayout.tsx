@@ -31,17 +31,19 @@ export default function MainLayout() {
     navigate('/');
   };
 
-  const categoryLinks = [
-    { label: 'Fabrics To Buy', href: '/fabrics' },
+  const hamburgerLinks = [
+    { label: 'Home', href: '/' },
+    { label: 'Shop', href: '/ready-to-wear' },
     { label: 'Ready To Wear', href: '/ready-to-wear' },
+    { label: 'Fabric To Buy', href: '/fabrics' },
     { label: 'Custom To Wear', href: '/designs' },
+    { label: 'About Us', href: '/about' },
+    { label: 'Contact Us', href: '/contact' },
   ];
 
   const rightNavLinks = [
     { label: 'Home', href: '/' },
     { label: 'Shop', href: '/ready-to-wear' },
-    { label: 'About Us', href: '/about' },
-    { label: 'Contact', href: '/contact' },
   ];
 
   return (
@@ -57,7 +59,7 @@ export default function MainLayout() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center h-16 lg:h-20">
             {/* Left: Hamburger for category links */}
-            <div className="flex-1 flex items-center">
+            <div className="flex-1 flex items-center min-w-0">
               <div className="relative">
                 <button
                   onClick={() => setIsCategoryMenuOpen((prev) => !prev)}
@@ -72,7 +74,7 @@ export default function MainLayout() {
                 </button>
                 {isCategoryMenuOpen && (
                   <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2">
-                    {categoryLinks.map((link) => (
+                    {hamburgerLinks.map((link) => (
                       <Link
                         key={link.label}
                         to={link.href}
@@ -88,7 +90,7 @@ export default function MainLayout() {
             </div>
 
             {/* Center: Logo */}
-            <div className="flex-shrink-0 px-4">
+            <div className="flex-shrink-0 px-8 lg:px-12">
               <Link
                 to="/"
                 className={`font-display text-xl lg:text-2xl font-bold transition-colors ${
@@ -100,8 +102,8 @@ export default function MainLayout() {
             </div>
 
             {/* Right: Remaining menu + actions */}
-            <div className="flex-1 flex items-center justify-end gap-2 lg:gap-4">
-              <nav className="hidden lg:flex items-center gap-6 mr-2">
+            <div className="flex-1 flex items-center justify-end gap-2 lg:gap-5 min-w-0">
+              <nav className="hidden md:flex items-center gap-7 mr-4">
                 {rightNavLinks.map((link) => (
                   <Link
                     key={link.label}
