@@ -5,17 +5,8 @@ import { api, resolveAssetUrl } from '../services/api';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrency } from '../components/ui/CurrencyProvider';
 
-// Default countries as fallback
-const defaultCountries = [
-  { name: 'Ghana', flag: '🇬🇭', image: '/images/ghana-abstract.jpg', fabrics: 'Kente • Adinkra • Batik' },
-  { name: 'Nigeria', flag: '🇳🇬', image: '/images/nigeria-abstract.jpg', fabrics: 'Ankara • Aso Oke • Adire' },
-  { name: 'Kenya', flag: '🇰🇪', image: '/images/kenya-abstract.jpg', fabrics: 'Kitenge • Kikoy • Shuka' },
-  { name: 'Senegal', flag: '🇸🇳', image: '/images/senegal-abstract.jpg', fabrics: 'Bazin • Mud Cloth • Wax Print' },
-  { name: 'South Africa', flag: '🇿🇦', image: '/images/south-africa-abstract.jpg', fabrics: 'Shweshwe • Ndebele • Zulu' },
-  { name: 'Tanzania', flag: '🇹🇿', image: '/images/tanzania-abstract.jpg', fabrics: 'Kanga • Kitenge • Tie Dye' },
-  { name: 'Ethiopia', flag: '🇪🇹', image: '/images/ethiopia-abstract.jpg', fabrics: 'Tibeb • Netela • Cotton' },
-  { name: 'Morocco', flag: '🇲🇦', image: '/images/morocco-abstract.jpg', fabrics: 'Caftan • Djellaba • Silk' },
-];
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
 
 // How It Works steps
 const howItWorksSteps = [
@@ -32,19 +23,19 @@ const shopCategories = [
   {
     title: 'Ready To Wear',
     description: 'Stunning dresses, elegant sets, and chic separates — expertly crafted for immediate style.',
-    image: '/images/category-ready-to-wear.jpg',
+    image: fallbackImage('shop-category-ready-to-wear'),
     link: '/ready-to-wear',
   },
   {
     title: 'Custom To Wear',
     description: 'Bespoke pieces tailored to your exact measurements — made just for you in 10-14 days.',
-    image: '/images/category-custom.jpg',
+    image: fallbackImage('shop-category-custom'),
     link: '/designs',
   },
   {
     title: 'Fabrics To Buy',
     description: 'Premium African textiles by the yard — Kente, Ankara, Kitenge and more direct from artisans.',
-    image: '/images/category-fabrics.jpg',
+    image: fallbackImage('shop-category-fabrics'),
     link: '/fabrics',
   },
 ];
@@ -55,7 +46,7 @@ const defaultTestimonials = [
     id: '1',
     name: 'Amara Johnson',
     location: 'New York, USA',
-    avatar: '/images/avatar-1.jpg',
+    avatar: '',
     rating: 5,
     text: 'The quality exceeded my expectations. My dress fits perfectly and the fabric is gorgeous.',
   },
@@ -63,7 +54,7 @@ const defaultTestimonials = [
     id: '2',
     name: 'Kwame Asante',
     location: 'London, UK',
-    avatar: '/images/avatar-2.jpg',
+    avatar: '',
     rating: 5,
     text: 'Amazing experience from start to finish. The custom tailoring service is a game changer!',
   },
@@ -71,7 +62,7 @@ const defaultTestimonials = [
     id: '3',
     name: 'Fatima Mohammed',
     location: 'Dubai, UAE',
-    avatar: '/images/avatar-3.jpg',
+    avatar: '',
     rating: 5,
     text: 'Supporting African designers while getting beautiful clothes—this platform is a gem.',
   },
@@ -121,16 +112,15 @@ interface ManagedBanner {
 
 const normalizeFeaturedProducts = (
   source: any[] | undefined,
-  fallback: FeaturedProduct[],
   fallbackType: FeaturedProduct['productType']
 ): FeaturedProduct[] => {
-  const input = Array.isArray(source) && source.length > 0 ? source : fallback;
+  const input = Array.isArray(source) ? source : [];
   return input.map((item: any, index: number) => ({
     id: String(item?.id || `${fallbackType.toLowerCase()}-${index}`),
     name: item?.name || 'Featured Product',
     description: item?.description || '',
     price: Number(item?.price ?? 0),
-    image: resolveAssetUrl(item?.image),
+    image: resolveAssetUrl(item?.image) || fallbackImage(`${fallbackType}-${index}`),
     designer: item?.designer || 'African Designer',
     country: item?.country || 'Africa',
     productType: item?.productType || fallbackType,
@@ -142,7 +132,7 @@ const normalizeFeaturedProducts = (
 const defaultHeroSlides: HeroSlide[] = [
   {
     id: '1',
-    image: '/images/hero-1.jpg',
+    image: fallbackImage('hero-1', 1920, 1080),
     badge: 'NEW COLLECTION',
     title: 'Ready To Wear',
     subtitle: 'Dresses, sets, and separates — tailored fits finished by hand',
@@ -151,7 +141,7 @@ const defaultHeroSlides: HeroSlide[] = [
   },
   {
     id: '2',
-    image: '/images/hero-2.jpg',
+    image: fallbackImage('hero-2', 1920, 1080),
     badge: 'FRESH DROPS',
     title: 'New Arrivals',
     subtitle: 'New arrivals from the most talented designers across the continent',
@@ -160,7 +150,7 @@ const defaultHeroSlides: HeroSlide[] = [
   },
   {
     id: '3',
-    image: '/images/hero-3.jpg',
+    image: fallbackImage('hero-3', 1920, 1080),
     badge: 'TRENDING NOW',
     title: 'Trending Styles',
     subtitle: 'The pieces everyone is talking about this season',
@@ -169,64 +159,6 @@ const defaultHeroSlides: HeroSlide[] = [
   },
 ];
 
-// Default featured products as fallback
-const defaultFeaturedDesigns: FeaturedProduct[] = [
-  { id: '1', name: 'Royal Kente Gown', description: '', price: 299, image: '/images/design-1.jpg', designer: 'Amara Designs', country: 'Ghana', productType: 'DESIGN', badge: 'NEW' },
-  { id: '2', name: 'Ankara Maxi Dress', description: '', price: 189, image: '/images/design-2.jpg', designer: 'Lagos Luxe', country: 'Nigeria', productType: 'DESIGN', badge: 'SALE' },
-  { id: '3', name: 'Kitenge Two-Piece', description: '', price: 159, image: '/images/design-3.jpg', designer: 'Nairobi Styles', country: 'Kenya', productType: 'DESIGN', badge: 'PROMO' },
-];
-
-const defaultReadyToWear: FeaturedProduct[] = [
-  { id: 'r1', name: 'Kente Midi Dress', description: '', price: 189, image: '/images/rtw-1.jpg', designer: 'Ghana • Ships in 3-5 days', country: 'Ghana', productType: 'READY_TO_WEAR', badge: 'BEST SELLER' },
-  { id: 'r2', name: 'Ankara Two-Piece Set', description: '', price: 145, image: '/images/rtw-2.jpg', designer: 'Nigeria • Ships in 2-4 days', country: 'Nigeria', productType: 'READY_TO_WEAR', badge: 'SALE' },
-  { id: 'r3', name: 'Batik Shift Dress', description: '', price: 120, image: '/images/rtw-3.jpg', designer: 'Senegal • Ships in 3-5 days', country: 'Senegal', productType: 'READY_TO_WEAR', badge: 'PROMO' },
-  { id: 'r4', name: 'Wax Print Midi', description: '', price: 135, image: '/images/rtw-4.jpg', designer: 'Kenya • Ships in 2-4 days', country: 'Kenya', productType: 'READY_TO_WEAR', badge: 'NEW' },
-];
-
-const defaultFabrics: FeaturedProduct[] = [
-  { id: 'f1', name: 'Premium Kente Cloth', description: '', price: 45, image: '/images/fabric-1.jpg', designer: 'Ghana Textiles', country: 'Ghana', productType: 'FABRIC', badge: 'SALE' },
-  { id: 'f2', name: 'Luxury Ankara Print', description: '', price: 35, image: '/images/fabric-2.jpg', designer: 'Nigerian Fabrics', country: 'Nigeria', productType: 'FABRIC', badge: 'PROMO' },
-  { id: 'f3', name: 'Authentic Mud Cloth', description: '', price: 55, image: '/images/fabric-3.jpg', designer: 'Mali Traditions', country: 'Mali', productType: 'FABRIC', badge: 'NEW' },
-  { id: 'f4', name: 'Kitenge Wax Print', description: '', price: 30, image: '/images/fabric-4.jpg', designer: 'Kenya Fabrics', country: 'Kenya', productType: 'FABRIC', badge: 'SALE' },
-];
-
-const defaultSpotlightDesigners: SpotlightDesigner[] = [
-  {
-    id: 'spotlight-amara-okafor',
-    name: 'Amara Okafor',
-    country: 'Nigeria',
-    image: '/images/designer-spotlight.jpg',
-    bio: 'Modern silhouettes crafted with bold Ankara storytelling.',
-  },
-  {
-    id: 'spotlight-esi-boateng',
-    name: 'Esi Boateng',
-    country: 'Ghana',
-    image: '/images/design-1.jpg',
-    bio: 'Elegant occasion wear inspired by Kente heritage.',
-  },
-  {
-    id: 'spotlight-nia-kimani',
-    name: 'Nia Kimani',
-    country: 'Kenya',
-    image: '/images/design-3.jpg',
-    bio: 'Contemporary East African cuts with vibrant prints.',
-  },
-  {
-    id: 'spotlight-aicha-ndiaye',
-    name: 'Aicha Ndiaye',
-    country: 'Senegal',
-    image: '/images/rtw-3.jpg',
-    bio: 'Refined tailoring that blends tradition with street style.',
-  },
-  {
-    id: 'spotlight-samira-idrissi',
-    name: 'Samira Idrissi',
-    country: 'Morocco',
-    image: '/images/hero-2.jpg',
-    bio: 'Textured luxury pieces with North African influence.',
-  },
-];
 
 const shuffle = <T,>(items: T[]): T[] => {
   const copy = [...items];
@@ -343,15 +275,15 @@ export default function Home() {
   }, [heroBanner, heroSlidesData]);
 
   const featuredDesigns = useMemo(
-    () => normalizeFeaturedProducts(featuredData?.FEATURED_DESIGNS, defaultFeaturedDesigns, 'DESIGN'),
+    () => normalizeFeaturedProducts(featuredData?.FEATURED_DESIGNS, 'DESIGN'),
     [featuredData?.FEATURED_DESIGNS]
   );
   const featuredFabrics = useMemo(
-    () => normalizeFeaturedProducts(featuredData?.FEATURED_FABRICS, defaultFabrics, 'FABRIC'),
+    () => normalizeFeaturedProducts(featuredData?.FEATURED_FABRICS, 'FABRIC'),
     [featuredData?.FEATURED_FABRICS]
   );
   const featuredRTW = useMemo(
-    () => normalizeFeaturedProducts(featuredData?.FEATURED_READY_TO_WEAR, defaultReadyToWear, 'READY_TO_WEAR'),
+    () => normalizeFeaturedProducts(featuredData?.FEATURED_READY_TO_WEAR, 'READY_TO_WEAR'),
     [featuredData?.FEATURED_READY_TO_WEAR]
   );
   const fashionCountryImageMap = useMemo(() => {
@@ -384,18 +316,32 @@ export default function Home() {
     },
   });
 
-  // Use dynamic data or fallback to defaults
-  const countries = countriesData?.length > 0 
-    ? countriesData.map((c: any) => ({ 
-        name: c.name, 
-        flag: c.flag || countryFlags[c.name] || '🌍', 
-        image: fashionCountryImageMap.get(c.name) || resolveAssetUrl(c.image), 
-        fabrics: c.fabrics 
-      })) 
-    : defaultCountries.map((c) => ({
-        ...c,
-        image: fashionCountryImageMap.get(c.name) || resolveAssetUrl(c.image),
-      }));
+  const countriesFromFeatured = useMemo(() => {
+    const byCountry = new Map<string, { name: string; flag: string; image: string; fabrics: string }>();
+    for (const product of [...featuredDesigns, ...featuredRTW, ...featuredFabrics]) {
+      if (!product.country || byCountry.has(product.country)) continue;
+      byCountry.set(product.country, {
+        name: product.country,
+        flag: countryFlags[product.country] || '🌍',
+        image: resolveAssetUrl(product.image) || fallbackImage(`country-${product.country}`, 640, 360),
+        fabrics: 'Featured styles and fabrics',
+      });
+    }
+    return Array.from(byCountry.values());
+  }, [featuredDesigns, featuredFabrics, featuredRTW]);
+
+  // Use dynamic data or fallback to featured-derived countries
+  const countries = countriesData?.length > 0
+    ? countriesData.map((c: any) => ({
+        name: c.name,
+        flag: c.flag || countryFlags[c.name] || '🌍',
+        image:
+          fashionCountryImageMap.get(c.name) ||
+          resolveAssetUrl(c.image) ||
+          fallbackImage(`country-${c.name}`, 640, 360),
+        fabrics: c.fabrics || 'Featured styles and fabrics',
+      }))
+    : countriesFromFeatured;
     
   const testimonials = testimonialsData?.length > 0 
     ? testimonialsData.map((t: any) => ({ 
@@ -411,9 +357,7 @@ export default function Home() {
   // Hero carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
   const [customFeaturedStart, setCustomFeaturedStart] = useState(0);
-  const [spotlightDesigners, setSpotlightDesigners] = useState<SpotlightDesigner[]>(
-    pickRandomDesigners(defaultSpotlightDesigners, 3)
-  );
+  const [spotlightDesigners, setSpotlightDesigners] = useState<SpotlightDesigner[]>([]);
   const customFeaturedPageSize = 3;
 
   useEffect(() => {
@@ -464,7 +408,7 @@ export default function Home() {
       .filter((item): item is SpotlightDesigner => Boolean(item));
 
     const designerMap = new Map<string, SpotlightDesigner>();
-    for (const item of [...mappedDesigners, ...defaultSpotlightDesigners]) {
+    for (const item of mappedDesigners) {
       if (designerMap.has(item.id)) continue;
       designerMap.set(item.id, item);
     }
@@ -663,29 +607,31 @@ export default function Home() {
       </section>
 
       {/* Countries Marquee */}
-      <section className="py-6 bg-[#F5F5F0] overflow-hidden">
-        <div className="flex animate-marquee">
-          {[...countries, ...countries].map((country, index) => (
-            <Link
-              key={`${country.name}-${index}`}
-              to={`/designs?country=${country.name}`}
-              className="group relative flex-shrink-0 w-[14.4rem] h-32 mx-2 overflow-hidden"
-            >
-              <img
-                src={country.image}
-                alt={country.name}
-                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-              />
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
-              <div className="absolute bottom-3 left-3 text-white">
-                <span className="text-xl">{country.flag}</span>
-                <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
-                <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
-              </div>
-            </Link>
-          ))}
-        </div>
-      </section>
+      {countries.length > 0 && (
+        <section className="py-6 bg-[#F5F5F0] overflow-hidden">
+          <div className="flex animate-marquee">
+            {[...countries, ...countries].map((country, index) => (
+              <Link
+                key={`${country.name}-${index}`}
+                to={`/designs?country=${country.name}`}
+                className="group relative flex-shrink-0 w-[14.4rem] h-32 mx-2 overflow-hidden"
+              >
+                <img
+                  src={country.image}
+                  alt={country.name}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
+                <div className="absolute bottom-3 left-3 text-white">
+                  <span className="text-xl">{country.flag}</span>
+                  <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
+                  <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Shop by Category */}
       <section className="py-12 bg-[#F5F5F0]">
@@ -781,11 +727,15 @@ export default function Home() {
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
-          ) : (
+          ) : customFeaturedItems.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-5">
               {customFeaturedItems.map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 p-6 text-sm text-gray-600">
+              No featured custom designs yet.
             </div>
           )}
         </div>
@@ -823,11 +773,15 @@ export default function Home() {
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
-          ) : (
+          ) : featuredRTW.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
               {featuredRTW.slice(0, 4).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 p-6 text-sm text-gray-600">
+              No featured ready-to-wear products yet.
             </div>
           )}
         </div>
@@ -865,11 +819,15 @@ export default function Home() {
             <div className="flex items-center justify-center h-64">
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
-          ) : (
+          ) : featuredFabrics.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
               {featuredFabrics.slice(0, 4).map((product) => (
                 <ProductCard key={product.id} product={product} />
               ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 p-6 text-sm text-gray-600">
+              No featured fabrics yet.
             </div>
           )}
         </div>
@@ -877,7 +835,7 @@ export default function Home() {
 
       {renderManagedBanner({
         banner: promoBanner,
-        fallbackImage: '/images/fresh-drops-banner.jpg',
+        fallbackImage: fallbackImage('promo-fresh-drops', 1600, 900),
         fallbackTitle: 'Fresh Drops',
         fallbackSubtitle: 'New arrivals from the most talented designers across the continent.',
         fallbackCtaText: 'Shop New Arrivals',
@@ -900,30 +858,36 @@ export default function Home() {
               Meet All Designers <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {spotlightDesigners.map((designer) => (
-              <Link
-                key={designer.id}
-                to={`/designs?country=${encodeURIComponent(designer.country)}`}
-                className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-              >
-                <div className="h-[250px] overflow-hidden bg-gray-100">
-                  <img
-                    src={designer.image}
-                    alt={`${designer.name} from ${designer.country}`}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                </div>
-                <div className="p-5">
-                  <h3 className="text-xl font-bold text-gray-900">{designer.name}</h3>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {countryFlags[designer.country] || '🌍'} {designer.country}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-3">{designer.bio}</p>
-                </div>
-              </Link>
-            ))}
-          </div>
+          {spotlightDesigners.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              {spotlightDesigners.map((designer) => (
+                <Link
+                  key={designer.id}
+                  to={`/designs?country=${encodeURIComponent(designer.country)}`}
+                  className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                >
+                  <div className="h-[250px] overflow-hidden bg-gray-100">
+                    <img
+                      src={designer.image}
+                      alt={`${designer.name} from ${designer.country}`}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-5">
+                    <h3 className="text-xl font-bold text-gray-900">{designer.name}</h3>
+                    <p className="text-sm text-gray-500 mt-1">
+                      {countryFlags[designer.country] || '🌍'} {designer.country}
+                    </p>
+                    <p className="text-sm text-gray-600 mt-3">{designer.bio}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 p-6 text-sm text-gray-600">
+              Designer spotlight will appear once featured products are available.
+            </div>
+          )}
         </div>
       </section>
 
@@ -933,7 +897,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden">
             <div className="h-[260px] md:h-full overflow-hidden">
               <img
-                src="/images/heritage.jpg"
+                src={fallbackImage('heritage-story', 1400, 900)}
                 alt="African textile heritage"
                 className="w-full h-full object-cover"
               />
