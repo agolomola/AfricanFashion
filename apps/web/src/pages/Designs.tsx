@@ -1,5 +1,5 @@
 // Cache bust: v9103
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, type FormEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { api } from '../services/api';
@@ -217,6 +217,15 @@ const sampleDesigns: Design[] = [
 export default function Designs() {
   const { formatFromUsd } = useCurrency();
   const [searchParams, setSearchParams] = useSearchParams();
+  const initialFilters = {
+    search: searchParams.get('search') || '',
+    categoryId: searchParams.get('category') || '',
+    country: searchParams.get('country') || '',
+    minPrice: searchParams.get('minPrice') || '',
+    maxPrice: searchParams.get('maxPrice') || '',
+    sortBy: searchParams.get('sortBy') || 'newest',
+    page: parseInt(searchParams.get('page') || '1', 10),
+  };
   
   // Data states
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -226,21 +235,16 @@ export default function Designs() {
   const [pagination, setPagination] = useState<Pagination | null>(null);
   
   // Filter states
-  const [filters, setFilters] = useState({
-    search: searchParams.get('search') || '',
-    categoryId: searchParams.get('category') || '',
-    country: searchParams.get('country') || '',
-    minPrice: searchParams.get('minPrice') || '',
-    maxPrice: searchParams.get('maxPrice') || '',
-    sortBy: searchParams.get('sortBy') || 'newest',
-    page: parseInt(searchParams.get('page') || '1'),
-  });
+  const [filters, setFilters] = useState(initialFilters);
+  const [draftFilters, setDraftFilters] = useState(initialFilters);
   
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
-  // Load data on filter change
   useEffect(() => {
     loadFilters();
+  }, []);
+
+  useEffect(() => {
     loadDesigns();
   }, [filters]);
 
@@ -289,16 +293,22 @@ export default function Designs() {
         page: filters.page,
         limit: 200, // 4 columns x 50 rows
       });
-      if (response.success && response.data.designs.length > 0) {
-        setDesigns(response.data.designs);
-        setPagination(response.data.pagination);
+      if (response.success) {
+        setDesigns(response.data.designs || []);
+        setPagination(
+          response.data.pagination || {
+            page: 1,
+            limit: 12,
+            total: 0,
+            pages: 1,
+          }
+        );
       } else {
-        // Use sample designs if API returns empty
-        setDesigns(sampleDesigns);
+        setDesigns([]);
         setPagination({
           page: 1,
           limit: 12,
-          total: sampleDesigns.length,
+          total: 0,
           pages: 1,
         });
       }
@@ -317,10 +327,16 @@ export default function Designs() {
     }
   };
 
-  const updateFilter = (key: string, value: string) => {
-    const newFilters = { ...filters, [key]: value, page: 1 };
-    setFilters(newFilters);
-    updateURLParams(newFilters);
+  const updateDraftFilter = (key: string, value: string) => {
+    setDraftFilters((previous) => ({ ...previous, [key]: value }));
+  };
+
+  const applyFilters = (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    const next = { ...draftFilters, page: 1 };
+    setFilters(next);
+    setDraftFilters(next);
+    updateURLParams(next);
   };
 
   const updateURLParams = (newFilters: typeof filters) => {
@@ -346,31 +362,73 @@ export default function Designs() {
       page: 1,
     };
     setFilters(cleared);
+    setDraftFilters(cleared);
     updateURLParams(cleared);
   };
 
   const goToPage = (page: number) => {
     const newFilters = { ...filters, page };
     setFilters(newFilters);
+    setDraftFilters(newFilters);
     updateURLParams(newFilters);
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const activeFiltersCount = [
-    filters.categoryId,
-    filters.country,
-    filters.minPrice,
-    filters.maxPrice,
+    draftFilters.search,
+    draftFilters.categoryId,
+    draftFilters.country,
+    draftFilters.minPrice,
+    draftFilters.maxPrice,
   ].filter(Boolean).length;
+
+  const filteredDesigns = useMemo(() => {
+    const minPrice = filters.minPrice ? Number(filters.minPrice) : null;
+    const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null;
+    const hasMinPrice = Number.isFinite(minPrice) && minPrice !== null;
+    const hasMaxPrice = Number.isFinite(maxPrice) && maxPrice !== null;
+
+    let rows = [...designs];
+    if (hasMinPrice) {
+      rows = rows.filter((design) => Number(design.finalPrice || 0) >= Number(minPrice));
+    }
+    if (hasMaxPrice) {
+      rows = rows.filter((design) => Number(design.finalPrice || 0) <= Number(maxPrice));
+    }
+
+    if (filters.sortBy === 'price-low') {
+      rows.sort((a, b) => Number(a.finalPrice || 0) - Number(b.finalPrice || 0));
+    } else if (filters.sortBy === 'price-high') {
+      rows.sort((a, b) => Number(b.finalPrice || 0) - Number(a.finalPrice || 0));
+    } else if (filters.sortBy === 'rating') {
+      rows.sort((a, b) => Number(b.rating || 0) - Number(a.rating || 0));
+    } else if (filters.sortBy === 'popular') {
+      rows.sort((a, b) => Number(b.orderCount || 0) - Number(a.orderCount || 0));
+    }
+
+    return rows;
+  }, [designs, filters.minPrice, filters.maxPrice, filters.sortBy]);
 
   // Filter Bar Component - Single row
   const FilterBar = () => (
-    <div className="flex flex-wrap items-center gap-2 md:gap-3">
+    <form onSubmit={applyFilters} className="flex flex-wrap items-center gap-2 md:gap-3">
+      {/* Search */}
+      <div className="relative min-w-[220px] flex-1">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+        <input
+          type="text"
+          value={draftFilters.search}
+          onChange={(e) => updateDraftFilter('search', e.target.value)}
+          placeholder="Search designs, designers, styles..."
+          className="w-full pl-10 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
+        />
+      </div>
+
       {/* Categories Dropdown */}
       <div className="relative">
         <select
-          value={filters.categoryId}
-          onChange={(e) => updateFilter('categoryId', e.target.value)}
+          value={draftFilters.categoryId}
+          onChange={(e) => updateDraftFilter('categoryId', e.target.value)}
           className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
         >
           <option value="">All Categories</option>
@@ -384,8 +442,8 @@ export default function Designs() {
       {/* Countries Dropdown */}
       <div className="relative">
         <select
-          value={filters.country}
-          onChange={(e) => updateFilter('country', e.target.value)}
+          value={draftFilters.country}
+          onChange={(e) => updateDraftFilter('country', e.target.value)}
           className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
         >
           <option value="">All Countries</option>
@@ -403,8 +461,8 @@ export default function Designs() {
           <input
             type="number"
             placeholder="Min"
-            value={filters.minPrice}
-            onChange={(e) => updateFilter('minPrice', e.target.value)}
+            value={draftFilters.minPrice}
+            onChange={(e) => updateDraftFilter('minPrice', e.target.value)}
             className="w-20 pl-5 pr-2 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500"
           />
         </div>
@@ -414,8 +472,8 @@ export default function Designs() {
           <input
             type="number"
             placeholder="Max"
-            value={filters.maxPrice}
-            onChange={(e) => updateFilter('maxPrice', e.target.value)}
+            value={draftFilters.maxPrice}
+            onChange={(e) => updateDraftFilter('maxPrice', e.target.value)}
             className="w-20 pl-5 pr-2 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500"
           />
         </div>
@@ -424,8 +482,8 @@ export default function Designs() {
       {/* Sort */}
       <div className="relative">
         <select
-          value={filters.sortBy}
-          onChange={(e) => updateFilter('sortBy', e.target.value)}
+          value={draftFilters.sortBy}
+          onChange={(e) => updateDraftFilter('sortBy', e.target.value)}
           className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 bg-white"
         >
           <option value="newest">Newest</option>
@@ -437,9 +495,14 @@ export default function Designs() {
         <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
       </div>
 
+      <Button type="submit" size="sm" className="h-[38px]">
+        Apply Filters
+      </Button>
+
       {/* Clear Filters */}
       {activeFiltersCount > 0 && (
         <button
+          type="button"
           onClick={clearFilters}
           className="px-3 py-2 text-xs text-coral-500 font-medium hover:bg-coral-50 rounded-lg transition-colors border border-coral-200"
         >
@@ -449,9 +512,9 @@ export default function Designs() {
 
       {/* Results Count */}
       <div className="ml-auto text-xs text-gray-500">
-        {pagination?.total || 0} designs
+        Showing {filteredDesigns.length} of {pagination?.total || 0} designs
       </div>
-    </div>
+    </form>
   );
 
   return (
@@ -473,30 +536,6 @@ export default function Designs() {
               <p className="text-base md:text-lg text-white text-opacity-80 mb-4">
                 Discover unique African fashion designs from talented designers across the continent.
               </p>
-              
-              {/* Search Bar on Banner - Longer */}
-              <div className="relative max-w-2xl">
-                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
-                <input
-                  type="text"
-                  value={filters.search}
-                  onChange={(e) => updateFilter('search', e.target.value)}
-                  placeholder="Search designs, designers, styles..."
-                  className="w-full pl-12 pr-12 py-3.5 rounded-full bg-white shadow-lg focus:ring-2 focus:ring-coral-500 focus:outline-none text-base"
-                />
-                {filters.search ? (
-                  <button
-                    onClick={() => updateFilter('search', '')}
-                    className="absolute right-4 top-1/2 -translate-y-1/2"
-                  >
-                    <X className="w-5 h-5 text-gray-400 hover:text-gray-600" />
-                  </button>
-                ) : (
-                  <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-coral-500 text-white px-4 py-1.5 rounded-full text-sm font-medium hover:bg-coral-600 transition-colors">
-                    Search
-                  </button>
-                )}
-              </div>
               
               <div className="flex flex-wrap gap-2 mt-4">
                 <Badge variant="info" className="bg-white bg-opacity-20 text-white border-0 text-xs">
@@ -553,7 +592,7 @@ export default function Designs() {
               <div className="flex items-center justify-center py-20">
                 <Loader2 className="w-10 h-10 animate-spin text-coral-500" />
               </div>
-            ) : designs.length === 0 ? (
+            ) : filteredDesigns.length === 0 ? (
               <div className="text-center py-20">
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Search className="w-10 h-10 text-gray-400" />
@@ -568,7 +607,7 @@ export default function Designs() {
               <>
                 {/* 4 Column Grid - 50 rows per page (200 items) */}
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
-                  {designs.map((design) => (
+                  {filteredDesigns.map((design) => (
                     <Link 
                       key={design.id} 
                       to={`/designs/${design.id}`} 
@@ -659,7 +698,7 @@ export default function Designs() {
                 {/* Page Info */}
                 {pagination && (
                   <p className="text-center text-gray-500 mt-4">
-                    Page {pagination.page} of {pagination.pages} - Showing {designs.length} of {pagination.total} designs
+                    Page {pagination.page} of {pagination.pages} - Showing {filteredDesigns.length} of {pagination.total} designs
                   </p>
                 )}
               </>

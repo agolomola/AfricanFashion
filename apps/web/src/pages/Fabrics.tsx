@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../services/api';
@@ -37,15 +37,19 @@ const countryFlags: Record<string, string> = {
 
 export default function Fabrics() {
   const { formatFromUsd } = useCurrency();
+  const initialFilters = {
+    search: '',
+    country: '',
+    materialTypeId: '',
+    sortBy: 'newest' as 'newest' | 'price-low' | 'price-high',
+  };
   const [fabrics, setFabrics] = useState<FabricCard[]>([]);
   const [materials, setMaterials] = useState<Array<{ id: string; name: string }>>([]);
   const [countries, setCountries] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
-  const [search, setSearch] = useState('');
-  const [country, setCountry] = useState('');
-  const [materialTypeId, setMaterialTypeId] = useState('');
-  const [sortBy, setSortBy] = useState<'newest' | 'price-low' | 'price-high'>('newest');
+  const [filters, setFilters] = useState(initialFilters);
+  const [draftFilters, setDraftFilters] = useState(initialFilters);
   const [page, setPage] = useState(1);
   const [reloadToken, setReloadToken] = useState(0);
   const [pagination, setPagination] = useState({ page: 1, pages: 1, total: 0 });
@@ -75,9 +79,9 @@ export default function Fabrics() {
         setIsLoading(true);
         setError('');
         const response = await api.products.getFabrics({
-          search: search || undefined,
-          country: country || undefined,
-          materialTypeId: materialTypeId || undefined,
+          search: filters.search || undefined,
+          country: filters.country || undefined,
+          materialTypeId: filters.materialTypeId || undefined,
           page,
           limit: 24,
         });
@@ -116,22 +120,31 @@ export default function Fabrics() {
         setIsLoading(false);
       }
     })();
-  }, [search, country, materialTypeId, page, reloadToken]);
+  }, [filters, page, reloadToken]);
 
   const sortedFabrics = useMemo(() => {
     const rows = [...fabrics];
-    if (sortBy === 'price-low') {
+    if (filters.sortBy === 'price-low') {
       rows.sort((a, b) => a.pricePerMeter - b.pricePerMeter);
-    } else if (sortBy === 'price-high') {
+    } else if (filters.sortBy === 'price-high') {
       rows.sort((a, b) => b.pricePerMeter - a.pricePerMeter);
     }
     return rows;
-  }, [fabrics, sortBy]);
+  }, [fabrics, filters.sortBy]);
 
-  const updateFilter = (setter: (value: any) => void, value: any) => {
-    setter(value);
+  const applyFilters = (event?: FormEvent<HTMLFormElement>) => {
+    event?.preventDefault();
+    setFilters(draftFilters);
     setPage(1);
   };
+
+  const clearFilters = () => {
+    setFilters(initialFilters);
+    setDraftFilters(initialFilters);
+    setPage(1);
+  };
+
+  const activeFiltersCount = [draftFilters.search, draftFilters.country, draftFilters.materialTypeId].filter(Boolean).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -150,20 +163,20 @@ export default function Fabrics() {
 
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
         <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-4">
-          <div className="flex flex-wrap items-center gap-3">
+          <form onSubmit={applyFilters} className="flex flex-wrap items-center gap-3">
             <div className="relative flex-1 min-w-[220px]">
               <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                value={search}
-                onChange={(e) => updateFilter(setSearch, e.target.value)}
+                value={draftFilters.search}
+                onChange={(e) => setDraftFilters((previous) => ({ ...previous, search: e.target.value }))}
                 placeholder="Search fabrics..."
                 className="w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-coral-500"
               />
             </div>
             <select
-              value={country}
-              onChange={(e) => updateFilter(setCountry, e.target.value)}
+              value={draftFilters.country}
+              onChange={(e) => setDraftFilters((previous) => ({ ...previous, country: e.target.value }))}
               className="px-3 py-3 border rounded-lg bg-white"
             >
               <option value="">All Countries</option>
@@ -174,8 +187,8 @@ export default function Fabrics() {
               ))}
             </select>
             <select
-              value={materialTypeId}
-              onChange={(e) => updateFilter(setMaterialTypeId, e.target.value)}
+              value={draftFilters.materialTypeId}
+              onChange={(e) => setDraftFilters((previous) => ({ ...previous, materialTypeId: e.target.value }))}
               className="px-3 py-3 border rounded-lg bg-white"
             >
               <option value="">All Materials</option>
@@ -186,15 +199,36 @@ export default function Fabrics() {
               ))}
             </select>
             <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'newest' | 'price-low' | 'price-high')}
+              value={draftFilters.sortBy}
+              onChange={(e) =>
+                setDraftFilters((previous) => ({
+                  ...previous,
+                  sortBy: e.target.value as 'newest' | 'price-low' | 'price-high',
+                }))
+              }
               className="px-3 py-3 border rounded-lg bg-white"
             >
               <option value="newest">Newest</option>
               <option value="price-low">Price: Low-High</option>
               <option value="price-high">Price: High-Low</option>
             </select>
-          </div>
+
+            <Button type="submit" size="sm" className="h-[46px]">
+              Apply Filters
+            </Button>
+
+            {activeFiltersCount > 0 && (
+              <button
+                type="button"
+                onClick={clearFilters}
+                className="px-3 py-2 text-xs text-coral-500 font-medium hover:bg-coral-50 rounded-lg transition-colors border border-coral-200"
+              >
+                Clear ({activeFiltersCount})
+              </button>
+            )}
+
+            <div className="ml-auto text-xs text-gray-500">Showing {sortedFabrics.length} of {pagination.total} fabrics</div>
+          </form>
         </div>
       </div>
 
