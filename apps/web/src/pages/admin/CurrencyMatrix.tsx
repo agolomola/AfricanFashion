@@ -27,6 +27,7 @@ export default function AdminCurrencyMatrix() {
     lastSource: string | null;
   } | null>(null);
   const [overrideCount, setOverrideCount] = useState(0);
+  const [overridesByCountryCode, setOverridesByCountryCode] = useState<Record<string, MatrixRow>>({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -41,7 +42,9 @@ export default function AdminCurrencyMatrix() {
         setMatrix(res.data.matrix || []);
         setRules(res.data.rules || []);
         setHealth(res.data.health || null);
-        setOverrideCount(Object.keys(res.data.overrides || {}).length);
+        const overrideMap = (res.data.overrides || {}) as Record<string, MatrixRow>;
+        setOverridesByCountryCode(overrideMap);
+        setOverrideCount(Object.keys(overrideMap).length);
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load currency matrix.');
@@ -153,19 +156,35 @@ export default function AdminCurrencyMatrix() {
             className="rounded-lg border px-3 py-2 text-sm"
           />
         </div>
+        <div className="mb-3 flex flex-wrap gap-2 text-xs">
+          <span className="inline-flex items-center gap-1 rounded-full border border-blue-200 bg-blue-50 px-2 py-1 text-blue-700">
+            <span className="inline-block h-2 w-2 rounded-full bg-blue-500" />
+            Third-Party
+          </span>
+          <span className="inline-flex items-center gap-1 rounded-full border border-amber-200 bg-amber-50 px-2 py-1 text-amber-700">
+            <span className="inline-block h-2 w-2 rounded-full bg-amber-500" />
+            Admin Entered
+          </span>
+        </div>
         <div className="max-h-[520px] overflow-auto">
           <table className="min-w-full text-sm">
             <thead>
               <tr className="text-left text-gray-500">
                 <th className="pb-2 pr-3">Country</th>
                 <th className="pb-2 pr-3">Currency</th>
+                <th className="pb-2 pr-3">Source</th>
                 <th className="pb-2 pr-3">USD per 1 Unit</th>
                 <th className="pb-2">Action</th>
               </tr>
             </thead>
             <tbody>
-              {filtered.map((row, idx) => (
-                <tr key={`${row.countryCode}-${row.currencyCode}-${idx}`} className="border-t">
+              {filtered.map((row, idx) => {
+                const isAdminOverride = Boolean(overridesByCountryCode[row.countryCode]);
+                return (
+                <tr
+                  key={`${row.countryCode}-${row.currencyCode}-${idx}`}
+                  className={`border-t ${isAdminOverride ? 'bg-amber-50/40' : 'bg-blue-50/30'}`}
+                >
                   <td className="py-2 pr-3">
                     <div className="font-medium text-gray-900">{row.country}</div>
                     <div className="text-xs text-gray-500">{row.countryCode}</div>
@@ -173,6 +192,17 @@ export default function AdminCurrencyMatrix() {
                   <td className="py-2 pr-3">
                     <div className="font-medium text-gray-900">{row.currencyCode}</div>
                     <div className="text-xs text-gray-500">{row.currencyName}</div>
+                  </td>
+                  <td className="py-2 pr-3">
+                    <span
+                      className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${
+                        isAdminOverride
+                          ? 'border-amber-200 bg-amber-100 text-amber-800'
+                          : 'border-blue-200 bg-blue-100 text-blue-800'
+                      }`}
+                    >
+                      {isAdminOverride ? 'Admin Entered' : 'Third-Party'}
+                    </span>
                   </td>
                   <td className="py-2 pr-3">
                     <input
@@ -204,7 +234,8 @@ export default function AdminCurrencyMatrix() {
                     </Button>
                   </td>
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
