@@ -3,8 +3,22 @@ import { z } from 'zod';
 import { prisma } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
+import { ensureHomepageSectionsSchema } from '../utils/frontpage-schema';
 
 const router = Router();
+
+router.use(async (_req, res, next) => {
+  try {
+    await ensureHomepageSectionsSchema();
+    next();
+  } catch (error) {
+    console.error('Failed to ensure homepage sections schema:', error);
+    res.status(503).json({
+      success: false,
+      message: 'Homepage sections storage is not initialized. Please retry in a few moments.',
+    });
+  }
+});
 
 const slugify = (value: string) =>
   value

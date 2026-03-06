@@ -2,8 +2,22 @@ import { Router } from 'express';
 import { prisma } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
+import { ensureBannerSchema } from '../utils/frontpage-schema';
 
 const router = Router();
+
+router.use(async (_req, res, next) => {
+  try {
+    await ensureBannerSchema();
+    next();
+  } catch (error) {
+    console.error('Failed to ensure banner schema:', error);
+    res.status(503).json({
+      success: false,
+      message: 'Banner storage is not initialized. Please retry in a few moments.',
+    });
+  }
+});
 
 // Get all banners (public - for frontend display)
 router.get('/', async (req, res) => {

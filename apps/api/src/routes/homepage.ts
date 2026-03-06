@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { prisma } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
+import { ensureHomepageSchema } from '../utils/frontpage-schema';
 
 const router = Router();
 const FEATURED_SECTIONS = [
@@ -15,6 +16,19 @@ const FEATURED_SECTIONS = [
 const PRODUCT_TYPES = ['DESIGN', 'FABRIC', 'READY_TO_WEAR'] as const;
 
 const AUTO_FEATURED_LIMIT = 6;
+
+router.use(async (_req, res, next) => {
+  try {
+    await ensureHomepageSchema();
+    next();
+  } catch (error) {
+    console.error('Failed to ensure homepage schema:', error);
+    res.status(503).json({
+      success: false,
+      message: 'Homepage data storage is not initialized. Please retry in a few moments.',
+    });
+  }
+});
 
 function isFeaturedTableMissingError(error: any) {
   const table = String(error?.meta?.table || '');

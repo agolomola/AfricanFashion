@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import multer from 'multer';
 import path from 'path';
+import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
@@ -8,6 +9,7 @@ import { Permissions } from '../rbac';
 const router = Router();
 const MAX_IMAGE_SIZE_MB = 10;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
 const allowedMimeTypes: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
@@ -21,7 +23,7 @@ const allowedMimeTypes: Record<string, string> = {
 // Configure multer storage
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads/');
+    cb(null, UPLOAD_DIR);
   },
   filename: (req, file, cb) => {
     const extension = allowedMimeTypes[file.mimetype];
@@ -97,9 +99,16 @@ function mapUploadError(error: any) {
   };
 }
 
+function ensureUploadDirectory() {
+  if (!fs.existsSync(UPLOAD_DIR)) {
+    fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+  }
+}
+
 // Upload single image
 router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
+    ensureUploadDirectory();
     await runSingleUpload(req, res);
 
     if (!req.file) {
@@ -137,6 +146,7 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
 // Upload multiple images
 router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
+    ensureUploadDirectory();
     await runMultiUpload(req, res);
 
     if (!req.files || (req.files as any[]).length === 0) {

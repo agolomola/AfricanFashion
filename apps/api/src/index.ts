@@ -3,13 +3,16 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import fs from 'fs';
+import path from 'path';
 
 // Load environment variables
 dotenv.config();
 
+const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
+
 // Create uploads directory if it doesn't exist
-if (!fs.existsSync('uploads')) {
-  fs.mkdirSync('uploads', { recursive: true });
+if (!fs.existsSync(UPLOAD_DIR)) {
+  fs.mkdirSync(UPLOAD_DIR, { recursive: true });
   console.log('📁 Created uploads directory');
 }
 
@@ -64,7 +67,7 @@ app.use(morgan('dev'));
 app.use('/uploads', (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   next();
-}, express.static('uploads'));
+}, express.static(UPLOAD_DIR));
 
 // Health check
 app.get('/health', (req, res) => {

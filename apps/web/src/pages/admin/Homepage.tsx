@@ -41,6 +41,18 @@ interface AvailableProduct {
   seller?: { businessName: string };
 }
 
+const MAX_UPLOAD_SIZE_MB = 10;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const ALLOWED_UPLOAD_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
 const SECTIONS = [
   { value: 'FEATURED_DESIGNS', label: 'Featured Designs' },
   { value: 'FEATURED_FABRICS', label: 'Featured Fabrics' },
@@ -229,6 +241,19 @@ export default function AdminHomepage() {
   };
 
   const uploadHeroImage = async (file: File) => {
+    if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+      const message = `Unsupported image type "${file.type || 'unknown'}". Use JPG, PNG, WEBP, AVIF, HEIC, or HEIF.`;
+      setHeroFormError(message);
+      toast.error(message);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      const message = `"${file.name}" is too large. Max allowed image size is ${MAX_UPLOAD_SIZE_MB}MB.`;
+      setHeroFormError(message);
+      toast.error(message);
+      return;
+    }
+
     setUploadingHeroImage(true);
     setHeroFormError('');
     try {
@@ -239,10 +264,11 @@ export default function AdminHomepage() {
         setHeroFormData((prev) => ({ ...prev, image: response.data.url }));
         toast.success('Hero image uploaded.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading hero image:', error);
-      setHeroFormError('Image upload failed. Please try again.');
-      toast.error('Hero image upload failed.');
+      const message = error?.response?.data?.message || error?.message || 'Image upload failed. Please try again.';
+      setHeroFormError(message);
+      toast.error(message);
     } finally {
       setUploadingHeroImage(false);
     }

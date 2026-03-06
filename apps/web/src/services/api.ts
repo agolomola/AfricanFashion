@@ -1027,15 +1027,11 @@ const bannersApi = {
 // Upload API
 const uploadApi = {
   image: (formData: FormData) =>
-    httpClient.post<{ success: boolean; data: { url: string } }>('/upload/image', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    }).then((res) => ({
+    httpClient.post<{ success: boolean; data: { url: string } }>('/upload/image', formData).then((res) => ({
       ...res.data,
       data: {
         ...res.data.data,
-        url: resolveAssetUrl(res.data.data?.url),
+        url: resolveAssetUrl(res.data.data?.url || ''),
       },
     })),
 };

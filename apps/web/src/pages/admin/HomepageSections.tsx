@@ -89,6 +89,18 @@ interface FooterContent {
   isActive: boolean;
 }
 
+const MAX_UPLOAD_SIZE_MB = 10;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const ALLOWED_UPLOAD_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
 const TABS = [
   { id: 'countries' as SectionType, label: 'Countries', icon: Globe },
   { id: 'howItWorks' as SectionType, label: 'How It Works', icon: Sparkles },
@@ -802,18 +814,33 @@ function SectionModal({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+      const message = `Unsupported image type "${file.type || 'unknown'}". Use JPG, PNG, WEBP, AVIF, HEIC, or HEIF.`;
+      setFormError(message);
+      toast.error(message);
+      return;
+    }
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      const message = `"${file.name}" is too large. Max allowed image size is ${MAX_UPLOAD_SIZE_MB}MB.`;
+      setFormError(message);
+      toast.error(message);
+      return;
+    }
+
     setUploading(true);
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-      const response = await api.upload.image(formData);
+      const uploadFormData = new FormData();
+      uploadFormData.append('image', file);
+      const response = await api.upload.image(uploadFormData);
       if (response.success) {
         setFormData((prev: any) => ({ ...prev, [field]: response.data.url }));
         toast.success('Image uploaded successfully.');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error uploading image:', error);
-      toast.error('Image upload failed.');
+      const message = error?.response?.data?.message || error?.message || 'Image upload failed.';
+      setFormError(message);
+      toast.error(message);
     } finally {
       setUploading(false);
     }

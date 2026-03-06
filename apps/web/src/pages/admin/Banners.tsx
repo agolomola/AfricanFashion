@@ -34,6 +34,18 @@ interface Banner {
   updatedAt: string;
 }
 
+const MAX_UPLOAD_SIZE_MB = 10;
+const MAX_UPLOAD_SIZE_BYTES = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+const ALLOWED_UPLOAD_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
 const SECTIONS = [
   { value: 'BANNER_1', label: 'Banner 1 (After Featured Designs)' },
   { value: 'BANNER_2', label: 'Banner 2 (After Featured Ready To Wear)' },
@@ -189,32 +201,71 @@ export default function AdminBanners() {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
+    const selectedFiles = Array.from(files);
+    for (const file of selectedFiles) {
+      if (!ALLOWED_UPLOAD_TYPES.has(file.type)) {
+        const message = `Unsupported image type "${file.type || 'unknown'}". Use JPG, PNG, WEBP, AVIF, HEIC, or HEIF.`;
+        setFormError(message);
+        toast.error(message);
+        return;
+      }
+      if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+        const message = `"${file.name}" is too large. Max allowed image size is ${MAX_UPLOAD_SIZE_MB}MB.`;
+        setFormError(message);
+        toast.error(message);
+        return;
+      }
+    }
+
     setUploading(true);
 
     try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        const formData = new FormData();
-        formData.append('image', file);
-        
-        const response = await api.upload.image(formData);
-        if (response.success) {
-          return response.data.url;
-        }
-        return null;
-      });
+      const uploadResults = await Promise.allSettled(
+        selectedFiles.map(async (file) => {
+          const uploadForm = new FormData();
+          uploadForm.append('image', file);
+          const response = await api.upload.image(uploadForm);
+          return response?.data?.url || null;
+        })
+      );
 
-      const uploadedUrls = await Promise.all(uploadPromises);
-      const validUrls = uploadedUrls.filter(url => url !== null) as string[];
+      const validUrls = uploadResults
+        .filter((item): item is PromiseFulfilledResult<string | null> => item.status === 'fulfilled')
+        .map((item) => item.value)
+        .filter((url): url is string => Boolean(url));
+
+      const firstUploadError = uploadResults.find((item) => item.status === 'rejected') as
+        | PromiseRejectedResult
+        | undefined;
 
       setFormData(prev => ({
         ...prev,
         images: [...prev.images, ...validUrls],
       }));
+
+      if (firstUploadError) {
+        const message =
+          firstUploadError.reason?.response?.data?.message ||
+          firstUploadError.reason?.message ||
+          'One or more images failed to upload.';
+        setFormError(message);
+        toast.error(message);
+      } else {
+        setFormError('');
+      }
     } catch (error) {
       console.error('Failed to upload images:', error);
-      toast.error('Failed to upload one or more images.');
+      const message =
+        (error as any)?.response?.data?.message ||
+        (error as any)?.message ||
+        'Failed to upload image.';
+      setFormError(message);
+      toast.error(message);
     } finally {
       setUploading(false);
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
     }
   };
 
@@ -536,7 +587,7 @@ export default function AdminBanners() {
                     <>
                       <Upload className="w-8 h-8 text-gray-400 mb-2" />
                       <span className="text-sm text-gray-500">Click to upload images</span>
-                      <span className="text-xs text-gray-400 mt-1">PNG, JPG up to 5MB</span>
+                      <span className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP, AVIF, HEIC up to 10MB</span>
                     </>
                   )}
                 </button>
