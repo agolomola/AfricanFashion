@@ -83,6 +83,13 @@ const ALLOWED_IMAGE_TYPES = new Set([
   'image/heif',
 ]);
 
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 export default function SellerDashboard() {
   const toast = useToast();
   const [stats, setStats] = useState<SellerStats | null>(null);
@@ -415,10 +422,14 @@ export default function SellerDashboard() {
     }
   };
 
+  const removeFabricImageAt = (index: number) => {
+    setNewFabricImages((previous) => previous.filter((_, idx) => idx !== index));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-coral-500"></div>
       </div>
     );
   }
@@ -460,8 +471,8 @@ export default function SellerDashboard() {
           value={`$${(stats?.totalRevenue || 0).toFixed(2)}`}
           change={stats?.revenueChange}
           icon={DollarSign}
-          iconColor="text-amber-600"
-          iconBgColor="bg-amber-100"
+          iconColor="text-coral-500"
+          iconBgColor="bg-coral-100"
         />
         <StatCard
           title="Pending Orders"
@@ -481,7 +492,7 @@ export default function SellerDashboard() {
               key={tab}
               onClick={() => navigateToTab(tab)}
               className={`pb-3 text-sm font-medium capitalize transition-colors relative ${
-                activeTab === tab ? 'text-amber-600' : 'text-gray-500 hover:text-gray-700'
+                activeTab === tab ? 'text-coral-500' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab}
@@ -491,7 +502,7 @@ export default function SellerDashboard() {
                 </span>
               )}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-coral-500" />
               )}
             </button>
           ))}
@@ -547,7 +558,7 @@ export default function SellerDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Selling Fabrics</h3>
               <BarChart 
                 data={stats?.topFabrics || [
-                  { label: 'Kente', value: 156, color: 'bg-amber-500' },
+                  { label: 'Kente', value: 156, color: 'bg-coral-500' },
                   { label: 'Ankara', value: 142, color: 'bg-blue-500' },
                   { label: 'Aso Oke', value: 98, color: 'bg-purple-500' },
                   { label: 'Adinkra', value: 76, color: 'bg-green-500' },
@@ -576,7 +587,8 @@ export default function SellerDashboard() {
                       <p className="text-sm text-gray-500">{order.fabricName} · {order.meters}m</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-amber-700">${order.totalAmount.toFixed(2)}</p>
+                      <p className="font-medium text-coral-600">${order.totalAmount.toFixed(2)}</p>
+                      
                       <Badge variant={getOrderVariant(order.status)} size="sm">
                         {order.status}
                       </Badge>
@@ -785,9 +797,12 @@ export default function SellerDashboard() {
       {/* Create Fabric Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full max-h-[90vh] overflow-auto p-6">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-auto p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Upload New Fabric</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Upload New Fabric</h3>
+                <p className="text-sm text-gray-500 mt-1">Fill in product details, then upload 3-4 images before submitting.</p>
+              </div>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -804,6 +819,12 @@ export default function SellerDashboard() {
                 {modalError}
               </div>
             )}
+
+            <div className="mb-4 p-3 rounded-lg bg-coral-50 border border-coral-100">
+              <p className="text-xs text-coral-700 font-medium">
+                Image requirements: 3-4 images • max {MAX_UPLOAD_MB}MB each • JPG/PNG/WEBP/AVIF/HEIC/HEIF
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -904,7 +925,7 @@ export default function SellerDashboard() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fabric Images *</label>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/avif,image/heic,image/heif"
                   multiple
                   onChange={(e) => setNewFabricImages(Array.from(e.target.files || []))}
                   className="w-full px-3 py-2 border rounded-lg"
@@ -915,6 +936,25 @@ export default function SellerDashboard() {
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">Image rule: minimum 3 and maximum 4.</p>
+                {newFabricImages.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {newFabricImages.map((file, index) => (
+                      <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{file.name}</p>
+                          <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-xs text-red-600 hover:text-red-700"
+                          onClick={() => removeFabricImageAt(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

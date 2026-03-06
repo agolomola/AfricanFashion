@@ -85,6 +85,13 @@ const ALLOWED_IMAGE_TYPES = new Set([
   'image/heif',
 ]);
 
+const formatFileSize = (bytes: number) => {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '0 KB';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
 export default function DesignerDashboard() {
   const [stats, setStats] = useState<DesignerStats | null>(null);
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -432,10 +439,14 @@ export default function DesignerDashboard() {
     }
   };
 
+  const removeDesignImageAt = (index: number) => {
+    setDesignImages((previous) => previous.filter((_, idx) => idx !== index));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-96">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-amber-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-coral-500"></div>
       </div>
     );
   }
@@ -484,8 +495,8 @@ export default function DesignerDashboard() {
           title="Rating"
           value={`${(stats?.rating || 0).toFixed(1)} ⭐`}
           icon={Star}
-          iconColor="text-amber-600"
-          iconBgColor="bg-amber-100"
+          iconColor="text-coral-500"
+          iconBgColor="bg-coral-100"
           subtitle="Average rating"
         />
       </div>
@@ -498,7 +509,7 @@ export default function DesignerDashboard() {
               key={tab}
               onClick={() => navigateToTab(tab)}
               className={`pb-3 text-sm font-medium capitalize transition-colors relative ${
-                activeTab === tab ? 'text-amber-600' : 'text-gray-500 hover:text-gray-700'
+                activeTab === tab ? 'text-coral-500' : 'text-gray-500 hover:text-gray-700'
               }`}
             >
               {tab}
@@ -508,7 +519,7 @@ export default function DesignerDashboard() {
                 </span>
               )}
               {activeTab === tab && (
-                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber-600" />
+                <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-coral-500" />
               )}
             </button>
           ))}
@@ -571,7 +582,7 @@ export default function DesignerDashboard() {
               <h3 className="text-lg font-semibold text-gray-900 mb-4">Top Performing Designs</h3>
               <BarChart 
                 data={stats?.topDesigns || [
-                  { label: 'Kente Gown', value: 45, color: 'bg-amber-500' },
+                  { label: 'Kente Gown', value: 45, color: 'bg-coral-500' },
                   { label: 'Ankara Dress', value: 38, color: 'bg-blue-500' },
                   { label: 'Dashiki', value: 32, color: 'bg-purple-500' },
                   { label: 'Boubou', value: 28, color: 'bg-green-500' },
@@ -586,14 +597,14 @@ export default function DesignerDashboard() {
 
           {/* Pending Orders Alert */}
           {pendingOrders.length > 0 && (
-            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="bg-coral-50 border border-coral-100 rounded-xl p-4">
               <div className="flex items-center gap-3">
-                <AlertCircle className="w-5 h-5 text-amber-600" />
+                <AlertCircle className="w-5 h-5 text-coral-500" />
                 <div className="flex-1">
-                  <p className="font-medium text-amber-900">
+                  <p className="font-medium text-coral-700">
                     You have {pendingOrders.length} pending order{pendingOrders.length > 1 ? 's' : ''}
                   </p>
-                  <p className="text-sm text-amber-700">
+                  <p className="text-sm text-coral-600">
                     Start production to keep your customers happy
                   </p>
                 </div>
@@ -651,7 +662,7 @@ export default function DesignerDashboard() {
                   <div className="mt-4 grid grid-cols-3 gap-4">
                     <div>
                         <p className="text-xs text-gray-500">Price</p>
-                        <p className="font-medium text-amber-700">
+                        <p className="font-medium text-coral-600">
                           {design.currencyCode || 'USD'} {Number(design.localBasePrice ?? (design.basePrice || 0)).toFixed(2)}
                         </p>
                         <p className="text-[11px] text-gray-500">
@@ -808,9 +819,12 @@ export default function DesignerDashboard() {
       {/* Create Design Modal */}
       {showCreateModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-xl max-w-3xl w-full max-h-[90vh] overflow-auto p-6">
+          <div className="bg-white rounded-2xl max-w-3xl w-full max-h-[90vh] overflow-auto p-6 shadow-xl">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900">Upload New Design</h3>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Upload New Design</h3>
+                <p className="text-sm text-gray-500 mt-1">Add details, suitable fabrics, and upload 4-6 approved images.</p>
+              </div>
               <button
                 onClick={() => {
                   setShowCreateModal(false);
@@ -827,6 +841,12 @@ export default function DesignerDashboard() {
                 {modalError}
               </div>
             )}
+
+            <div className="mb-4 p-3 rounded-lg bg-coral-50 border border-coral-100">
+              <p className="text-xs text-coral-700 font-medium">
+                Image requirements: 4-6 images • max {MAX_UPLOAD_MB}MB each • JPG/PNG/WEBP/AVIF/HEIC/HEIF
+              </p>
+            </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="md:col-span-2">
@@ -920,7 +940,7 @@ export default function DesignerDashboard() {
                         <span>
                           <span className="font-medium text-gray-800">{item.name}</span>{' '}
                           <span className="text-gray-500">({item.unit || 'cm'})</span>
-                          {item.isRequired ? <span className="ml-1 text-xs text-amber-700">required</span> : null}
+                          {item.isRequired ? <span className="ml-1 text-xs text-coral-600">required</span> : null}
                         </span>
                       </label>
                     );
@@ -970,7 +990,7 @@ export default function DesignerDashboard() {
                 <label className="block text-sm font-medium text-gray-700 mb-1">Design Images *</label>
                 <input
                   type="file"
-                  accept="image/jpeg,image/png,image/webp"
+                  accept="image/jpeg,image/jpg,image/png,image/webp,image/avif,image/heic,image/heif"
                   multiple
                   onChange={(e) => setDesignImages(Array.from(e.target.files || []))}
                   className="w-full px-3 py-2 border rounded-lg"
@@ -981,6 +1001,25 @@ export default function DesignerDashboard() {
                   </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">Design image rule: minimum 4, maximum 6.</p>
+                {designImages.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    {designImages.map((file, index) => (
+                      <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium text-gray-800 truncate">{file.name}</p>
+                          <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
+                        </div>
+                        <button
+                          type="button"
+                          className="text-xs text-red-600 hover:text-red-700"
+                          onClick={() => removeDesignImageAt(index)}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 
