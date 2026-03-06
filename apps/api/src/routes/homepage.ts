@@ -58,15 +58,75 @@ function isFeaturedTableMissingError(error: any) {
   return error?.code === 'P2021' && (table.includes('FeaturedProduct') || message.includes('FeaturedProduct'));
 }
 
-const withSafeFeaturedRows = async (resolver: () => Promise<any[]>) => {
+function isFeaturedUnavailableError(error: any) {
+  const code = String(error?.code || '');
+  const table = String(error?.meta?.table || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  if (isFeaturedTableMissingError(error)) return true;
+  if (code === 'P2022') return true;
+  if (code === '42804') return true;
+  if (code === '22P02') return true;
+  if (table.includes('featuredproduct')) return true;
+  if (message.includes('featuredproduct')) return true;
+  if (message.includes('featuredsection')) return true;
+  if (message.includes('enum') && message.includes('featured')) return true;
+  return false;
+}
+
+const withSafeFeaturedRows = async (resolver: () => Promise<any[]>, fallback?: () => Promise<any[]>) => {
   try {
     return await resolver();
   } catch (error) {
-    if (isFeaturedTableMissingError(error)) {
+    if (isFeaturedUnavailableError(error)) {
+      if (fallback) {
+        return fallback();
+      }
       return [];
     }
     throw error;
   }
+};
+
+const normalizeFeaturedRow = (row: any) => {
+  const productType = String(row?.productType || '').toUpperCase();
+  const section = String(row?.section || '').toUpperCase();
+  if (!PRODUCT_TYPES.includes(productType as any)) return null;
+  if (!FEATURED_SECTIONS.includes(section as any)) return null;
+  return {
+    id: String(row.id),
+    productId: String(row.productId),
+    productType,
+    section,
+    displayOrder: Number(row.displayOrder || 0),
+    customTitle: row.customTitle || null,
+    customDescription: row.customDescription || null,
+    isActive: Boolean(row.isActive),
+  };
+};
+
+const getFeaturedRowsBySectionRaw = async (section: string, take: number) => {
+  const rows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT "id", "productId", "productType", "section", "displayOrder", "customTitle", "customDescription", "isActive"
+     FROM "FeaturedProduct"
+     WHERE UPPER("section"::text) = UPPER($1::text)
+       AND "isActive" = true
+     ORDER BY "displayOrder" ASC
+     LIMIT $2`,
+    section,
+    take
+  );
+  return rows.map(normalizeFeaturedRow).filter(Boolean);
+};
+
+const getAllFeaturedRowsRaw = async () => {
+  const rows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT "id", "productId", "productType", "section", "displayOrder", "customTitle", "customDescription", "isActive"
+     FROM "FeaturedProduct"
+     WHERE "isActive" = true
+     ORDER BY "section" ASC, "displayOrder" ASC`
+  );
+  return rows.map(normalizeFeaturedRow).filter(Boolean);
 };
 
 const getFeaturedProductWithDetails = async (fp: any) => {
@@ -348,7 +408,8 @@ router.get('/featured/:section', async (req, res) => {
       });
     }
 
-    const featuredProducts = await withSafeFeaturedRows(() =>
+    const featuredProducts = await withSafeFeaturedRows(
+      () =>
       prisma.featuredProduct.findMany({
         where: {
           section: section as any,
@@ -356,7 +417,8 @@ router.get('/featured/:section', async (req, res) => {
         },
         orderBy: { displayOrder: 'asc' },
         take: 12,
-      })
+      }),
+      () => getFeaturedRowsBySectionRaw(section, 12)
     );
 
     const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
@@ -381,18 +443,19 @@ router.get('/featured', async (req, res) => {
   try {
     const sections = FEATURED_SECTIONS;
     const result: Record<string, any[]> = {};
+    const allRows = await withSafeFeaturedRows(
+      () =>
+        prisma.featuredProduct.findMany({
+          where: { isActive: true },
+          orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
+        }),
+      () => getAllFeaturedRowsRaw()
+    );
 
     for (const section of sections) {
-      const featuredProducts = await withSafeFeaturedRows(() =>
-        prisma.featuredProduct.findMany({
-          where: {
-            section: section as any,
-            isActive: true,
-          },
-          orderBy: { displayOrder: 'asc' },
-          take: 6,
-        })
-      );
+      const featuredProducts = allRows
+        .filter((row) => String(row.section) === section)
+        .slice(0, 6);
 
       const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
       const validProducts = productsWithDetails.filter((p) => p !== null);
@@ -531,10 +594,12 @@ router.delete('/admin/hero-slides/:id', authenticate, authorizePermissions(Permi
 // Get all featured products (admin)
 router.get('/admin/featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const featured = await withSafeFeaturedRows(() =>
-      prisma.featuredProduct.findMany({
-        orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
-      })
+    const featured = await withSafeFeaturedRows(
+      () =>
+        prisma.featuredProduct.findMany({
+          orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
+        }),
+      () => getAllFeaturedRowsRaw()
     );
     const details = await Promise.all(featured.map((item) => getFeaturedProductWithDetails(item)));
     const detailByFeaturedId = new Map(

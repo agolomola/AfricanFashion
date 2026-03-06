@@ -536,6 +536,7 @@ export default function AdminProducts() {
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Product</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Type</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Price</th>
+                <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Featured</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Status</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Seller/Designer</th>
                 <th className="text-left py-3 px-4 text-sm font-medium text-gray-500">Orders</th>
@@ -582,6 +583,18 @@ export default function AdminProducts() {
                     <Badge variant="secondary">{product.type}</Badge>
                   </td>
                   <td className="py-3 px-4 font-medium">${Number(product.finalPrice || 0).toFixed(2)}</td>
+                  <td className="py-3 px-4">
+                    {product.isFeatured ? (
+                      <Badge variant="yellow">
+                        <span className="inline-flex items-center gap-1">
+                          <Star className="w-3.5 h-3.5" />
+                          Featured
+                        </span>
+                      </Badge>
+                    ) : (
+                      <Badge variant="gray">No</Badge>
+                    )}
+                  </td>
                   <td className="py-3 px-4">
                     <Badge variant={statusVariant(product)}>
                       {statusLabel(product)}
@@ -639,7 +652,7 @@ export default function AdminProducts() {
               ))}
               {products.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="py-8 text-center text-gray-500">
+                  <td colSpan={9} className="py-8 text-center text-gray-500">
                     No products found.
                   </td>
                 </tr>
