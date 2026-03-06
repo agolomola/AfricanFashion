@@ -65,6 +65,18 @@ const EMPTY_FORM: ProductFormState = {
   featuredSection: '',
 };
 
+const MAX_UPLOAD_MB = 10;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -195,6 +207,14 @@ export default function AdminProducts() {
     try {
       setUploadingImage(true);
       setFormError('');
+      if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+        setFormError(`Unsupported image type (${file.type || 'unknown'}).`);
+        return;
+      }
+      if (file.size > MAX_UPLOAD_BYTES) {
+        setFormError(`Image is too large. Max allowed size is ${MAX_UPLOAD_MB}MB.`);
+        return;
+      }
       const data = new FormData();
       data.append('image', file);
       const response = await api.upload.image(data);
@@ -722,7 +742,7 @@ export default function AdminProducts() {
                 />
               </label>
               <span className="text-xs text-gray-500">
-                {`Required: ${getImageRule(productForm.type).min}-${getImageRule(productForm.type).max} images`}
+                {`Required: ${getImageRule(productForm.type).min}-${getImageRule(productForm.type).max} images • Max ${MAX_UPLOAD_MB}MB each`}
               </span>
             </div>
             {productForm.images.length > 0 && (

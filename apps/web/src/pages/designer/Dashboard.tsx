@@ -73,6 +73,18 @@ interface Activity {
   timestamp: string;
 }
 
+const MAX_UPLOAD_MB = 10;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
 export default function DesignerDashboard() {
   const [stats, setStats] = useState<DesignerStats | null>(null);
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -326,6 +338,14 @@ export default function DesignerDashboard() {
 
       const uploadedImages: Array<{ url: string; alt?: string }> = [];
       for (const file of designImages) {
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+          setModalError(`Unsupported image type (${file.type || 'unknown'}).`);
+          return;
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+          setModalError(`Image is too large. Max allowed size is ${MAX_UPLOAD_MB}MB.`);
+          return;
+        }
         const formData = new FormData();
         formData.append('image', file);
         const uploadResponse = await api.upload.image(formData);
@@ -956,7 +976,9 @@ export default function DesignerDashboard() {
                   className="w-full px-3 py-2 border rounded-lg"
                 />
                 {designImages.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">{designImages.length} image(s) selected</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {designImages.length} image(s) selected • Max {MAX_UPLOAD_MB}MB each
+                  </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">Design image rule: minimum 4, maximum 6.</p>
               </div>

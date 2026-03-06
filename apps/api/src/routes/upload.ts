@@ -6,6 +6,8 @@ import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
 
 const router = Router();
+const MAX_IMAGE_SIZE_MB = 10;
+const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 const allowedMimeTypes: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
@@ -33,7 +35,12 @@ const fileFilter = (req: any, file: any, cb: any) => {
   if (allowedMimeTypes[file.mimetype]) {
     cb(null, true);
   } else {
-    cb(new Error('Only JPEG, PNG, and WebP images are allowed'), false);
+    cb(
+      new Error(
+        `Unsupported file type "${file.mimetype}". Allowed types: ${Object.keys(allowedMimeTypes).join(', ')}`
+      ),
+      false
+    );
   }
 };
 
@@ -41,7 +48,7 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 10 * 1024 * 1024, // 10MB max
+    fileSize: MAX_IMAGE_SIZE_BYTES,
   },
 });
 
@@ -66,16 +73,26 @@ function mapUploadError(error: any) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return {
         status: 400,
-        message: 'Image is too large. Max allowed size is 10MB.',
+        code: 'FILE_TOO_LARGE',
+        message: `Image is too large. Max allowed size is ${MAX_IMAGE_SIZE_MB}MB.`,
       };
     }
     return {
       status: 400,
+      code: error.code || 'UPLOAD_INVALID',
       message: error.message || 'Invalid upload payload.',
+    };
+  }
+  if (error?.code === 'ENOENT' || error?.code === 'EACCES' || error?.code === 'EPERM') {
+    return {
+      status: 500,
+      code: 'UPLOAD_STORAGE_UNAVAILABLE',
+      message: 'Upload storage is not available on server. Please contact support.',
     };
   }
   return {
     status: 400,
+    code: 'UPLOAD_INVALID',
     message: error?.message || 'Invalid upload payload.',
   };
 }
@@ -107,7 +124,12 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
     const mapped = mapUploadError(error);
     res.status(mapped.status).json({
       success: false,
+      code: mapped.code,
       message: mapped.message,
+      constraints: {
+        maxFileSizeMb: MAX_IMAGE_SIZE_MB,
+        allowedMimeTypes: Object.keys(allowedMimeTypes),
+      },
     });
   }
 });
@@ -140,7 +162,12 @@ router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CR
     const mapped = mapUploadError(error);
     res.status(mapped.status).json({
       success: false,
+      code: mapped.code,
       message: mapped.message,
+      constraints: {
+        maxFileSizeMb: MAX_IMAGE_SIZE_MB,
+        allowedMimeTypes: Object.keys(allowedMimeTypes),
+      },
     });
   }
 });

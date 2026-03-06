@@ -71,6 +71,18 @@ interface Activity {
   timestamp: string;
 }
 
+const MAX_UPLOAD_MB = 10;
+const MAX_UPLOAD_BYTES = MAX_UPLOAD_MB * 1024 * 1024;
+const ALLOWED_IMAGE_TYPES = new Set([
+  'image/jpeg',
+  'image/jpg',
+  'image/png',
+  'image/webp',
+  'image/avif',
+  'image/heic',
+  'image/heif',
+]);
+
 export default function SellerDashboard() {
   const toast = useToast();
   const [stats, setStats] = useState<SellerStats | null>(null);
@@ -315,6 +327,14 @@ export default function SellerDashboard() {
 
       const uploadedImages: Array<{ url: string; alt?: string }> = [];
       for (const file of newFabricImages) {
+        if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
+          setModalError(`Unsupported image type (${file.type || 'unknown'}).`);
+          return;
+        }
+        if (file.size > MAX_UPLOAD_BYTES) {
+          setModalError(`Image is too large. Max allowed size is ${MAX_UPLOAD_MB}MB.`);
+          return;
+        }
         const formData = new FormData();
         formData.append('image', file);
         const uploadResponse = await api.upload.image(formData);
@@ -890,7 +910,9 @@ export default function SellerDashboard() {
                   className="w-full px-3 py-2 border rounded-lg"
                 />
                 {newFabricImages.length > 0 && (
-                  <p className="text-xs text-gray-500 mt-1">{newFabricImages.length} image(s) selected</p>
+                  <p className="text-xs text-gray-500 mt-1">
+                    {newFabricImages.length} image(s) selected • Max {MAX_UPLOAD_MB}MB each
+                  </p>
                 )}
                 <p className="text-xs text-gray-500 mt-1">Image rule: minimum 3 and maximum 4.</p>
               </div>
