@@ -10,6 +10,22 @@ function isFeaturedTableMissingError(error: any) {
   return error?.code === 'P2021' && (table.includes('FeaturedProduct') || message.includes('FeaturedProduct'));
 }
 
+function isFeaturedUnavailableError(error: any) {
+  const code = String(error?.code || '');
+  const table = String(error?.meta?.table || '').toLowerCase();
+  const message = String(error?.message || '').toLowerCase();
+
+  if (isFeaturedTableMissingError(error)) return true;
+  if (code === 'P2022') return true;
+  if (code === '42804') return true;
+  if (code === '22P02') return true;
+  if (table.includes('featuredproduct')) return true;
+  if (message.includes('featuredproduct')) return true;
+  if (message.includes('featuredsection')) return true;
+  if (message.includes('enum') && message.includes('featured')) return true;
+  return false;
+}
+
 function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 20) {
   const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
@@ -72,7 +88,7 @@ async function getFeaturedSectionsByProductIds(productIds: string[], productType
       },
     });
   } catch (error) {
-    if (!isFeaturedTableMissingError(error)) {
+    if (!isFeaturedUnavailableError(error)) {
       throw error;
     }
   }
@@ -97,7 +113,7 @@ async function getFeaturedSections(productId: string, productType: ProductType) 
       select: { section: true },
     });
   } catch (error) {
-    if (!isFeaturedTableMissingError(error)) {
+    if (!isFeaturedUnavailableError(error)) {
       throw error;
     }
   }
@@ -867,7 +883,7 @@ router.get('/featured', async (req, res, next) => {
         orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
       });
     } catch (error) {
-      if (!isFeaturedTableMissingError(error)) {
+      if (!isFeaturedUnavailableError(error)) {
         throw error;
       }
     }
@@ -881,13 +897,14 @@ router.get('/featured', async (req, res, next) => {
     const readyToWear: any[] = [];
 
     for (const row of featuredRows) {
-      if (row.productType === ProductType.FABRIC) {
+      const normalizedProductType = String(row?.productType || '').toUpperCase();
+      if (normalizedProductType === ProductType.FABRIC) {
         const item = fabricsById.get(row.productId);
         if (item && fabrics.length < 4) fabrics.push(item);
-      } else if (row.productType === ProductType.DESIGN) {
+      } else if (normalizedProductType === ProductType.DESIGN) {
         const item = designsById.get(row.productId);
         if (item && designs.length < 4) designs.push(item);
-      } else if (row.productType === ProductType.READY_TO_WEAR) {
+      } else if (normalizedProductType === ProductType.READY_TO_WEAR) {
         const item = readyToWearById.get(row.productId);
         if (item && readyToWear.length < 4) readyToWear.push(item);
       }
@@ -896,9 +913,13 @@ router.get('/featured', async (req, res, next) => {
       }
     }
 
-    if (featuredRows.length === 0) {
+    if (fabrics.length === 0) {
       fabrics.push(...fabricsPool.slice(0, 4));
+    }
+    if (designs.length === 0) {
       designs.push(...designsPool.slice(0, 4));
+    }
+    if (readyToWear.length === 0) {
       readyToWear.push(...rtwPool.slice(0, 4));
     }
 
