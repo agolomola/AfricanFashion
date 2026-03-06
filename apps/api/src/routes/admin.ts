@@ -2,9 +2,13 @@ import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { AdjustmentType, FeaturedSection, PricingRuleType, ProductTypeForPricing } from '@prisma/client';
-import { prisma, UserRole, UserStatus, ProductStatus, OrderStatus, ProductType } from '../db';
+import { prisma, UserRole, UserStatus, ProductStatus, OrderStatus, ProductType, VendorProfileStatus } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
+import {
+  getVendorProfileFields,
+  normalizeVendorProfileFieldInput,
+} from '../utils/vendor-profile';
 
 const router = Router();
 
@@ -156,6 +160,36 @@ const VENDOR_SESSION_AUDIT_ACTIONS = [
   'VENDOR_SESSION_LOGOUT',
 ] as const;
 const vendorSessionAuditActionSchema = z.enum(VENDOR_SESSION_AUDIT_ACTIONS);
+const vendorRoleSchema = z.enum(['FABRIC_SELLER', 'FASHION_DESIGNER']);
+const vendorProfileFieldTypeSchema = z.enum([
+  'TEXT',
+  'TEXTAREA',
+  'NUMBER',
+  'DATE',
+  'SELECT',
+  'MULTI_SELECT',
+  'EMAIL',
+  'PHONE',
+  'URL',
+  'DOCUMENT',
+  'IMAGE',
+]);
+const vendorProfileFieldSchema = z.object({
+  id: z.string().uuid().optional(),
+  key: z.string().min(1),
+  label: z.string().min(1),
+  fieldType: vendorProfileFieldTypeSchema,
+  placeholder: z.string().optional(),
+  helpText: z.string().optional(),
+  required: z.boolean().optional(),
+  options: z.array(z.string()).optional(),
+  sortOrder: z.coerce.number().int().optional(),
+  isActive: z.boolean().optional(),
+});
+const vendorProfileReviewSchema = z.object({
+  status: z.enum(['APPROVED', 'REJECTED']),
+  notes: z.string().trim().optional(),
+});
 
 const getDefaultFeaturedSectionForType = (productType: ProductType): FeaturedSection => {
   if (productType === ProductType.FABRIC) return FeaturedSection.FEATURED_FABRICS;
@@ -294,6 +328,39 @@ async function getProductOwner(type: ProductType, id: string) {
     ownerUserId: product.designer.user.id,
     ownerName: product.designer.businessName || `${product.designer.user.firstName} ${product.designer.user.lastName}`.trim(),
   };
+}
+
+async function getVendorProfileForReview(role: 'FABRIC_SELLER' | 'FASHION_DESIGNER', userId: string) {
+  if (role === 'FABRIC_SELLER') {
+    return prisma.fabricSellerProfile.findFirst({
+      where: { userId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            status: true,
+          },
+        },
+      },
+    });
+  }
+  return prisma.designerProfile.findFirst({
+    where: { userId },
+    include: {
+      user: {
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          status: true,
+        },
+      },
+    },
+  });
 }
 
 // All admin routes require admin role
@@ -522,7 +589,137 @@ router.get('/dashboard', async (req, res, next) => {
       },
     });
   } catch (error) {
-    next(error);
+    try {
+      // Fallback query path: return basic product rows even if relation joins fail.
+      const fallbackPagination = parsePagination(req.query.page, req.query.limit, 20);
+      const [fabrics, designs, readyToWear] = await Promise.all([
+        prisma.fabric.findMany({
+          skip: fallbackPagination.skip,
+          take: fallbackPagination.limit,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            status: true,
+            isAvailable: true,
+            sellerPrice: true,
+            finalPrice: true,
+            createdAt: true,
+            images: { select: { url: true }, take: 1, orderBy: { sortOrder: 'asc' } },
+          },
+        }),
+        prisma.design.findMany({
+          skip: fallbackPagination.skip,
+          take: fallbackPagination.limit,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            status: true,
+            isAvailable: true,
+            basePrice: true,
+            finalPrice: true,
+            createdAt: true,
+            images: { select: { url: true }, take: 1, orderBy: { sortOrder: 'asc' } },
+          },
+        }),
+        prisma.readyToWear.findMany({
+          skip: fallbackPagination.skip,
+          take: fallbackPagination.limit,
+          orderBy: { createdAt: 'desc' },
+          select: {
+            id: true,
+            name: true,
+            description: true,
+            status: true,
+            isAvailable: true,
+            basePrice: true,
+            createdAt: true,
+            images: { select: { url: true }, take: 1, orderBy: { sortOrder: 'asc' } },
+          },
+        }),
+      ]);
+      const fallbackProducts = [
+        ...fabrics.map((row) => ({
+          id: row.id,
+          type: ProductType.FABRIC,
+          name: row.name,
+          description: row.description,
+          status: row.status,
+          isAvailable: row.isAvailable,
+          basePrice: Number(row.sellerPrice || 0),
+          finalPrice: Number(row.finalPrice || 0),
+          category: 'Material',
+          ownerName: 'Vendor',
+          ownerCountry: null,
+          ownerUserId: null,
+          orderCount: 0,
+          image: row.images?.[0]?.url || null,
+          createdAt: row.createdAt,
+          updatedAt: row.createdAt,
+          isFeatured: false,
+          featuredSections: [],
+        })),
+        ...designs.map((row) => ({
+          id: row.id,
+          type: ProductType.DESIGN,
+          name: row.name,
+          description: row.description,
+          status: row.status,
+          isAvailable: row.isAvailable,
+          basePrice: Number(row.basePrice || 0),
+          finalPrice: Number(row.finalPrice || 0),
+          category: 'Design',
+          ownerName: 'Vendor',
+          ownerCountry: null,
+          ownerUserId: null,
+          orderCount: 0,
+          image: row.images?.[0]?.url || null,
+          createdAt: row.createdAt,
+          updatedAt: row.createdAt,
+          isFeatured: false,
+          featuredSections: [],
+        })),
+        ...readyToWear.map((row) => ({
+          id: row.id,
+          type: ProductType.READY_TO_WEAR,
+          name: row.name,
+          description: row.description,
+          status: row.status,
+          isAvailable: row.isAvailable,
+          basePrice: Number(row.basePrice || 0),
+          finalPrice: Number(row.basePrice || 0),
+          category: 'Ready To Wear',
+          ownerName: 'Vendor',
+          ownerCountry: null,
+          ownerUserId: null,
+          orderCount: 0,
+          image: row.images?.[0]?.url || null,
+          createdAt: row.createdAt,
+          updatedAt: row.createdAt,
+          isFeatured: false,
+          featuredSections: [],
+        })),
+      ].sort((a, b) => Number(new Date(b.createdAt)) - Number(new Date(a.createdAt)));
+
+      return res.json({
+        success: true,
+        warning: 'FALLBACK_PRODUCT_QUERY',
+        data: {
+          products: fallbackProducts.slice(0, fallbackPagination.limit),
+          pagination: {
+            page: fallbackPagination.page,
+            limit: fallbackPagination.limit,
+            total: fallbackProducts.length,
+            pages: Math.max(1, Math.ceil(fallbackProducts.length / fallbackPagination.limit)),
+          },
+        },
+      });
+    } catch {
+      next(error);
+    }
   }
 });
 
@@ -973,6 +1170,312 @@ router.get('/users/pending', async (req, res, next) => {
     res.json({
       success: true,
       data: users,
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/vendor-profile/fields', async (req, res, next) => {
+  try {
+    const role = vendorRoleSchema.parse(String(req.query.role || 'FABRIC_SELLER'));
+    const fields = await getVendorProfileFields(role);
+    res.json({
+      success: true,
+      data: {
+        role,
+        fields,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/vendor-profile/fields', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      role: vendorRoleSchema,
+      fields: z.array(vendorProfileFieldSchema).min(1),
+    });
+    const payload = schema.parse(req.body);
+    const normalized = payload.fields.map((field) => normalizeVendorProfileFieldInput(field));
+    const dedupe = new Map<string, (typeof normalized)[number]>();
+    for (const field of normalized) {
+      dedupe.set(field.key, field);
+    }
+    const data = Array.from(dedupe.values())
+      .map((field, index) => ({ ...field, sortOrder: field.sortOrder ?? index + 1 }))
+      .sort((a, b) => a.sortOrder - b.sortOrder);
+
+    await prisma.$transaction([
+      prisma.vendorProfileField.deleteMany({ where: { role: payload.role } }),
+      prisma.vendorProfileField.createMany({
+        data: data.map((field) => ({
+          role: payload.role,
+          key: field.key,
+          label: field.label,
+          fieldType: field.fieldType,
+          placeholder: field.placeholder,
+          helpText: field.helpText,
+          required: field.required,
+          options: field.options,
+          sortOrder: field.sortOrder,
+          isActive: field.isActive,
+          createdById: req.user!.id,
+          updatedById: req.user!.id,
+        })),
+      }),
+    ]);
+
+    const saved = await getVendorProfileFields(payload.role);
+    res.json({
+      success: true,
+      message: 'Vendor profile fields updated successfully.',
+      data: {
+        role: payload.role,
+        fields: saved,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/vendor-profiles', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      role: vendorRoleSchema.optional(),
+      status: z.nativeEnum(VendorProfileStatus).optional(),
+      search: z.string().trim().optional(),
+      page: z.string().optional(),
+      limit: z.string().optional(),
+    });
+    const query = schema.parse(req.query);
+    const pagination = parsePagination(query.page, query.limit, 20);
+    const search = query.search?.trim();
+
+    const buildUserSearchWhere = () =>
+      search
+        ? {
+            OR: [
+              { businessName: { contains: search, mode: 'insensitive' } },
+              { user: { firstName: { contains: search, mode: 'insensitive' } } },
+              { user: { lastName: { contains: search, mode: 'insensitive' } } },
+              { user: { email: { contains: search, mode: 'insensitive' } } },
+            ],
+          }
+        : {};
+
+    const sellerWhere: any = {
+      ...(query.status ? { profileStatus: query.status } : {}),
+      ...buildUserSearchWhere(),
+    };
+    const designerWhere: any = {
+      ...(query.status ? { profileStatus: query.status } : {}),
+      ...buildUserSearchWhere(),
+    };
+
+    const [sellers, designers] = await Promise.all([
+      query.role && query.role !== 'FABRIC_SELLER'
+        ? Promise.resolve([])
+        : prisma.fabricSellerProfile.findMany({
+            where: sellerWhere,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  status: true,
+                },
+              },
+            },
+            orderBy: { updatedAt: 'desc' },
+          }),
+      query.role && query.role !== 'FASHION_DESIGNER'
+        ? Promise.resolve([])
+        : prisma.designerProfile.findMany({
+            where: designerWhere,
+            include: {
+              user: {
+                select: {
+                  id: true,
+                  email: true,
+                  firstName: true,
+                  lastName: true,
+                  status: true,
+                },
+              },
+            },
+            orderBy: { updatedAt: 'desc' },
+          }),
+    ]);
+
+    const rows = [
+      ...sellers.map((profile) => ({
+        role: 'FABRIC_SELLER' as const,
+        userId: profile.userId,
+        profileId: profile.id,
+        businessName: profile.businessName,
+        profileStatus: profile.profileStatus,
+        isVerified: profile.isVerified,
+        profileSubmittedAt: profile.profileSubmittedAt,
+        profileReviewedAt: profile.profileReviewedAt,
+        profileReviewNotes: profile.profileReviewNotes,
+        profileData: profile.profileData || {},
+        user: profile.user,
+        updatedAt: profile.updatedAt,
+      })),
+      ...designers.map((profile) => ({
+        role: 'FASHION_DESIGNER' as const,
+        userId: profile.userId,
+        profileId: profile.id,
+        businessName: profile.businessName,
+        profileStatus: profile.profileStatus,
+        isVerified: profile.isVerified,
+        profileSubmittedAt: profile.profileSubmittedAt,
+        profileReviewedAt: profile.profileReviewedAt,
+        profileReviewNotes: profile.profileReviewNotes,
+        profileData: profile.profileData || {},
+        user: profile.user,
+        updatedAt: profile.updatedAt,
+      })),
+    ].sort((a, b) => Number(new Date(b.updatedAt)) - Number(new Date(a.updatedAt)));
+
+    const paged = rows.slice(pagination.skip, pagination.skip + pagination.limit);
+    res.json({
+      success: true,
+      data: {
+        profiles: paged,
+        pagination: {
+          page: pagination.page,
+          limit: pagination.limit,
+          total: rows.length,
+          pages: Math.max(1, Math.ceil(rows.length / pagination.limit)),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/vendor-profiles/:role/:userId', async (req, res, next) => {
+  try {
+    const role = vendorRoleSchema.parse(String(req.params.role || ''));
+    const userId = String(req.params.userId || '');
+    const profile = await getVendorProfileForReview(role, userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found.',
+      });
+    }
+    const fields = await getVendorProfileFields(role);
+    const data =
+      role === 'FABRIC_SELLER'
+        ? {
+            role,
+            user: (profile as any).user,
+            profile: profile as any,
+          }
+        : {
+            role,
+            user: (profile as any).user,
+            profile: profile as any,
+          };
+    res.json({
+      success: true,
+      data: {
+        ...data,
+        fields,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.patch('/vendor-profiles/:role/:userId/review', async (req, res, next) => {
+  try {
+    const role = vendorRoleSchema.parse(String(req.params.role || ''));
+    const userId = String(req.params.userId || '');
+    const payload = vendorProfileReviewSchema.parse(req.body);
+    const profile = await getVendorProfileForReview(role, userId);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Vendor profile not found.',
+      });
+    }
+
+    const now = new Date();
+    const nextStatus =
+      payload.status === 'APPROVED' ? VendorProfileStatus.APPROVED : VendorProfileStatus.REJECTED;
+    const statusMessage =
+      payload.status === 'APPROVED'
+        ? 'Your vendor profile has been approved. You can now upload products.'
+        : payload.notes || 'Your vendor profile requires corrections before approval.';
+
+    if (role === 'FABRIC_SELLER') {
+      await prisma.fabricSellerProfile.update({
+        where: { id: (profile as any).id },
+        data: {
+          profileStatus: nextStatus,
+          isVerified: payload.status === 'APPROVED',
+          profileReviewedAt: now,
+          profileReviewNotes: payload.notes || null,
+        },
+      });
+    } else {
+      await prisma.designerProfile.update({
+        where: { id: (profile as any).id },
+        data: {
+          profileStatus: nextStatus,
+          isVerified: payload.status === 'APPROVED',
+          profileReviewedAt: now,
+          profileReviewNotes: payload.notes || null,
+        },
+      });
+    }
+
+    if (payload.status === 'APPROVED') {
+      await prisma.user.update({
+        where: { id: userId },
+        data: { status: UserStatus.ACTIVE },
+      });
+    }
+
+    await prisma.$transaction([
+      prisma.notification.create({
+        data: {
+          userId,
+          type: payload.status === 'APPROVED' ? 'SYSTEM' : 'NEW_MESSAGE',
+          title: payload.status === 'APPROVED' ? 'Vendor profile approved' : 'Vendor profile rejected',
+          message: statusMessage,
+          relatedType: 'PROFILE',
+          relatedId: userId,
+        },
+      }),
+      prisma.activityLog.create({
+        data: {
+          userId: req.user!.id,
+          action: 'VENDOR_PROFILE_REVIEWED',
+          details: {
+            role,
+            vendorUserId: userId,
+            status: payload.status,
+            notes: payload.notes || null,
+          },
+        },
+      }),
+    ]);
+
+    res.json({
+      success: true,
+      message: `Vendor profile ${payload.status.toLowerCase()} successfully.`,
     });
   } catch (error) {
     next(error);

@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma, UserRole, ProductStatus, OrderStatus } from '../db';
+import { prisma, UserRole, ProductStatus, OrderStatus, VendorProfileStatus } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
 import {
@@ -12,6 +12,7 @@ import {
   getUsdPerUnit,
   setProductCurrencyMetadata,
 } from '../utils/currency';
+import { getVendorProfileFields, validateVendorProfileData, isBrandNameTaken } from '../utils/vendor-profile';
 
 const router = Router();
 
@@ -68,6 +69,28 @@ async function getDesignerProfile(userId: string) {
   });
 }
 
+function designerCanUpload(profile: {
+  profileStatus?: VendorProfileStatus;
+  isVerified?: boolean;
+}) {
+  return profile.profileStatus === VendorProfileStatus.APPROVED && Boolean(profile.isVerified);
+}
+
+function mapDesignerProfileBasicsFromSubmission(data: Record<string, unknown>) {
+  const toString = (value: unknown) => String(value || '').trim();
+  return {
+    businessName: toString(data.brand_name),
+    businessEmail: toString(data.business_email),
+    businessPhone: toString(data.business_phone),
+    country: toString(data.country),
+    city: toString(data.city),
+    address: toString(data.address),
+    bio: toString(data.bio),
+    portfolioUrl: toString(data.portfolio_url),
+    verificationDoc: toString(data.verification_document),
+  };
+}
+
 async function getMeasurementTemplatesForDesigner() {
   const latest = await prisma.activityLog.findFirst({
     where: { action: 'MEASUREMENT_TEMPLATES_UPDATED' },
@@ -94,6 +117,12 @@ router.get('/dashboard', async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Designer profile not found.',
+      });
+    }
+    if (!designerCanUpload(profile)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Complete and submit your full vendor profile, then wait for admin approval before uploading products.',
       });
     }
 
@@ -137,6 +166,12 @@ router.get('/stats', async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Designer profile not found.',
+      });
+    }
+    if (!designerCanUpload(profile)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your vendor profile is not approved yet. Product edits are disabled until approval.',
       });
     }
 
@@ -263,6 +298,12 @@ router.get('/designs', async (req, res, next) => {
         message: 'Designer profile not found.',
       });
     }
+    if (!designerCanUpload(profile)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Complete and submit your full vendor profile, then wait for admin approval before uploading products.',
+      });
+    }
 
     const [designs, { matrix, rules }] = await Promise.all([
       prisma.design.findMany({
@@ -328,6 +369,188 @@ router.get('/measurement-templates', async (req, res, next) => {
   }
 });
 
+router.get('/profile/full', async (req, res, next) => {
+  try {
+    const profile = await getDesignerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({
+        success: false,
+        message: 'Designer profile not found.',
+      });
+    }
+    if (!designerCanUpload(profile)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your vendor profile is not approved yet. Product edits are disabled until approval.',
+      });
+    }
+    const fields = await getVendorProfileFields(UserRole.FASHION_DESIGNER);
+    res.json({
+      success: true,
+      data: {
+        role: UserRole.FASHION_DESIGNER,
+        status: profile.profileStatus,
+        isVerified: profile.isVerified,
+        submittedAt: profile.profileSubmittedAt,
+        reviewedAt: profile.profileReviewedAt,
+        reviewNotes: profile.profileReviewNotes || '',
+        profileData: profile.profileData || {},
+        fields,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.put('/profile/full', async (req, res, next) => {
+  try {
+    const schema = z.object({
+      profileData: z.record(z.string(), z.any()).default({}),
+    });
+    const payload = schema.parse(req.body);
+    const profile = await getDesignerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Designer profile not found.' });
+    }
+    if (profile.profileStatus === VendorProfileStatus.SUBMITTED || profile.profileStatus === VendorProfileStatus.APPROVED) {
+      return res.status(403).json({
+        success: false,
+        message: 'Profile is locked. Wait for admin review or correction request.',
+      });
+    }
+
+    const fields = await getVendorProfileFields(UserRole.FASHION_DESIGNER);
+    const { normalized } = validateVendorProfileData(fields as any, payload.profileData);
+    const mergedData = {
+      ...((profile.profileData as Record<string, unknown>) || {}),
+      ...normalized,
+    };
+    const basics = mapDesignerProfileBasicsFromSubmission(mergedData);
+    if (basics.businessName) {
+      const taken = await isBrandNameTaken(basics.businessName, req.user!.id);
+      if (taken) {
+        return res.status(409).json({
+          success: false,
+          message: 'Business name is already taken. Please choose a different name.',
+        });
+      }
+    }
+
+    const updated = await prisma.designerProfile.update({
+      where: { id: profile.id },
+      data: {
+        profileData: mergedData as any,
+        profileStatus: VendorProfileStatus.INCOMPLETE,
+        businessName: basics.businessName || profile.businessName,
+        businessEmail: basics.businessEmail || profile.businessEmail,
+        businessPhone: basics.businessPhone || profile.businessPhone,
+        country: basics.country || profile.country,
+        city: basics.city || profile.city,
+        address: basics.address || profile.address,
+        bio: basics.bio || profile.bio,
+        portfolioUrl: basics.portfolioUrl || profile.portfolioUrl,
+        verificationDoc: basics.verificationDoc || profile.verificationDoc,
+        profileReviewNotes: null,
+      },
+    });
+
+    if (typeof mergedData.profile_image === 'string' && String(mergedData.profile_image).trim()) {
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { avatar: String(mergedData.profile_image).trim() },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile draft saved.',
+      data: {
+        profileStatus: updated.profileStatus,
+        profileData: updated.profileData || {},
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({
+        success: false,
+        message: error.issues?.[0]?.message || 'Invalid profile payload.',
+        errors: error.issues,
+      });
+    }
+    next(error);
+  }
+});
+
+router.post('/profile/full/submit', async (req, res, next) => {
+  try {
+    const profile = await getDesignerProfile(req.user!.id);
+    if (!profile) {
+      return res.status(404).json({ success: false, message: 'Designer profile not found.' });
+    }
+    if (profile.profileStatus === VendorProfileStatus.SUBMITTED || profile.profileStatus === VendorProfileStatus.APPROVED) {
+      return res.status(403).json({
+        success: false,
+        message: 'Profile is already submitted for review.',
+      });
+    }
+    const fields = await getVendorProfileFields(UserRole.FASHION_DESIGNER);
+    const profileData = (profile.profileData as Record<string, unknown>) || {};
+    const { errors, normalized } = validateVendorProfileData(fields as any, profileData);
+    if (errors.length > 0) {
+      return res.status(400).json({
+        success: false,
+        message: errors[0],
+        errors,
+      });
+    }
+
+    const basics = mapDesignerProfileBasicsFromSubmission(normalized);
+    if (basics.businessName) {
+      const taken = await isBrandNameTaken(basics.businessName, req.user!.id);
+      if (taken) {
+        return res.status(409).json({
+          success: false,
+          message: 'Business name is already taken. Please choose a different name.',
+        });
+      }
+    }
+
+    await prisma.designerProfile.update({
+      where: { id: profile.id },
+      data: {
+        profileData: normalized as any,
+        profileStatus: VendorProfileStatus.SUBMITTED,
+        profileSubmittedAt: new Date(),
+        profileReviewNotes: null,
+        businessName: basics.businessName || profile.businessName,
+        businessEmail: basics.businessEmail || profile.businessEmail,
+        businessPhone: basics.businessPhone || profile.businessPhone,
+        country: basics.country || profile.country,
+        city: basics.city || profile.city,
+        address: basics.address || profile.address,
+        bio: basics.bio || profile.bio,
+        portfolioUrl: basics.portfolioUrl || profile.portfolioUrl,
+        verificationDoc: basics.verificationDoc || profile.verificationDoc,
+        isVerified: false,
+      },
+    });
+    if (typeof normalized.profile_image === 'string' && String(normalized.profile_image).trim()) {
+      await prisma.user.update({
+        where: { id: req.user!.id },
+        data: { avatar: String(normalized.profile_image).trim() },
+      });
+    }
+
+    res.json({
+      success: true,
+      message: 'Profile submitted successfully. Awaiting admin approval.',
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
 // Create design
 router.post('/designs', async (req, res, next) => {
   try {
@@ -358,6 +581,12 @@ router.post('/designs', async (req, res, next) => {
       return res.status(404).json({
         success: false,
         message: 'Designer profile not found.',
+      });
+    }
+    if (!designerCanUpload(profile)) {
+      return res.status(403).json({
+        success: false,
+        message: 'Your vendor profile is not approved yet. Stock updates are disabled until approval.',
       });
     }
 

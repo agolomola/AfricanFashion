@@ -20,6 +20,7 @@ import {
   Image as ImageIcon,
   Copy,
   Check,
+  BadgeCheck,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { getVendorStorePathForRole } from '../auth/rbac';
@@ -45,6 +46,7 @@ const navItems: Record<DashboardType, NavItem[]> = {
   admin: [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Users', href: '/admin/users', icon: Users },
+    { label: 'Vendor Profiles', href: '/admin/vendor-profiles', icon: BadgeCheck },
     { label: 'Session Audit', href: '/admin/session-audit', icon: Shield },
     { label: 'Products', href: '/admin/products', icon: Package },
     { label: 'Pricing Rules', href: '/admin/pricing', icon: DollarSign },
@@ -58,11 +60,13 @@ const navItems: Record<DashboardType, NavItem[]> = {
   ],
   seller: [
     { label: 'Dashboard', href: '/seller', icon: LayoutDashboard },
+    { label: 'Complete Profile', href: '/seller/profile-setup', icon: BadgeCheck },
     { label: 'My Fabrics', href: '/seller/fabrics', icon: Layers },
     { label: 'Orders', href: '/seller/orders', icon: ShoppingBag },
   ],
   designer: [
     { label: 'Dashboard', href: '/designer', icon: LayoutDashboard },
+    { label: 'Complete Profile', href: '/designer/profile-setup', icon: BadgeCheck },
     { label: 'My Designs', href: '/designer/designs', icon: Scissors },
     { label: 'Orders', href: '/designer/orders', icon: ShoppingBag },
   ],

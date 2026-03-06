@@ -41,6 +41,7 @@ interface DesignerStats {
 interface Design {
   id: string;
   name: string;
+  description?: string;
   basePrice: number;
   currencyCode?: string;
   localBasePrice?: number;
@@ -139,6 +140,8 @@ export default function DesignerDashboard() {
     basePrice: '',
   });
   const [copiedStorefront, setCopiedStorefront] = useState(false);
+  const [vendorProfileStatus, setVendorProfileStatus] = useState<'INCOMPLETE' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'>('INCOMPLETE');
+  const [vendorProfileReviewNotes, setVendorProfileReviewNotes] = useState('');
   const [selectedFabrics, setSelectedFabrics] = useState<Record<string, number>>({});
   const [modalError, setModalError] = useState('');
   const location = useLocation();
@@ -148,6 +151,7 @@ export default function DesignerDashboard() {
     vendorStorePath && typeof window !== 'undefined'
       ? `${window.location.origin}${vendorStorePath}`
       : vendorStorePath || '';
+  const canManageProducts = vendorProfileStatus === 'APPROVED';
 
   useEffect(() => {
     fetchDashboardData();
@@ -164,6 +168,15 @@ export default function DesignerDashboard() {
     }
     setActiveTab('overview');
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (
+      (vendorProfileStatus === 'INCOMPLETE' || vendorProfileStatus === 'REJECTED') &&
+      location.pathname === '/designer'
+    ) {
+      navigate('/designer/profile-setup', { replace: true });
+    }
+  }, [vendorProfileStatus, location.pathname, navigate]);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -207,11 +220,12 @@ export default function DesignerDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const [statsRes, designsRes, ordersRes, readyToWearRes] = await Promise.all([
+      const [statsRes, designsRes, ordersRes, readyToWearRes, profileRes] = await Promise.all([
         api.designer.getStats(),
         api.designer.getDesigns(),
         api.designer.getOrders(),
         api.designer.getReadyToWear(),
+        api.designer.getProfileSetup(),
       ]);
       
       if (statsRes.success) setStats(statsRes.data);
@@ -228,6 +242,10 @@ export default function DesignerDashboard() {
           });
         });
         setStockDrafts(drafts);
+      }
+      if (profileRes.success) {
+        setVendorProfileStatus(profileRes.data?.status || 'INCOMPLETE');
+        setVendorProfileReviewNotes(profileRes.data?.reviewNotes || '');
       }
       
       // Mock activities
@@ -279,6 +297,10 @@ export default function DesignerDashboard() {
 
   const handleUpdateReadyToWearStock = async (productId: string) => {
     try {
+      if (!canManageProducts) {
+        navigate('/designer/profile-setup');
+        return;
+      }
       setSavingStockProductId(productId);
       const draft = stockDrafts[productId] || {};
       const payload = Object.entries(draft).map(([id, stock]) => ({
@@ -347,6 +369,11 @@ export default function DesignerDashboard() {
 
   const handleCreateDesign = async () => {
     try {
+      if (!canManageProducts) {
+        setModalError('Complete your profile and wait for admin approval before uploading products.');
+        navigate('/designer/profile-setup');
+        return;
+      }
       setModalError('');
       const trimmedName = newDesign.name.trim();
       const trimmedDescription = newDesign.description.trim();
@@ -455,9 +482,14 @@ export default function DesignerDashboard() {
 
   const handleEditDesign = async (design: Design) => {
     try {
+      if (!canManageProducts) {
+        setModalError('Your vendor profile must be approved before editing products.');
+        navigate('/designer/profile-setup');
+        return;
+      }
       const name = window.prompt('Design name:', design.name)?.trim();
       if (!name) return;
-      const description = window.prompt('Description (min 10 chars):', '')?.trim();
+      const description = window.prompt('Description (min 10 chars):', design.description || '')?.trim();
       if (!description || description.length < 10) {
         setModalError('Description must be at least 10 characters.');
         return;
@@ -545,7 +577,7 @@ export default function DesignerDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Designer Dashboard</h1>
           <p className="text-gray-500 mt-1">Manage your designs and track orders</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => setShowCreateModal(true)} disabled={!canManageProducts}>
           <Plus className="w-4 h-4 mr-2" />
           Add New Design
         </Button>
@@ -560,6 +592,22 @@ export default function DesignerDashboard() {
             </Link>
             <Button variant="outline" size="sm" onClick={copyStorefrontUrl}>
               {copiedStorefront ? 'Copied' : 'Copy URL'}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {!canManageProducts && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">
+            Product upload is locked until your full profile is approved by admin.
+          </p>
+          {vendorProfileReviewNotes ? (
+            <p className="mt-1 text-xs text-amber-700">Admin note: {vendorProfileReviewNotes}</p>
+          ) : null}
+          <div className="mt-3">
+            <Button size="sm" variant="outline" onClick={() => navigate('/designer/profile-setup')}>
+              Complete / Review Profile
             </Button>
           </div>
         </div>
@@ -725,7 +773,7 @@ export default function DesignerDashboard() {
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">My Designs</h2>
-            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+            <Button size="sm" onClick={() => setShowCreateModal(true)} disabled={!canManageProducts}>
               <Plus className="w-4 h-4 mr-2" />
               Add Design
             </Button>
@@ -779,7 +827,13 @@ export default function DesignerDashboard() {
                     </div>
                   </div>
                   <div className="mt-4 flex gap-2">
-                    <Button variant="outline" size="sm" className="flex-1" onClick={() => handleEditDesign(design)}>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="flex-1"
+                      onClick={() => handleEditDesign(design)}
+                      disabled={!canManageProducts}
+                    >
                       Edit
                     </Button>
                     <Button variant="outline" size="sm" className="flex-1" onClick={() => navigate(`/designs/${design.id}`)}>
@@ -812,6 +866,7 @@ export default function DesignerDashboard() {
                         <input
                           type="number"
                           min={0}
+                          disabled={!canManageProducts}
                           value={stockDrafts[product.id]?.[size.id] ?? size.stock}
                           onChange={(e) =>
                             setStockDrafts((prev) => ({
@@ -831,7 +886,7 @@ export default function DesignerDashboard() {
                     <Button
                       size="sm"
                       onClick={() => handleUpdateReadyToWearStock(product.id)}
-                      disabled={savingStockProductId === product.id}
+                      disabled={savingStockProductId === product.id || !canManageProducts}
                     >
                       {savingStockProductId === product.id ? 'Saving stock...' : 'Save stock'}
                     </Button>

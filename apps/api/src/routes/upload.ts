@@ -56,7 +56,12 @@ const upload = multer({
 
 const runSingleUpload = (req: any, res: any): Promise<void> =>
   new Promise((resolve, reject) => {
-    upload.single('image')(req, res, (err: any) => {
+    upload.fields([
+      { name: 'image', maxCount: 1 },
+      { name: 'file', maxCount: 1 },
+      { name: 'photo', maxCount: 1 },
+      { name: 'images', maxCount: 1 },
+    ])(req, res, (err: any) => {
       if (err) return reject(err);
       resolve();
     });
@@ -105,28 +110,42 @@ function ensureUploadDirectory() {
   }
 }
 
+function extractSingleUploadedFile(req: any): Express.Multer.File | null {
+  if (req.file) return req.file as Express.Multer.File;
+  if (Array.isArray(req.files) && req.files.length > 0) {
+    return req.files[0] as Express.Multer.File;
+  }
+  if (req.files && typeof req.files === 'object') {
+    const groups = req.files as Record<string, Express.Multer.File[]>;
+    const candidates = [...(groups.image || []), ...(groups.file || []), ...(groups.photo || []), ...(groups.images || [])];
+    if (candidates.length > 0) return candidates[0];
+  }
+  return null;
+}
+
 // Upload single image
 router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
     ensureUploadDirectory();
     await runSingleUpload(req, res);
+    const uploadedFile = extractSingleUploadedFile(req);
 
-    if (!req.file) {
+    if (!uploadedFile) {
       return res.status(400).json({
         success: false,
-        message: 'No image file provided.',
+        message: 'No image file provided. Use form-data field name "image".',
       });
     }
 
-    const imageUrl = `/uploads/${req.file.filename}`;
+    const imageUrl = `/uploads/${uploadedFile.filename}`;
 
     res.json({
       success: true,
       message: 'Image uploaded successfully.',
       data: {
         url: imageUrl,
-        filename: req.file.filename,
-        size: req.file.size,
+        filename: uploadedFile.filename,
+        size: uploadedFile.size,
       },
     });
   } catch (error) {

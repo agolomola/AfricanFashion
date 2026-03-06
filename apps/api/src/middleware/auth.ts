@@ -96,7 +96,10 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       });
     }
 
-    if (user.status !== 'ACTIVE') {
+    const isPendingVendor =
+      user.status === 'PENDING' &&
+      (user.role === 'FABRIC_SELLER' || user.role === 'FASHION_DESIGNER');
+    if (user.status !== 'ACTIVE' && !isPendingVendor) {
       return res.status(403).json({
         success: false,
         message: 'Account is not active. Please contact support.',
@@ -200,7 +203,10 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
       },
     });
 
-    if (user && user.status === 'ACTIVE') {
+    const isPendingVendor =
+      user?.status === 'PENDING' &&
+      (user?.role === 'FABRIC_SELLER' || user?.role === 'FASHION_DESIGNER');
+    if (user && (user.status === 'ACTIVE' || isPendingVendor)) {
       if (user.role === 'FABRIC_SELLER' || user.role === 'FASHION_DESIGNER') {
         const tokenSessionIssuedAt = Number(decoded.sessionIssuedAt || 0);
         const currentSessionIssuedAt = Number(user.lastLogin?.getTime() || 0);

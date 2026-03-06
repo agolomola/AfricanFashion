@@ -27,6 +27,13 @@ enum UserStatus {
   REJECTED
 }
 
+enum VendorProfileStatus {
+  INCOMPLETE
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
 model User {
   id        String   @id @default(uuid())
   email     String   @unique
@@ -99,6 +106,11 @@ model FabricSellerProfile {
   // Verification
   isVerified      Boolean @default(false)
   verificationDoc String? // URL to document
+  profileStatus   VendorProfileStatus @default(INCOMPLETE)
+  profileData     Json?
+  profileSubmittedAt DateTime?
+  profileReviewedAt DateTime?
+  profileReviewNotes String? @db.Text
   
   // Products
   fabrics         Fabric[]
@@ -139,6 +151,11 @@ model DesignerProfile {
   isVerified      Boolean @default(false)
   portfolioUrl    String?
   verificationDoc String?
+  profileStatus   VendorProfileStatus @default(INCOMPLETE)
+  profileData     Json?
+  profileSubmittedAt DateTime?
+  profileReviewedAt DateTime?
+  profileReviewNotes String? @db.Text
   
   // Products
   designs         Design[]
@@ -863,6 +880,27 @@ model ActivityLog {
   
   @@index([userId])
   @@index([action])
+}
+
+model VendorProfileField {
+  id          String @id @default(uuid())
+  role        UserRole
+  key         String
+  label       String
+  fieldType   String
+  placeholder String?
+  helpText    String?
+  required    Boolean @default(false)
+  options     Json?
+  sortOrder   Int @default(0)
+  isActive    Boolean @default(true)
+  createdById String?
+  updatedById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([role, key])
+  @@index([role, isActive, sortOrder])
 }
 
 // ==================== REVIEWS & RATINGS ====================

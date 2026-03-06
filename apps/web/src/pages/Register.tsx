@@ -4,6 +4,7 @@ import { Eye, EyeOff, Mail, Lock, User, ArrowRight, Store, Scissors } from 'luci
 import { api } from '../services/api';
 import { useAuthStore } from '../store/authStore';
 import Button from '../components/ui/Button';
+import { getHomeRouteForRole } from '../auth/rbac';
 
 type UserRole = 'CUSTOMER' | 'FABRIC_SELLER' | 'FASHION_DESIGNER';
 
@@ -92,7 +93,7 @@ export default function Register() {
       if (response.success) {
         if (response.data.user?.status === 'ACTIVE' && response.data.token) {
           login(response.data.user, response.data.token);
-          navigate('/');
+          navigate(getHomeRouteForRole(response.data.user?.role) || '/');
         } else {
           setNotice('Account created successfully. Your account is pending admin approval before login.');
           navigate('/login');
@@ -307,15 +308,14 @@ export default function Register() {
               {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'FASHION_DESIGNER') && (
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Business Name *
+                    Business Name
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.businessName}
                     onChange={(e) => setFormData({ ...formData, businessName: e.target.value })}
                     className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="Your business name"
+                    placeholder="Optional now — can be finalized in full profile setup"
                   />
                 </div>
               )}
@@ -323,15 +323,14 @@ export default function Register() {
               {(selectedRole === 'FABRIC_SELLER' || selectedRole === 'FASHION_DESIGNER') && (
                 <div className="col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
-                    City *
+                    City
                   </label>
                   <input
                     type="text"
-                    required
                     value={formData.city}
                     onChange={(e) => setFormData({ ...formData, city: e.target.value })}
                     className="w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-transparent"
-                    placeholder="City"
+                    placeholder="Optional now — required in full profile setup"
                   />
                 </div>
               )}

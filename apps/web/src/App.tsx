@@ -43,12 +43,14 @@ import AdminTraffic from './pages/admin/Traffic';
 import AdminMeasurementTemplates from './pages/admin/MeasurementTemplates';
 import AdminCurrencyMatrix from './pages/admin/CurrencyMatrix';
 import AdminSessionAudit from './pages/admin/SessionAudit';
+import AdminVendorProfiles from './pages/admin/VendorProfiles';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
 
 // Designer Pages
 import DesignerDashboard from './pages/designer/Dashboard';
+import VendorProfileSetup from './pages/vendor/ProfileSetup';
 
 // QA Pages
 import QADashboard from './pages/qa/Dashboard';
@@ -246,6 +248,7 @@ function App() {
               <Route element={<DashboardLayout userType="admin" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/vendor-profiles" element={<AdminVendorProfiles />} />
                 <Route path="/admin/session-audit" element={<AdminSessionAudit />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
                 <Route path="/admin/orders" element={<AdminOrders />} />
@@ -264,6 +267,7 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['FABRIC_SELLER']} />}>
               <Route element={<DashboardLayout userType="seller" />}>
                 <Route path="/seller" element={<SellerDashboard />} />
+                <Route path="/seller/profile-setup" element={<VendorProfileSetup />} />
                 <Route path="/seller/fabrics" element={<SellerDashboard />} />
                 <Route path="/seller/orders" element={<SellerDashboard />} />
               </Route>
@@ -273,6 +277,7 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['FASHION_DESIGNER']} />}>
               <Route element={<DashboardLayout userType="designer" />}>
                 <Route path="/designer" element={<DesignerDashboard />} />
+                <Route path="/designer/profile-setup" element={<VendorProfileSetup />} />
                 <Route path="/designer/designs" element={<DesignerDashboard />} />
                 <Route path="/designer/orders" element={<DesignerDashboard />} />
               </Route>

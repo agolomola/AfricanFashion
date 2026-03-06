@@ -68,6 +68,15 @@ httpClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    if (typeof FormData !== 'undefined' && config.data instanceof FormData) {
+      const headers: any = config.headers || {};
+      if (typeof headers.set === 'function') {
+        headers.set('Content-Type', undefined);
+      } else {
+        delete headers['Content-Type'];
+      }
+      config.headers = headers;
+    }
     return config;
   },
   (error) => Promise.reject(error)
@@ -539,6 +548,37 @@ const adminApi = {
   getUsers: (params?: { role?: string; status?: string; search?: string; page?: number; limit?: number }) =>
     apiService.get<{ success: boolean; data: { users: any[]; pagination: any } }>('/admin/users', { params }),
 
+  getVendorProfileFields: (role: 'FABRIC_SELLER' | 'FASHION_DESIGNER') =>
+    apiService.get<{ success: boolean; data: { role: string; fields: any[] } }>('/admin/vendor-profile/fields', {
+      params: { role },
+    }),
+
+  updateVendorProfileFields: (
+    role: 'FABRIC_SELLER' | 'FASHION_DESIGNER',
+    fields: any[]
+  ) =>
+    apiService.put<{ success: boolean; data: { role: string; fields: any[] } }>('/admin/vendor-profile/fields', {
+      role,
+      fields,
+    }),
+
+  getVendorProfiles: (params?: {
+    role?: 'FABRIC_SELLER' | 'FASHION_DESIGNER';
+    status?: 'INCOMPLETE' | 'SUBMITTED' | 'APPROVED' | 'REJECTED';
+    search?: string;
+    page?: number;
+    limit?: number;
+  }) => apiService.get<{ success: boolean; data: { profiles: any[]; pagination: any } }>('/admin/vendor-profiles', { params }),
+
+  getVendorProfileDetails: (role: 'FABRIC_SELLER' | 'FASHION_DESIGNER', userId: string) =>
+    apiService.get<{ success: boolean; data: any }>(`/admin/vendor-profiles/${role}/${userId}`),
+
+  reviewVendorProfile: (
+    role: 'FABRIC_SELLER' | 'FASHION_DESIGNER',
+    userId: string,
+    data: { status: 'APPROVED' | 'REJECTED'; notes?: string }
+  ) => apiService.patch<{ success: boolean; data?: any }>(`/admin/vendor-profiles/${role}/${userId}/review`, data),
+
   updateUserStatus: (id: string, status: string, reason?: string) =>
     apiService.patch(`/admin/users/${id}/status`, { status, reason }),
 
@@ -612,23 +652,27 @@ const adminApi = {
       return response;
     }
 
-    const sourceRows = Array.isArray(response.data?.products)
-      ? response.data.products
-      : Array.isArray(response.data as any)
-        ? (response.data as any)
-        : [];
+    const payload: any = response.data;
+    const sourceRows = Array.isArray(payload?.products)
+      ? payload.products
+      : Array.isArray(payload?.data?.products)
+        ? payload.data.products
+        : Array.isArray(response.data as any)
+          ? (response.data as any)
+          : [];
     const products = sourceRows.map((product: any) => ({
       ...product,
       basePrice: Number(product?.basePrice || 0),
       finalPrice: Number(product?.finalPrice || 0),
       image: resolveAssetUrl(product?.image),
     }));
+    const pagination = payload?.pagination || payload?.data?.pagination;
 
     return {
       success: true,
       data: {
         products,
-        pagination: response.data?.pagination || { page: 1, pages: 1, total: products.length, limit: products.length },
+        pagination: pagination || { page: 1, pages: 1, total: products.length, limit: products.length },
       },
     };
   },
@@ -798,6 +842,15 @@ const sellerApi = {
   getDashboard: () =>
     apiService.get<{ success: boolean; data: any }>('/fabric-seller/dashboard'),
 
+  getProfileSetup: () =>
+    apiService.get<{ success: boolean; data: any }>('/fabric-seller/profile/full'),
+
+  saveProfileSetup: (profileData: Record<string, any>) =>
+    apiService.put<{ success: boolean; data: any }>('/fabric-seller/profile/full', { profileData }),
+
+  submitProfileSetup: () =>
+    apiService.post<{ success: boolean; data?: any }>('/fabric-seller/profile/full/submit'),
+
   getFabrics: async () => {
     const response = await apiService.get<{ success: boolean; data: any[] }>('/fabric-seller/fabrics');
     if (!response.success) {
@@ -813,6 +866,7 @@ const sellerApi = {
       data: sourceRows.map((fabric: any) => ({
         id: fabric.id,
         name: fabric.name,
+        description: fabric.description || '',
         pricePerMeter: toFiniteNumber(fabric.finalPrice || fabric.sellerPrice),
         currencyCode: fabric.currencyCode || 'USD',
         localSellerPrice: toFiniteNumber(fabric.localSellerPrice),
@@ -899,6 +953,15 @@ const designerApi = {
   getDashboard: () =>
     apiService.get<{ success: boolean; data: any }>('/designer/dashboard'),
 
+  getProfileSetup: () =>
+    apiService.get<{ success: boolean; data: any }>('/designer/profile/full'),
+
+  saveProfileSetup: (profileData: Record<string, any>) =>
+    apiService.put<{ success: boolean; data: any }>('/designer/profile/full', { profileData }),
+
+  submitProfileSetup: () =>
+    apiService.post<{ success: boolean; data?: any }>('/designer/profile/full/submit'),
+
   getDesigns: async () => {
     const response = await apiService.get<{ success: boolean; data: any[] }>('/designer/designs');
     if (!response.success) {
@@ -909,6 +972,7 @@ const designerApi = {
       data: (response.data || []).map((design: any) => ({
         id: design.id,
         name: design.name,
+        description: design.description || '',
         basePrice: Number(design.basePrice || 0),
         currencyCode: design.currencyCode || 'USD',
         localBasePrice: Number(design.localBasePrice || 0),

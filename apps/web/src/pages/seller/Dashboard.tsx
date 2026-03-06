@@ -41,6 +41,7 @@ interface SellerStats {
 interface Fabric {
   id: string;
   name: string;
+  description?: string;
   pricePerMeter: number;
   currencyCode?: string;
   localSellerPrice?: number;
@@ -135,6 +136,8 @@ export default function SellerDashboard() {
   const [usdPerUnitByCurrency, setUsdPerUnitByCurrency] = useState<Record<string, number>>({ USD: 1 });
   const [defaultCurrency, setDefaultCurrency] = useState('USD');
   const [modalError, setModalError] = useState('');
+  const [vendorProfileStatus, setVendorProfileStatus] = useState<'INCOMPLETE' | 'SUBMITTED' | 'APPROVED' | 'REJECTED'>('INCOMPLETE');
+  const [vendorProfileReviewNotes, setVendorProfileReviewNotes] = useState('');
   const [copiedStorefront, setCopiedStorefront] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
@@ -143,6 +146,7 @@ export default function SellerDashboard() {
     vendorStorePath && typeof window !== 'undefined'
       ? `${window.location.origin}${vendorStorePath}`
       : vendorStorePath || '';
+  const canManageProducts = vendorProfileStatus === 'APPROVED';
 
   useEffect(() => {
     fetchDashboardData();
@@ -159,6 +163,15 @@ export default function SellerDashboard() {
     }
     setActiveTab('overview');
   }, [location.pathname]);
+
+  useEffect(() => {
+    if (
+      (vendorProfileStatus === 'INCOMPLETE' || vendorProfileStatus === 'REJECTED') &&
+      location.pathname === '/seller'
+    ) {
+      navigate('/seller/profile-setup', { replace: true });
+    }
+  }, [vendorProfileStatus, location.pathname, navigate]);
 
   useEffect(() => {
     if (!showCreateModal) return;
@@ -193,8 +206,9 @@ export default function SellerDashboard() {
       const [statsRes, fabricsRes, ordersRes] = await Promise.allSettled([
         api.seller.getStats(),
         api.seller.getFabrics(),
-        api.seller.getOrders()
+        api.seller.getOrders(),
       ]);
+      const profileRes = await api.seller.getProfileSetup().catch(() => null);
 
       if (statsRes.status === 'fulfilled' && statsRes.value.success) {
         setStats(statsRes.value.data);
@@ -212,6 +226,10 @@ export default function SellerDashboard() {
         ordersRes.status === 'rejected'
       ) {
         toast.error('Some dashboard data failed to load. Please refresh.');
+      }
+      if (profileRes?.success) {
+        setVendorProfileStatus(profileRes.data?.status || 'INCOMPLETE');
+        setVendorProfileReviewNotes(profileRes.data?.reviewNotes || '');
       }
       
       // Mock activities
@@ -331,6 +349,11 @@ export default function SellerDashboard() {
 
   const handleCreateFabric = async () => {
     try {
+      if (!canManageProducts) {
+        toast.error('Complete and submit your full vendor profile, then wait for admin approval before uploading.');
+        navigate('/seller/profile-setup');
+        return;
+      }
       setModalError('');
       const trimmedName = newFabric.name.trim();
       const trimmedDescription = newFabric.description.trim();
@@ -426,9 +449,14 @@ export default function SellerDashboard() {
 
   const handleEditFabric = async (fabric: Fabric) => {
     try {
+      if (!canManageProducts) {
+        toast.error('Your vendor profile must be approved before editing products.');
+        navigate('/seller/profile-setup');
+        return;
+      }
       const name = window.prompt('Fabric name:', fabric.name)?.trim();
       if (!name) return;
-      const description = window.prompt('Description (min 10 chars):', '')?.trim();
+      const description = window.prompt('Description (min 10 chars):', fabric.description || '')?.trim();
       if (!description || description.length < 10) {
         toast.error('Description must be at least 10 characters.');
         return;
@@ -530,11 +558,27 @@ export default function SellerDashboard() {
           <h1 className="text-2xl font-bold text-gray-900">Seller Dashboard</h1>
           <p className="text-gray-500 mt-1">Manage your fabrics and track sales</p>
         </div>
-        <Button onClick={() => setShowCreateModal(true)}>
+        <Button onClick={() => setShowCreateModal(true)} disabled={!canManageProducts}>
           <Plus className="w-4 h-4 mr-2" />
           Add New Fabric
         </Button>
       </div>
+
+      {!canManageProducts && (
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <p className="text-sm font-medium text-amber-900">
+            Product upload is locked until your full profile is approved by admin.
+          </p>
+          {vendorProfileReviewNotes ? (
+            <p className="mt-1 text-xs text-amber-700">Admin note: {vendorProfileReviewNotes}</p>
+          ) : null}
+          <div className="mt-3">
+            <Button size="sm" variant="outline" onClick={() => navigate('/seller/profile-setup')}>
+              Complete / Review Profile
+            </Button>
+          </div>
+        </div>
+      )}
 
       {vendorStorePath && (
         <div className="rounded-xl border border-coral-100 bg-coral-50/70 p-4">
@@ -710,7 +754,7 @@ export default function SellerDashboard() {
         <div className="bg-white rounded-xl p-6 shadow-sm border">
           <div className="flex items-center justify-between mb-6">
             <h2 className="text-lg font-semibold text-gray-900">My Fabrics</h2>
-            <Button size="sm" onClick={() => setShowCreateModal(true)}>
+            <Button size="sm" onClick={() => setShowCreateModal(true)} disabled={!canManageProducts}>
               <Plus className="w-4 h-4 mr-2" />
               Add Fabric
             </Button>
@@ -772,10 +816,10 @@ export default function SellerDashboard() {
             searchKeys={['name', 'materialType.name']}
             actions={(item) => (
               <div className="flex gap-2">
-                <Button variant="outline" size="sm" onClick={() => openStockModal(item)}>
+                <Button variant="outline" size="sm" onClick={() => openStockModal(item)} disabled={!canManageProducts}>
                   <Edit className="w-4 h-4" />
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => handleEditFabric(item)}>
+                <Button variant="outline" size="sm" onClick={() => handleEditFabric(item)} disabled={!canManageProducts}>
                   Edit Product
                 </Button>
                 <Button variant="outline" size="sm" onClick={() => navigate(`/fabrics/${item.id}`)}>

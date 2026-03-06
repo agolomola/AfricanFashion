@@ -4,6 +4,7 @@ import { z } from 'zod';
 import { prisma, UserRole, UserStatus } from '../db';
 import { generateToken, authenticate } from '../middleware/auth';
 import { getRolePermissions, ROLE_HOME_ROUTE } from '../rbac';
+import { isBrandNameTaken } from '../utils/vendor-profile';
 
 const router = Router();
 
@@ -136,7 +137,8 @@ router.post('/register', async (req, res, next) => {
       lastName,
       phone: data.phone,
       role: data.role as UserRole,
-      status: data.role === 'CUSTOMER' ? UserStatus.ACTIVE : UserStatus.PENDING, // Sellers/designers need approval
+      // Vendors can log in immediately to complete profile details.
+      status: UserStatus.ACTIVE,
     };
 
     // Add role-specific profile
@@ -145,38 +147,62 @@ router.post('/register', async (req, res, next) => {
         create: {},
       };
     } else if (data.role === 'FABRIC_SELLER') {
-      if (!data.businessName || !data.country || !data.city) {
-        return res.status(400).json({
+      const requestedBrandName = data.businessName?.trim();
+      let businessName = requestedBrandName || `${firstName} ${lastName}`.trim() || `seller-${Date.now()}`;
+      let brandTaken = await isBrandNameTaken(businessName);
+      if (!requestedBrandName) {
+        let suffix = 2;
+        while (brandTaken && suffix < 50) {
+          businessName = `${businessName}-${suffix}`;
+          brandTaken = await isBrandNameTaken(businessName);
+          suffix += 1;
+        }
+      }
+      if (brandTaken) {
+        return res.status(409).json({
           success: false,
-          message: 'Business name, country, and city are required for fabric sellers.',
+          message: 'Business name is already in use. Please choose a different brand name.',
         });
       }
       userData.fabricSellerProfile = {
         create: {
-          businessName: data.businessName,
+          businessName,
           businessEmail: data.businessEmail || data.email,
           businessPhone: data.businessPhone || data.phone,
-          country: data.country,
-          city: data.city,
+          country: data.country || 'TBD',
+          city: data.city || 'TBD',
           address: data.address || '',
+          profileStatus: 'INCOMPLETE',
         },
       };
     } else if (data.role === 'FASHION_DESIGNER') {
-      if (!data.businessName || !data.country || !data.city) {
-        return res.status(400).json({
+      const requestedBrandName = data.businessName?.trim();
+      let businessName = requestedBrandName || `${firstName} ${lastName}`.trim() || `designer-${Date.now()}`;
+      let brandTaken = await isBrandNameTaken(businessName);
+      if (!requestedBrandName) {
+        let suffix = 2;
+        while (brandTaken && suffix < 50) {
+          businessName = `${businessName}-${suffix}`;
+          brandTaken = await isBrandNameTaken(businessName);
+          suffix += 1;
+        }
+      }
+      if (brandTaken) {
+        return res.status(409).json({
           success: false,
-          message: 'Business name, country, and city are required for designers.',
+          message: 'Business name is already in use. Please choose a different brand name.',
         });
       }
       userData.designerProfile = {
         create: {
-          businessName: data.businessName,
+          businessName,
           businessEmail: data.businessEmail || data.email,
           businessPhone: data.businessPhone || data.phone,
           bio: data.bio,
-          country: data.country,
-          city: data.city,
+          country: data.country || 'TBD',
+          city: data.city || 'TBD',
           address: data.address || '',
+          profileStatus: 'INCOMPLETE',
         },
       };
     }
@@ -194,27 +220,24 @@ router.post('/register', async (req, res, next) => {
       },
     });
 
-    // Only ACTIVE users should receive an authentication token immediately.
-    let token: string | null = null;
-    if (user.status === UserStatus.ACTIVE) {
-      const sessionIssuedAt = Date.now();
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLogin: new Date(sessionIssuedAt) },
-      });
-      token = generateToken({
-        id: user.id,
-        email: user.email,
-        role: user.role as UserRole,
-        sessionIssuedAt,
-      });
-    }
+    const sessionIssuedAt = Date.now();
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { lastLogin: new Date(sessionIssuedAt) },
+    });
+    const token = generateToken({
+      id: user.id,
+      email: user.email,
+      role: user.role as UserRole,
+      sessionIssuedAt,
+    });
 
     res.status(201).json({
       success: true,
-      message: data.role === 'CUSTOMER' 
-        ? 'Registration successful! Welcome to African Fashion.'
-        : 'Registration submitted! Your account is pending approval.',
+      message:
+        data.role === 'CUSTOMER'
+          ? 'Registration successful! Welcome to African Fashion.'
+          : 'Registration successful. Please complete your vendor profile for admin approval.',
       data: {
         user,
         token,
@@ -259,11 +282,18 @@ router.post('/login', async (req, res, next) => {
     }
 
     // Check status
-    if (user.status === UserStatus.PENDING) {
+    if (user.status === UserStatus.PENDING && user.role === UserRole.CUSTOMER) {
       return res.status(403).json({
         success: false,
         message: 'Your account is pending approval. Please wait for admin verification.',
       });
+    }
+
+    if (
+      user.status === UserStatus.PENDING &&
+      (user.role === UserRole.FABRIC_SELLER || user.role === UserRole.FASHION_DESIGNER)
+    ) {
+      // Allowed: pending vendors can log in to complete profile data.
     }
 
     if (user.status === UserStatus.SUSPENDED) {

@@ -22,4 +22,13 @@ export type {
 } from '@prisma/client';
 
 // Export enums
-export { UserRole, UserStatus, ProductStatus, ProductType, OrderType, OrderStatus, PaymentStatus } from '@prisma/client';
+export {
+  UserRole,
+  UserStatus,
+  ProductStatus,
+  ProductType,
+  OrderType,
+  OrderStatus,
+  PaymentStatus,
+  VendorProfileStatus,
+} from '@prisma/client';
