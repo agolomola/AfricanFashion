@@ -27,6 +27,27 @@ const PRODUCT_CURRENCY_ACTION = 'PRODUCT_CURRENCY_METADATA';
 const byCountryCode = new Map(AFRICAN_CURRENCY_BASELINE.map((row) => [row.countryCode.toUpperCase(), row]));
 const byCountryName = new Map(AFRICAN_CURRENCY_BASELINE.map((row) => [normalizeCountry(row.country), row]));
 
+const GLOBAL_VISITOR_CURRENCY_FALLBACK: AfricanCurrencyRow[] = [
+  {
+    countryCode: 'GB',
+    country: 'United Kingdom',
+    currencyCode: 'GBP',
+    currencyName: 'British Pound Sterling',
+    usdPerUnit: 1.27,
+  },
+];
+
+for (const row of GLOBAL_VISITOR_CURRENCY_FALLBACK) {
+  const code = row.countryCode.toUpperCase();
+  if (!byCountryCode.has(code)) {
+    byCountryCode.set(code, row);
+  }
+  const normalizedCountry = normalizeCountry(row.country);
+  if (!byCountryName.has(normalizedCountry)) {
+    byCountryName.set(normalizedCountry, row);
+  }
+}
+
 export function normalizeCountry(value: string | null | undefined) {
   return String(value || '')
     .trim()
@@ -262,7 +283,7 @@ export function getAllowedCurrenciesForVendor(params: {
 }
 
 export function inferCountryFromHeaders(headers: Record<string, string | string[] | undefined>) {
-  const maybeCode = String(
+  const rawCode = String(
     headers['x-vercel-ip-country'] ||
       headers['cf-ipcountry'] ||
       headers['x-country-code'] ||
@@ -271,6 +292,7 @@ export function inferCountryFromHeaders(headers: Record<string, string | string[
   )
     .trim()
     .toUpperCase();
+  const maybeCode = rawCode === 'UK' ? 'GB' : rawCode;
   if (!maybeCode) return null;
   return byCountryCode.get(maybeCode) || null;
 }

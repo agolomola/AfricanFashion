@@ -18,6 +18,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
   const [selectedCurrency, setSelectedCurrencyState] = useState('USD');
   const [supportedCurrencies, setSupportedCurrencies] = useState<string[]>(['USD']);
   const [usdPerUnitByCurrency, setUsdPerUnitByCurrency] = useState<Record<string, number>>({ USD: 1 });
+  const [visitorCurrencyScope, setVisitorCurrencyScope] = useState('GLOBAL');
 
   useEffect(() => {
     const bootstrap = async () => {
@@ -25,15 +26,19 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
         const response = await api.currency.getConfig();
         if (!response.success) return;
         const matrix = response.data.matrix || [];
-        const rates = matrix.reduce<Record<string, number>>((acc, row) => {
-          acc[row.currencyCode] = Number(row.usdPerUnit || 0);
-          return acc;
-        }, { USD: 1 });
+        const rates =
+          response.data.usdPerUnitByCurrency ||
+          matrix.reduce<Record<string, number>>((acc, row) => {
+            acc[row.currencyCode] = Number(row.usdPerUnit || 0);
+            return acc;
+          }, { USD: 1 });
         setUsdPerUnitByCurrency(rates);
         setSupportedCurrencies(response.data.supportedCurrencies || ['USD']);
         const detected = response.data.defaultCurrency || 'USD';
         setDefaultCurrency(detected);
-        const persisted = window.localStorage.getItem('preferred-currency');
+        const visitorCountryCode = response.data.visitorCountry?.countryCode || 'GLOBAL';
+        setVisitorCurrencyScope(visitorCountryCode);
+        const persisted = window.localStorage.getItem(`preferred-currency:${visitorCountryCode}`);
         const initial =
           persisted && (response.data.supportedCurrencies || []).includes(persisted) ? persisted : detected;
         setSelectedCurrencyState(initial || 'USD');
@@ -48,7 +53,7 @@ export function CurrencyProvider({ children }: { children: ReactNode }) {
     const next = String(currency || '').toUpperCase();
     if (!supportedCurrencies.includes(next)) return;
     setSelectedCurrencyState(next);
-    window.localStorage.setItem('preferred-currency', next);
+    window.localStorage.setItem(`preferred-currency:${visitorCurrencyScope}`, next);
   };
 
   const convertFromUsd = (amountUsd: number, toCurrency = selectedCurrency) => {

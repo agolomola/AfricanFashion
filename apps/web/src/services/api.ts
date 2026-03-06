@@ -113,6 +113,12 @@ const currencyApi = {
       data: {
         defaultCurrency: string;
         supportedCurrencies: string[];
+        visitorCountry?: {
+          countryCode: string;
+          country: string;
+          currencyCode: string;
+        } | null;
+        usdPerUnitByCurrency?: Record<string, number>;
         matrix: Array<{
           countryCode: string;
           country: string;

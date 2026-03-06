@@ -36,15 +36,34 @@ router.get('/config', async (req, res, next) => {
     const [{ matrix }, health] = await Promise.all([getCurrencyState(), getCurrencyHealth()]);
     const visitorCountry = inferCountryFromHeaders(req.headers as any);
     const defaultCurrency = visitorCountry
-      ? getDefaultCurrencyForCountry(visitorCountry.country, matrix)
+      ? visitorCountry.currencyCode || getDefaultCurrencyForCountry(visitorCountry.country, matrix)
       : 'USD';
-    const supportedCurrencies = Array.from(new Set(['USD', ...matrix.map((row) => row.currencyCode)])).sort();
+    const usdPerUnitByCurrency = matrix.reduce<Record<string, number>>((acc, row) => {
+      acc[row.currencyCode] = Number(row.usdPerUnit || 0);
+      return acc;
+    }, { USD: 1 });
+    if (visitorCountry?.currencyCode && visitorCountry.currencyCode !== 'USD') {
+      usdPerUnitByCurrency[visitorCountry.currencyCode] = Number(
+        visitorCountry.usdPerUnit || usdPerUnitByCurrency[visitorCountry.currencyCode] || 0
+      );
+    }
+    const supportedCurrencies = Array.from(
+      new Set(['USD', defaultCurrency, ...Object.keys(usdPerUnitByCurrency), ...matrix.map((row) => row.currencyCode)])
+    ).sort();
 
     res.json({
       success: true,
       data: {
         defaultCurrency,
         supportedCurrencies,
+        visitorCountry: visitorCountry
+          ? {
+              countryCode: visitorCountry.countryCode,
+              country: visitorCountry.country,
+              currencyCode: visitorCountry.currencyCode,
+            }
+          : null,
+        usdPerUnitByCurrency,
         matrix,
         health,
       },
