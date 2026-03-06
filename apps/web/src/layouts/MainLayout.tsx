@@ -8,7 +8,7 @@ import { useCurrency } from '../components/ui/CurrencyProvider';
 
 export default function MainLayout() {
   const [isScrolled, setIsScrolled] = useState(false);
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuthStore();
   const { getItemCount } = useCartStore();
   const { selectedCurrency, supportedCurrencies, setSelectedCurrency } = useCurrency();
@@ -27,12 +27,15 @@ export default function MainLayout() {
     navigate('/');
   };
 
-  const navLinks = [
-    { label: 'Home', href: '/' },
-    { label: 'Shop', href: '/ready-to-wear' },
+  const categoryLinks = [
     { label: 'Fabrics To Buy', href: '/fabrics' },
     { label: 'Ready To Wear', href: '/ready-to-wear' },
     { label: 'Custom To Wear', href: '/designs' },
+  ];
+
+  const rightNavLinks = [
+    { label: 'Home', href: '/' },
+    { label: 'Shop', href: '/ready-to-wear' },
     { label: 'About Us', href: '/about' },
     { label: 'Contact', href: '/contact' },
   ];
@@ -48,41 +51,72 @@ export default function MainLayout() {
         }`}
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16 lg:h-20">
-            {/* Logo */}
-            <Link
-              to="/"
-              className={`font-display text-xl lg:text-2xl font-bold transition-colors ${
-                isScrolled ? 'text-navy-600' : 'text-white'
-              }`}
-            >
-              African Fashion
-            </Link>
-
-            {/* Desktop Navigation */}
-            <nav className="hidden lg:flex items-center gap-8">
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  to={link.href}
-                  className={`text-sm font-medium transition-colors relative group ${
+          <div className="flex items-center h-16 lg:h-20">
+            {/* Left: Hamburger for category links */}
+            <div className="flex-1 flex items-center">
+              <div className="relative">
+                <button
+                  onClick={() => setIsCategoryMenuOpen((prev) => !prev)}
+                  className={`p-2 rounded-full transition-colors ${
                     isScrolled
-                      ? 'text-gray-700 hover:text-coral-500'
-                      : 'text-white/90 hover:text-white'
+                      ? 'hover:bg-gray-100 text-gray-700'
+                      : 'hover:bg-white/10 text-white'
                   }`}
+                  aria-label="Toggle product categories menu"
                 >
-                  {link.label}
-                  <span
-                    className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
-                      isScrolled ? 'bg-coral-500' : 'bg-white'
-                    }`}
-                  />
-                </Link>
-              ))}
-            </nav>
+                  {isCategoryMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                </button>
+                {isCategoryMenuOpen && (
+                  <div className="absolute left-0 top-full mt-2 w-56 bg-white rounded-xl shadow-lg border border-gray-100 py-2">
+                    {categoryLinks.map((link) => (
+                      <Link
+                        key={link.label}
+                        to={link.href}
+                        onClick={() => setIsCategoryMenuOpen(false)}
+                        className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
+                      >
+                        {link.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
 
-            {/* Right Actions */}
-            <div className="flex items-center gap-2 lg:gap-4">
+            {/* Center: Logo */}
+            <div className="flex-shrink-0 px-4">
+              <Link
+                to="/"
+                className={`font-display text-xl lg:text-2xl font-bold transition-colors ${
+                  isScrolled ? 'text-navy-600' : 'text-white'
+                }`}
+              >
+                African Fashion
+              </Link>
+            </div>
+
+            {/* Right: Remaining menu + actions */}
+            <div className="flex-1 flex items-center justify-end gap-2 lg:gap-4">
+              <nav className="hidden lg:flex items-center gap-6 mr-2">
+                {rightNavLinks.map((link) => (
+                  <Link
+                    key={link.label}
+                    to={link.href}
+                    className={`text-sm font-medium transition-colors relative group ${
+                      isScrolled
+                        ? 'text-gray-700 hover:text-coral-500'
+                        : 'text-white/90 hover:text-white'
+                    }`}
+                  >
+                    {link.label}
+                    <span
+                      className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all duration-300 group-hover:w-full ${
+                        isScrolled ? 'bg-coral-500' : 'bg-white'
+                      }`}
+                    />
+                  </Link>
+                ))}
+              </nav>
               <select
                 value={selectedCurrency}
                 onChange={(e) => setSelectedCurrency(e.target.value)}
@@ -168,62 +202,9 @@ export default function MainLayout() {
                   Sign In
                 </Link>
               )}
-
-              {/* Mobile Menu Button */}
-              <button
-                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-                className={`lg:hidden p-2 rounded-full transition-colors ${
-                  isScrolled
-                    ? 'hover:bg-gray-100 text-gray-700'
-                    : 'hover:bg-white/10 text-white'
-                }`}
-              >
-                {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-              </button>
             </div>
           </div>
         </div>
-
-        {/* Mobile Menu */}
-        {isMobileMenuOpen && (
-          <div className="lg:hidden bg-white border-t border-gray-100">
-            <div className="px-4 py-4 space-y-2">
-              <div className="px-4 pb-2">
-                <label className="block text-xs text-gray-500 mb-1">Currency</label>
-                <select
-                  value={selectedCurrency}
-                  onChange={(e) => setSelectedCurrency(e.target.value)}
-                  className="w-full border rounded-lg px-3 py-2 text-sm"
-                >
-                  {supportedCurrencies.slice(0, 25).map((currency) => (
-                    <option key={currency} value={currency}>
-                      {currency}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              {navLinks.map((link) => (
-                <Link
-                  key={link.label}
-                  to={link.href}
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-gray-700 font-medium hover:bg-gray-50 rounded-lg"
-                >
-                  {link.label}
-                </Link>
-              ))}
-              {!isAuthenticated && (
-                <Link
-                  to="/login"
-                  onClick={() => setIsMobileMenuOpen(false)}
-                  className="block px-4 py-3 text-navy-600 font-medium hover:bg-navy-50 rounded-lg"
-                >
-                  Sign In
-                </Link>
-              )}
-            </div>
-          </div>
-        )}
       </header>
 
       {/* Main Content */}
