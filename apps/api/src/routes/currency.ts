@@ -12,6 +12,7 @@ import {
   getCurrencyOverrides,
   getCurrencyState,
   getDefaultCurrencyForCountry,
+  getGlobalFallbackRates,
   getUsdPerUnit,
   inferCountryFromHeaders,
   mapCountryToBaseline,
@@ -42,6 +43,12 @@ router.get('/config', async (req, res, next) => {
       acc[row.currencyCode] = Number(row.usdPerUnit || 0);
       return acc;
     }, { USD: 1 });
+    const globalFallbackRates = getGlobalFallbackRates();
+    for (const [code, usdPerUnit] of Object.entries(globalFallbackRates)) {
+      if (!usdPerUnitByCurrency[code]) {
+        usdPerUnitByCurrency[code] = Number(usdPerUnit || 0);
+      }
+    }
     if (visitorCountry?.currencyCode && visitorCountry.currencyCode !== 'USD') {
       usdPerUnitByCurrency[visitorCountry.currencyCode] = Number(
         visitorCountry.usdPerUnit || usdPerUnitByCurrency[visitorCountry.currencyCode] || 0

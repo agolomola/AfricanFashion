@@ -191,6 +191,16 @@ const GLOBAL_VISITOR_CURRENCY_FALLBACK: AfricanCurrencyRow[] = [
   },
 ];
 
+export function getGlobalFallbackRates() {
+  const rates: Record<string, number> = { USD: 1 };
+  for (const row of GLOBAL_VISITOR_CURRENCY_FALLBACK) {
+    const code = normalizeCurrency(row.currencyCode);
+    if (!code || rates[code]) continue;
+    rates[code] = Number(row.usdPerUnit || 0);
+  }
+  return rates;
+}
+
 const COUNTRY_CODE_ALIASES: Record<string, string> = {
   UK: 'GB',
   EL: 'GR',

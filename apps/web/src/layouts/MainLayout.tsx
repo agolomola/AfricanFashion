@@ -11,8 +11,12 @@ export default function MainLayout() {
   const [isCategoryMenuOpen, setIsCategoryMenuOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuthStore();
   const { getItemCount } = useCartStore();
-  const { selectedCurrency, supportedCurrencies, setSelectedCurrency } = useCurrency();
+  const { selectedCurrency, defaultCurrency, supportedCurrencies, setSelectedCurrency } = useCurrency();
   const navigate = useNavigate();
+
+  const currencyOptions = Array.from(
+    new Set([selectedCurrency, defaultCurrency, 'USD', ...supportedCurrencies].filter(Boolean))
+  );
 
   useEffect(() => {
     const handleScroll = () => {
@@ -124,7 +128,7 @@ export default function MainLayout() {
                   isScrolled ? 'bg-white text-gray-700 border-gray-300' : 'bg-white/90 text-navy-700 border-white/40'
                 }`}
               >
-                {supportedCurrencies.slice(0, 25).map((currency) => (
+                {currencyOptions.map((currency) => (
                   <option key={currency} value={currency}>
                     {currency}
                   </option>
