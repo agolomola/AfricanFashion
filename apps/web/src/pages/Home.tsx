@@ -119,6 +119,25 @@ interface ManagedBanner {
   displayImage?: string | null;
 }
 
+const normalizeFeaturedProducts = (
+  source: any[] | undefined,
+  fallback: FeaturedProduct[],
+  fallbackType: FeaturedProduct['productType']
+): FeaturedProduct[] => {
+  const input = Array.isArray(source) && source.length > 0 ? source : fallback;
+  return input.map((item: any, index: number) => ({
+    id: String(item?.id || `${fallbackType.toLowerCase()}-${index}`),
+    name: item?.name || 'Featured Product',
+    description: item?.description || '',
+    price: Number(item?.price ?? 0),
+    image: resolveAssetUrl(item?.image),
+    designer: item?.designer || 'African Designer',
+    country: item?.country || 'Africa',
+    productType: item?.productType || fallbackType,
+    badge: item?.badge,
+  }));
+};
+
 // Default hero slides as fallback
 const defaultHeroSlides: HeroSlide[] = [
   {
@@ -323,9 +342,18 @@ export default function Home() {
     ];
   }, [heroBanner, heroSlidesData]);
 
-  const featuredDesigns = Array.isArray(featuredData?.FEATURED_DESIGNS) ? featuredData.FEATURED_DESIGNS : [];
-  const featuredFabrics = Array.isArray(featuredData?.FEATURED_FABRICS) ? featuredData.FEATURED_FABRICS : [];
-  const featuredRTW = Array.isArray(featuredData?.FEATURED_READY_TO_WEAR) ? featuredData.FEATURED_READY_TO_WEAR : [];
+  const featuredDesigns = useMemo(
+    () => normalizeFeaturedProducts(featuredData?.FEATURED_DESIGNS, defaultFeaturedDesigns, 'DESIGN'),
+    [featuredData?.FEATURED_DESIGNS]
+  );
+  const featuredFabrics = useMemo(
+    () => normalizeFeaturedProducts(featuredData?.FEATURED_FABRICS, defaultFabrics, 'FABRIC'),
+    [featuredData?.FEATURED_FABRICS]
+  );
+  const featuredRTW = useMemo(
+    () => normalizeFeaturedProducts(featuredData?.FEATURED_READY_TO_WEAR, defaultReadyToWear, 'READY_TO_WEAR'),
+    [featuredData?.FEATURED_READY_TO_WEAR]
+  );
   const fashionCountryImageMap = useMemo(() => {
     const map = new Map<string, string>();
     const candidates = [...featuredDesigns, ...featuredRTW, ...featuredFabrics];
@@ -412,6 +440,13 @@ export default function Home() {
     ];
   }, [featuredDesigns, customFeaturedStart]);
 
+  useEffect(() => {
+    setCustomFeaturedStart((previous) => {
+      if (featuredDesigns.length === 0) return 0;
+      return Math.min(previous, featuredDesigns.length - 1);
+    });
+  }, [featuredDesigns.length]);
+
   const spotlightDesignerPool = useMemo(() => {
     const mappedDesigners = [...featuredDesigns, ...featuredRTW]
       .map((item) => {
@@ -437,9 +472,18 @@ export default function Home() {
     return Array.from(designerMap.values());
   }, [featuredDesigns, featuredRTW]);
 
+  const spotlightPoolKey = useMemo(
+    () => spotlightDesignerPool.map((designer) => designer.id).join('|'),
+    [spotlightDesignerPool]
+  );
+
   useEffect(() => {
+    if (spotlightDesignerPool.length === 0) {
+      setSpotlightDesigners([]);
+      return;
+    }
     setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
-  }, [spotlightDesignerPool]);
+  }, [spotlightPoolKey]);
 
   useEffect(() => {
     if (spotlightDesignerPool.length === 0) return undefined;
@@ -447,7 +491,7 @@ export default function Home() {
       setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
     }, 7000);
     return () => clearInterval(timer);
-  }, [spotlightDesignerPool]);
+  }, [spotlightPoolKey]);
 
   const goToPrevCustomFeatured = () => {
     if (featuredDesigns.length <= customFeaturedPageSize) return;
