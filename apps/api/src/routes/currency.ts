@@ -4,9 +4,12 @@ import { prisma, UserRole } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
 import {
+  applyOverridesToMatrix,
   convertLocalToUsd,
   convertUsdToLocal,
   getAllowedCurrenciesForVendor,
+  getCurrencyHealth,
+  getCurrencyOverrides,
   getCurrencyState,
   getDefaultCurrencyForCountry,
   getUsdPerUnit,
@@ -15,6 +18,7 @@ import {
   refreshMatrixFromThirdParty,
   saveCurrencyMatrix,
   saveCurrencyRules,
+  upsertCurrencyOverride,
 } from '../utils/currency';
 
 const router = Router();
@@ -28,7 +32,7 @@ const currencyRuleSchema = z.object({
 
 router.get('/config', async (req, res, next) => {
   try {
-    const { matrix } = await getCurrencyState();
+    const [{ matrix }, health] = await Promise.all([getCurrencyState(), getCurrencyHealth()]);
     const visitorCountry = inferCountryFromHeaders(req.headers as any);
     const defaultCurrency = visitorCountry
       ? getDefaultCurrencyForCountry(visitorCountry.country, matrix)
@@ -41,6 +45,7 @@ router.get('/config', async (req, res, next) => {
         defaultCurrency,
         supportedCurrencies,
         matrix,
+        health,
       },
     });
   } catch (error) {
@@ -118,8 +123,21 @@ router.get('/my-options', authenticate, async (req, res, next) => {
 
 router.get('/admin/matrix', authenticate, authorizePermissions(Permissions.ADMIN_ACCESS), async (req, res, next) => {
   try {
-    const data = await getCurrencyState();
-    res.json({ success: true, data });
+    const [data, health, overrides] = await Promise.all([
+      getCurrencyState(),
+      getCurrencyHealth(),
+      getCurrencyOverrides(),
+    ]);
+    res.json({ success: true, data: { ...data, health, overrides } });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/admin/health', authenticate, authorizePermissions(Permissions.ADMIN_ACCESS), async (req, res, next) => {
+  try {
+    const health = await getCurrencyHealth();
+    res.json({ success: true, data: health });
   } catch (error) {
     next(error);
   }
@@ -150,7 +168,8 @@ router.put('/admin/rate', authenticate, authorizePermissions(Permissions.ADMIN_A
     } else {
       nextMatrix.push(row);
     }
-    await saveCurrencyMatrix(req.user!.id, nextMatrix);
+    await saveCurrencyMatrix(req.user!.id, nextMatrix, { source: 'manual' });
+    await upsertCurrencyOverride(req.user!.id, row as any);
     res.json({ success: true, message: 'Currency rate updated.', data: row });
   } catch (error) {
     next(error);
@@ -172,13 +191,14 @@ router.put('/admin/rules', authenticate, authorizePermissions(Permissions.ADMIN_
 
 router.post('/admin/refresh', authenticate, authorizePermissions(Permissions.ADMIN_ACCESS), async (req, res, next) => {
   try {
-    const { matrix } = await getCurrencyState();
+    const [{ matrix }, overrides] = await Promise.all([getCurrencyState(), getCurrencyOverrides()]);
     const refreshed = await refreshMatrixFromThirdParty(matrix);
-    await saveCurrencyMatrix(req.user!.id, refreshed);
+    const merged = applyOverridesToMatrix(refreshed, overrides);
+    await saveCurrencyMatrix(req.user!.id, merged, { source: 'provider' });
     res.json({
       success: true,
       message: 'Exchange rates refreshed from provider.',
-      data: refreshed,
+      data: merged,
     });
   } catch (error) {
     next(error);

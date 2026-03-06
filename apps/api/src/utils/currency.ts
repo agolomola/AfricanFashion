@@ -13,10 +13,15 @@ export interface CurrencyListingRule {
 export interface CurrencyMatrixState {
   matrix: AfricanCurrencyRow[];
   rules: CurrencyListingRule[];
+  meta: {
+    lastRefreshedAt: string | null;
+    lastSource: string | null;
+  };
 }
 
 const MATRIX_ACTION = 'CURRENCY_MATRIX_UPDATED';
 const RULES_ACTION = 'CURRENCY_OPTIONS_UPDATED';
+const OVERRIDES_ACTION = 'CURRENCY_MATRIX_OVERRIDES_UPDATED';
 const PRODUCT_CURRENCY_ACTION = 'PRODUCT_CURRENCY_METADATA';
 
 const byCountryCode = new Map(AFRICAN_CURRENCY_BASELINE.map((row) => [row.countryCode.toUpperCase(), row]));
@@ -75,12 +80,27 @@ function sanitizeRules(rows: unknown): CurrencyListingRule[] {
     );
 }
 
+function sanitizeOverrides(payload: unknown): Record<string, AfricanCurrencyRow> {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return {};
+  }
+  const input = payload as Record<string, any>;
+  const output: Record<string, AfricanCurrencyRow> = {};
+  for (const [key, value] of Object.entries(input)) {
+    const row = sanitizeMatrix([value])[0];
+    if (row) {
+      output[key.toUpperCase()] = row;
+    }
+  }
+  return output;
+}
+
 export async function getCurrencyState(): Promise<CurrencyMatrixState> {
   const [matrixLog, rulesLog] = await Promise.all([
     prisma.activityLog.findFirst({
       where: { action: MATRIX_ACTION },
       orderBy: { createdAt: 'desc' },
-      select: { details: true },
+      select: { details: true, createdAt: true },
     }),
     prisma.activityLog.findFirst({
       where: { action: RULES_ACTION },
@@ -89,19 +109,28 @@ export async function getCurrencyState(): Promise<CurrencyMatrixState> {
     }),
   ]);
 
+  const details = (matrixLog?.details as any) || {};
   return {
     matrix: sanitizeMatrix((matrixLog?.details as any)?.matrix),
     rules: sanitizeRules((rulesLog?.details as any)?.rules),
+    meta: {
+      lastRefreshedAt: matrixLog?.createdAt?.toISOString() || null,
+      lastSource: String(details?.source || 'manual'),
+    },
   };
 }
 
-export async function saveCurrencyMatrix(userId: string, matrix: AfricanCurrencyRow[]) {
+export async function saveCurrencyMatrix(
+  userId: string,
+  matrix: AfricanCurrencyRow[],
+  options?: { source?: 'manual' | 'provider' | 'scheduler' }
+) {
   const sanitized = sanitizeMatrix(matrix);
   await prisma.activityLog.create({
     data: {
       userId,
       action: MATRIX_ACTION,
-      details: { matrix: sanitized } as any,
+      details: { matrix: sanitized, source: options?.source || 'manual' } as any,
     },
   });
 }
@@ -115,6 +144,54 @@ export async function saveCurrencyRules(userId: string, rules: CurrencyListingRu
       details: { rules: sanitized } as any,
     },
   });
+}
+
+export async function getCurrencyOverrides() {
+  const overridesLog = await prisma.activityLog.findFirst({
+    where: { action: OVERRIDES_ACTION },
+    orderBy: { createdAt: 'desc' },
+    select: { details: true },
+  });
+  return sanitizeOverrides((overridesLog?.details as any)?.overrides);
+}
+
+export async function upsertCurrencyOverride(userId: string, row: AfricanCurrencyRow) {
+  const current = await getCurrencyOverrides();
+  const next = {
+    ...current,
+    [row.countryCode.toUpperCase()]: row,
+  };
+  await prisma.activityLog.create({
+    data: {
+      userId,
+      action: OVERRIDES_ACTION,
+      details: { overrides: next } as any,
+    },
+  });
+}
+
+export function applyOverridesToMatrix(
+  matrix: AfricanCurrencyRow[],
+  overrides: Record<string, AfricanCurrencyRow>
+) {
+  return matrix.map((row) => overrides[row.countryCode.toUpperCase()] || row);
+}
+
+export async function getCurrencyHealth() {
+  const matrixLog = await prisma.activityLog.findFirst({
+    where: { action: MATRIX_ACTION },
+    orderBy: { createdAt: 'desc' },
+    select: { createdAt: true, details: true },
+  });
+  const staleAfterHours = Math.max(1, Number.parseInt(process.env.CURRENCY_STALE_AFTER_HOURS || '24', 10) || 24);
+  const lastRefreshedAt = matrixLog?.createdAt || null;
+  const isStale = !lastRefreshedAt || Date.now() - lastRefreshedAt.getTime() > staleAfterHours * 60 * 60 * 1000;
+  return {
+    lastRefreshedAt: lastRefreshedAt?.toISOString() || null,
+    staleAfterHours,
+    isStale,
+    lastSource: String((matrixLog?.details as any)?.source || 'manual'),
+  };
 }
 
 export function getDefaultCurrencyForCountry(country: string | null | undefined, matrix: AfricanCurrencyRow[]) {
@@ -266,4 +343,15 @@ export async function getProductCurrencyMetadata(productType: 'FABRIC' | 'DESIGN
     select: { details: true },
   });
   return (row?.details as any) || null;
+}
+
+export async function resolveCurrencySyncUserId() {
+  const envUserId = process.env.CURRENCY_SYNC_USER_ID;
+  if (envUserId) return envUserId;
+  const admin = await prisma.user.findFirst({
+    where: { role: UserRole.ADMINISTRATOR },
+    select: { id: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  return admin?.id || null;
 }

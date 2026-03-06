@@ -28,6 +28,7 @@ import homepageRoutes from './routes/homepage';
 import homepageSectionsRoutes from './routes/homepage-sections';
 import paymentRoutes from './routes/payments';
 import currencyRoutes from './routes/currency';
+import { startCurrencyAutoSync } from './services/currency-sync';
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -85,6 +86,8 @@ app.use('/api/homepage', homepageRoutes);
 app.use('/api/homepage-sections', homepageSectionsRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/currency', currencyRoutes);
+
+startCurrencyAutoSync();
 
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
