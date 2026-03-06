@@ -88,16 +88,24 @@ const withSafeFeaturedRows = async (resolver: () => Promise<any[]>, fallback?: (
   }
 };
 
+const getDefaultSectionForProductType = (productType: string) => {
+  if (productType === 'FABRIC') return 'FEATURED_FABRICS';
+  if (productType === 'READY_TO_WEAR') return 'FEATURED_READY_TO_WEAR';
+  return 'FEATURED_DESIGNS';
+};
+
 const normalizeFeaturedRow = (row: any) => {
   const productType = String(row?.productType || '').toUpperCase();
   const section = String(row?.section || '').toUpperCase();
   if (!PRODUCT_TYPES.includes(productType as any)) return null;
-  if (!FEATURED_SECTIONS.includes(section as any)) return null;
+  const canonicalSection = FEATURED_SECTIONS.includes(section as any)
+    ? section
+    : getDefaultSectionForProductType(productType);
   return {
     id: String(row.id),
     productId: String(row.productId),
     productType,
-    section,
+    section: canonicalSection,
     displayOrder: Number(row.displayOrder || 0),
     customTitle: row.customTitle || null,
     customDescription: row.customDescription || null,
@@ -401,29 +409,34 @@ router.get('/hero-slides', async (req, res) => {
 router.get('/featured/:section', async (req, res) => {
   try {
     const { section } = req.params;
-    if (!FEATURED_SECTIONS.includes(section as any)) {
+    const normalizedSection = String(section || '').toUpperCase();
+    if (!FEATURED_SECTIONS.includes(normalizedSection as any)) {
       return res.status(400).json({
         success: false,
         message: 'Invalid featured section',
       });
     }
 
-    const featuredProducts = await withSafeFeaturedRows(
+    const allFeaturedRows = await withSafeFeaturedRows(
       () =>
       prisma.featuredProduct.findMany({
         where: {
-          section: section as any,
           isActive: true,
         },
-        orderBy: { displayOrder: 'asc' },
-        take: 12,
+        orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
       }),
-      () => getFeaturedRowsBySectionRaw(section, 12)
+      () => getAllFeaturedRowsRaw()
     );
+    const featuredProducts = allFeaturedRows
+      .map(normalizeFeaturedRow)
+      .filter((row): row is any => Boolean(row))
+      .filter((row) => String(row.section) === normalizedSection)
+      .slice(0, 12);
 
     const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
     const validProducts = productsWithDetails.filter((p) => p !== null);
-    const fallbackProducts = validProducts.length > 0 ? validProducts : await getAutoFeaturedBySection(section as any);
+    const fallbackProducts =
+      validProducts.length > 0 ? validProducts : await getAutoFeaturedBySection(normalizedSection as any);
 
     res.json({
       success: true,
@@ -452,8 +465,10 @@ router.get('/featured', async (req, res) => {
       () => getAllFeaturedRowsRaw()
     );
 
+    const normalizedRows = allRows.map(normalizeFeaturedRow).filter((row): row is any => Boolean(row));
+
     for (const section of sections) {
-      const featuredProducts = allRows
+      const featuredProducts = normalizedRows
         .filter((row) => String(row.section) === section)
         .slice(0, 6);
 
