@@ -109,20 +109,17 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
       const tokenSessionIssuedAt = Number(decoded.sessionIssuedAt || 0);
       const currentSessionIssuedAt = Number(user.lastLogin?.getTime() || 0);
 
-      if (!tokenSessionIssuedAt || !currentSessionIssuedAt) {
-        return res.status(401).json({
-          success: false,
-          message: 'Session expired. Please sign in again.',
-        });
-      }
-
-      // Allow tiny timestamp drift from database precision truncation.
-      const allowedDriftMs = 2000;
-      if (Math.abs(currentSessionIssuedAt - tokenSessionIssuedAt) > allowedDriftMs) {
-        return res.status(401).json({
-          success: false,
-          message: 'You have been signed out because your account was used on another device.',
-        });
+      // Backward compatibility: older vendor tokens may not include sessionIssuedAt.
+      // Enforce strict single-device checks only for session-aware tokens.
+      if (tokenSessionIssuedAt && currentSessionIssuedAt) {
+        // Allow tiny timestamp drift from database precision truncation.
+        const allowedDriftMs = 2000;
+        if (Math.abs(currentSessionIssuedAt - tokenSessionIssuedAt) > allowedDriftMs) {
+          return res.status(401).json({
+            success: false,
+            message: 'You have been signed out because your account was used on another device.',
+          });
+        }
       }
     }
 
@@ -208,7 +205,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
         const tokenSessionIssuedAt = Number(decoded.sessionIssuedAt || 0);
         const currentSessionIssuedAt = Number(user.lastLogin?.getTime() || 0);
         const allowedDriftMs = 2000;
-        if (!tokenSessionIssuedAt || !currentSessionIssuedAt || Math.abs(currentSessionIssuedAt - tokenSessionIssuedAt) > allowedDriftMs) {
+        if (tokenSessionIssuedAt && currentSessionIssuedAt && Math.abs(currentSessionIssuedAt - tokenSessionIssuedAt) > allowedDriftMs) {
           return next();
         }
       }
