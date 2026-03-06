@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma, UserRole, UserStatus } from '../db';
@@ -6,6 +6,71 @@ import { generateToken, authenticate } from '../middleware/auth';
 import { getRolePermissions, ROLE_HOME_ROUTE } from '../rbac';
 
 const router = Router();
+
+const VENDOR_TRACKED_ROLES: UserRole[] = [UserRole.FABRIC_SELLER, UserRole.FASHION_DESIGNER];
+
+function extractRequestIp(req: Request) {
+  const forwarded = req.headers['x-forwarded-for'];
+  if (typeof forwarded === 'string' && forwarded.trim()) {
+    return forwarded.split(',')[0].trim();
+  }
+  if (Array.isArray(forwarded) && forwarded.length > 0) {
+    return String(forwarded[0] || '').trim();
+  }
+  const realIp = req.headers['x-real-ip'];
+  if (typeof realIp === 'string' && realIp.trim()) {
+    return realIp.trim();
+  }
+  return req.ip || '';
+}
+
+function extractUserAgent(req: Request) {
+  const value = req.headers['user-agent'];
+  if (typeof value === 'string') return value;
+  if (Array.isArray(value)) return String(value[0] || '');
+  return '';
+}
+
+function inferDeviceType(userAgent: string) {
+  const ua = userAgent.toLowerCase();
+  if (!ua) return 'unknown';
+  if (ua.includes('tablet') || ua.includes('ipad')) return 'tablet';
+  if (ua.includes('mobile') || ua.includes('android') || ua.includes('iphone')) return 'mobile';
+  if (ua.includes('bot') || ua.includes('crawler') || ua.includes('spider')) return 'bot';
+  return 'desktop';
+}
+
+async function logVendorSessionEvent(
+  req: Request,
+  options: {
+    userId: string;
+    action: 'VENDOR_SESSION_STARTED' | 'VENDOR_SESSION_REPLACED' | 'VENDOR_SESSION_LOGOUT';
+    role: UserRole;
+    sessionIssuedAt?: number;
+    previousSessionAt?: string | null;
+  }
+) {
+  const ipAddress = extractRequestIp(req);
+  const userAgent = extractUserAgent(req);
+  try {
+    await prisma.activityLog.create({
+      data: {
+        userId: options.userId,
+        action: options.action,
+        details: {
+          role: options.role,
+          deviceType: inferDeviceType(userAgent),
+          sessionIssuedAt: options.sessionIssuedAt || null,
+          previousSessionAt: options.previousSessionAt || null,
+        },
+        ipAddress: ipAddress || null,
+        userAgent: userAgent || null,
+      },
+    });
+  } catch (error) {
+    console.error('Failed to write vendor session audit event:', error);
+  }
+}
 
 // Validation schemas
 const registerSchema = z.object({
@@ -222,6 +287,16 @@ router.post('/login', async (req, res, next) => {
       data: { lastLogin: new Date(sessionIssuedAt) },
     });
 
+    if (VENDOR_TRACKED_ROLES.includes(user.role)) {
+      await logVendorSessionEvent(req, {
+        userId: user.id,
+        role: user.role,
+        action: user.lastLogin ? 'VENDOR_SESSION_REPLACED' : 'VENDOR_SESSION_STARTED',
+        sessionIssuedAt,
+        previousSessionAt: user.lastLogin ? user.lastLogin.toISOString() : null,
+      });
+    }
+
     // Generate token
     const token = generateToken({
       id: user.id,
@@ -382,10 +457,17 @@ router.post('/change-password', authenticate, async (req, res, next) => {
 // Logout (client-side token removal, but we can track it if needed)
 router.post('/logout', authenticate, async (req, res) => {
   if (req.user?.role === UserRole.FABRIC_SELLER || req.user?.role === UserRole.FASHION_DESIGNER) {
+    const sessionTerminatedAt = Date.now();
     // Rotate seller/designer session marker so current JWT cannot be reused.
     await prisma.user.update({
       where: { id: req.user.id },
-      data: { lastLogin: new Date() },
+      data: { lastLogin: new Date(sessionTerminatedAt) },
+    });
+    await logVendorSessionEvent(req, {
+      userId: req.user.id,
+      role: req.user.role,
+      action: 'VENDOR_SESSION_LOGOUT',
+      sessionIssuedAt: sessionTerminatedAt,
     });
   }
 

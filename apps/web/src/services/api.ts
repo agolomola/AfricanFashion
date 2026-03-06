@@ -452,6 +452,21 @@ const adminApi = {
     page?: string;
   }) => apiService.get<{ success: boolean; data: any }>('/admin/traffic-report', { params }),
 
+  getSessionAudit: (params?: {
+    action?: 'VENDOR_SESSION_STARTED' | 'VENDOR_SESSION_REPLACED' | 'VENDOR_SESSION_LOGOUT';
+    role?: 'FABRIC_SELLER' | 'FASHION_DESIGNER';
+    userId?: string;
+    page?: number;
+    limit?: number;
+  }) =>
+    apiService.get<{
+      success: boolean;
+      data: {
+        events: any[];
+        pagination: { page: number; limit: number; total: number; pages: number };
+      };
+    }>('/admin/security/session-audit', { params }),
+
   getDashboardStats: async (range: '24h' | '7d' | '30d' | '90d' = '7d') => {
     const response = await apiService.get<{ success: boolean; data: any }>('/admin/dashboard', {
       params: { range },

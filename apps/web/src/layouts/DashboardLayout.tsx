@@ -5,6 +5,7 @@ import {
   Users,
   Package,
   ShoppingBag,
+  Shield,
   Settings,
   LogOut,
   Menu,
@@ -41,6 +42,7 @@ const navItems: Record<DashboardType, NavItem[]> = {
   admin: [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Users', href: '/admin/users', icon: Users },
+    { label: 'Session Audit', href: '/admin/session-audit', icon: Shield },
     { label: 'Products', href: '/admin/products', icon: Package },
     { label: 'Pricing Rules', href: '/admin/pricing', icon: DollarSign },
     { label: 'Currency Matrix', href: '/admin/currency', icon: Tag },

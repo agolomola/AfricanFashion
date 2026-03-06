@@ -150,6 +150,13 @@ const orderTrackingSchema = z.object({
   notes: z.string().optional(),
 });
 
+const VENDOR_SESSION_AUDIT_ACTIONS = [
+  'VENDOR_SESSION_STARTED',
+  'VENDOR_SESSION_REPLACED',
+  'VENDOR_SESSION_LOGOUT',
+] as const;
+const vendorSessionAuditActionSchema = z.enum(VENDOR_SESSION_AUDIT_ACTIONS);
+
 const getDefaultFeaturedSectionForType = (productType: ProductType): FeaturedSection => {
   if (productType === ProductType.FABRIC) return FeaturedSection.FEATURED_FABRICS;
   if (productType === ProductType.READY_TO_WEAR) return FeaturedSection.FEATURED_READY_TO_WEAR;
@@ -770,6 +777,92 @@ router.get('/users', async (req, res, next) => {
           limit: pagination.limit,
           total,
           pages: Math.ceil(total / pagination.limit),
+        },
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+router.get('/security/session-audit', async (req, res, next) => {
+  try {
+    const querySchema = z.object({
+      action: vendorSessionAuditActionSchema.optional(),
+      role: z.enum(['FABRIC_SELLER', 'FASHION_DESIGNER']).optional(),
+      userId: z.string().uuid().optional(),
+      page: z.string().optional(),
+      limit: z.string().optional(),
+    });
+    const filters = querySchema.parse(req.query);
+    const pagination = parsePagination(filters.page, filters.limit, 20);
+
+    const where: any = {
+      action: filters.action
+        ? filters.action
+        : {
+            in: [...VENDOR_SESSION_AUDIT_ACTIONS],
+          },
+    };
+    if (filters.userId) {
+      where.userId = filters.userId;
+    }
+    if (filters.role) {
+      where.user = { role: filters.role };
+    }
+
+    const [events, total] = await Promise.all([
+      prisma.activityLog.findMany({
+        where,
+        skip: pagination.skip,
+        take: pagination.limit,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          action: true,
+          details: true,
+          ipAddress: true,
+          userAgent: true,
+          createdAt: true,
+          user: {
+            select: {
+              id: true,
+              email: true,
+              firstName: true,
+              lastName: true,
+              role: true,
+            },
+          },
+        },
+      }),
+      prisma.activityLog.count({ where }),
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        events: events.map((event) => {
+          const details = (event.details as any) || {};
+          return {
+            id: event.id,
+            action: event.action,
+            createdAt: event.createdAt,
+            ipAddress: event.ipAddress,
+            userAgent: event.userAgent,
+            user: event.user,
+            details: {
+              role: details.role || event.user?.role || null,
+              deviceType: details.deviceType || 'unknown',
+              sessionIssuedAt: details.sessionIssuedAt || null,
+              previousSessionAt: details.previousSessionAt || null,
+            },
+          };
+        }),
+        pagination: {
+          page: pagination.page,
+          limit: pagination.limit,
+          total,
+          pages: Math.max(1, Math.ceil(total / pagination.limit)),
         },
       },
     });

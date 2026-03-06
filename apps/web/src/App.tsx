@@ -42,6 +42,7 @@ import AdminHomepageSections from './pages/admin/HomepageSections';
 import AdminTraffic from './pages/admin/Traffic';
 import AdminMeasurementTemplates from './pages/admin/MeasurementTemplates';
 import AdminCurrencyMatrix from './pages/admin/CurrencyMatrix';
+import AdminSessionAudit from './pages/admin/SessionAudit';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
@@ -244,6 +245,7 @@ function App() {
               <Route element={<DashboardLayout userType="admin" />}>
                 <Route path="/admin" element={<AdminDashboard />} />
                 <Route path="/admin/users" element={<AdminUsers />} />
+                <Route path="/admin/session-audit" element={<AdminSessionAudit />} />
                 <Route path="/admin/products" element={<AdminProducts />} />
                 <Route path="/admin/orders" element={<AdminOrders />} />
                 <Route path="/admin/orders/:id" element={<AdminOrders />} />
