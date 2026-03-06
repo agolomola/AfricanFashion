@@ -21,6 +21,8 @@ import Checkout from './pages/Checkout';
 import VendorStore from './pages/VendorStore';
 import Login from './pages/Login';
 import Register from './pages/Register';
+import ForgotPassword from './pages/ForgotPassword';
+import StaticPage from './pages/StaticPage';
 
 // Customer Pages
 import CustomerDashboard from './pages/customer/Dashboard';
@@ -88,6 +90,124 @@ function App() {
               <Route path="/fabrics/:id" element={<FabricDetail />} />
               <Route path="/ready-to-wear" element={<ReadyToWear />} />
               <Route path="/ready-to-wear/:id" element={<ReadyToWearDetail />} />
+              <Route path="/designers" element={<Navigate to="/designs" replace />} />
+              <Route
+                path="/about"
+                element={
+                  <StaticPage
+                    title="About African Fashion"
+                    description="African Fashion connects talented designers and fabric sellers with global customers. We curate authentic pieces, celebrate craftsmanship, and make African style accessible worldwide."
+                    primaryCtaLabel="Explore Collections"
+                    primaryCtaHref="/ready-to-wear"
+                    secondaryCtaLabel="Meet Designers"
+                    secondaryCtaHref="/designs"
+                  />
+                }
+              />
+              <Route
+                path="/contact"
+                element={
+                  <StaticPage
+                    title="Contact Us"
+                    description="Need support with an order, vendor onboarding, or partnerships? Reach our team at hello@africanfashion.com and we will get back to you as soon as possible."
+                    primaryCtaLabel="Browse Shop"
+                    primaryCtaHref="/ready-to-wear"
+                    secondaryCtaLabel="Read FAQs"
+                    secondaryCtaHref="/faqs"
+                  />
+                }
+              />
+              <Route
+                path="/sustainability"
+                element={
+                  <StaticPage
+                    title="Sustainability"
+                    description="We prioritize durable products, responsible sourcing, and mindful production. Our mission is to celebrate fashion while reducing waste and supporting long-term local value creation."
+                    primaryCtaLabel="Shop Fabrics"
+                    primaryCtaHref="/fabrics"
+                    secondaryCtaLabel="About Us"
+                    secondaryCtaHref="/about"
+                  />
+                }
+              />
+              <Route
+                path="/careers"
+                element={
+                  <StaticPage
+                    title="Careers"
+                    description="We are building the future of African fashion commerce. Follow our hiring updates and opportunities for product, operations, and creative roles."
+                    primaryCtaLabel="Explore Platform"
+                    primaryCtaHref="/"
+                    secondaryCtaLabel="Contact Us"
+                    secondaryCtaHref="/contact"
+                  />
+                }
+              />
+              <Route
+                path="/faqs"
+                element={
+                  <StaticPage
+                    title="Frequently Asked Questions"
+                    description="Find quick answers about payments, shipping timelines, returns, sizing, and vendor policies. For anything else, our support team is ready to assist."
+                    primaryCtaLabel="View Shipping"
+                    primaryCtaHref="/shipping"
+                    secondaryCtaLabel="Contact Us"
+                    secondaryCtaHref="/contact"
+                  />
+                }
+              />
+              <Route
+                path="/shipping"
+                element={
+                  <StaticPage
+                    title="Shipping Information"
+                    description="Shipping time and cost depend on destination, product type, and vendor location. You will always see the latest delivery estimate at checkout before payment."
+                    primaryCtaLabel="Start Shopping"
+                    primaryCtaHref="/ready-to-wear"
+                    secondaryCtaLabel="Returns Policy"
+                    secondaryCtaHref="/returns"
+                  />
+                }
+              />
+              <Route
+                path="/returns"
+                element={
+                  <StaticPage
+                    title="Returns & Exchanges"
+                    description="Eligible returns and exchanges are accepted within policy windows based on item condition and order type. Contact support with your order details for guided help."
+                    primaryCtaLabel="Contact Support"
+                    primaryCtaHref="/contact"
+                    secondaryCtaLabel="Browse Shop"
+                    secondaryCtaHref="/ready-to-wear"
+                  />
+                }
+              />
+              <Route
+                path="/privacy"
+                element={
+                  <StaticPage
+                    title="Privacy Policy"
+                    description="We are committed to protecting your personal data and handling it responsibly. This page explains what data we collect, why we collect it, and how you can control it."
+                    primaryCtaLabel="Terms of Service"
+                    primaryCtaHref="/terms"
+                    secondaryCtaLabel="Contact Us"
+                    secondaryCtaHref="/contact"
+                  />
+                }
+              />
+              <Route
+                path="/terms"
+                element={
+                  <StaticPage
+                    title="Terms of Service"
+                    description="These terms describe platform usage rules, order processing expectations, and account responsibilities for customers, vendors, and partners."
+                    primaryCtaLabel="Privacy Policy"
+                    primaryCtaHref="/privacy"
+                    secondaryCtaLabel="Start Shopping"
+                    secondaryCtaHref="/ready-to-wear"
+                  />
+                }
+              />
               <Route path="/try-on/:id" element={<TryOn />} />
               <Route path="/cart" element={<Cart />} />
               <Route path="/vendor/:role/:userId" element={<VendorStore />} />
@@ -99,6 +219,9 @@ function App() {
             } />
             <Route path="/register" element={
               isAuthenticated ? <Navigate to={getHomeRouteForRole(user?.role)} replace /> : <Register />
+            } />
+            <Route path="/forgot-password" element={
+              isAuthenticated ? <Navigate to={getHomeRouteForRole(user?.role)} replace /> : <ForgotPassword />
             } />
 
             {/* Checkout - Requires Auth */}
@@ -156,6 +279,7 @@ function App() {
             <Route element={<ProtectedRoute allowedRoles={['QA_TEAM']} />}>
               <Route element={<DashboardLayout userType="qa" />}>
                 <Route path="/qa" element={<QADashboard />} />
+                <Route path="/qa/orders" element={<QADashboard />} />
               </Route>
             </Route>
 

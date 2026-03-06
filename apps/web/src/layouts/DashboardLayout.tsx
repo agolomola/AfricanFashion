@@ -125,7 +125,9 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
           {/* Navigation */}
           <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
             {items.map((item) => {
-              const isActive = location.pathname === item.href;
+              const isActive =
+                location.pathname === item.href ||
+                location.pathname.startsWith(`${item.href}/`);
               const Icon = item.icon;
 
               return (

@@ -1,10 +1,11 @@
 import { Outlet, Link, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
-import { ShoppingBag, User, Menu, X, Search, Heart } from 'lucide-react';
+import { ShoppingBag, User, Menu, X, Search } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import Footer from '../components/Footer';
 import { useCurrency } from '../components/ui/CurrencyProvider';
+import { getHomeRouteForRole, isCustomerRole } from '../auth/rbac';
 
 export default function MainLayout() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -13,6 +14,8 @@ export default function MainLayout() {
   const { getItemCount } = useCartStore();
   const { selectedCurrency, defaultCurrency, supportedCurrencies, setSelectedCurrency } = useCurrency();
   const navigate = useNavigate();
+  const roleHomeRoute = getHomeRouteForRole(user?.role);
+  const isCustomerUser = isCustomerRole(user?.role);
 
   const currencyOptions = Array.from(
     new Set([selectedCurrency, defaultCurrency, 'USD', ...supportedCurrencies].filter(Boolean))
@@ -176,16 +179,16 @@ export default function MainLayout() {
                   <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-100 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all">
                     <div className="py-2">
                       <Link
-                        to="/profile"
+                        to={isCustomerUser ? '/profile' : roleHomeRoute}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
-                        My Profile
+                        {isCustomerUser ? 'My Profile' : 'Dashboard'}
                       </Link>
                       <Link
-                        to="/orders"
+                        to={isCustomerUser ? '/orders' : roleHomeRoute}
                         className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
                       >
-                        My Orders
+                        {isCustomerUser ? 'My Orders' : 'Go to Workspace'}
                       </Link>
                       <button
                         onClick={handleLogout}

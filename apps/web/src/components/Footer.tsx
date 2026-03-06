@@ -13,13 +13,28 @@ export default function Footer() {
               Wear the story of Africa.
             </p>
             <div className="flex gap-3">
-              <a href="#" className="w-8 h-8 bg-white bg-opacity-10 rounded flex items-center justify-center hover:bg-white bg-opacity-20 transition-colors">
+              <a
+                href="https://www.instagram.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-8 h-8 bg-white bg-opacity-10 rounded flex items-center justify-center hover:bg-white bg-opacity-20 transition-colors"
+              >
                 <Instagram className="w-4 h-4" />
               </a>
-              <a href="#" className="w-8 h-8 bg-white bg-opacity-10 rounded flex items-center justify-center hover:bg-white bg-opacity-20 transition-colors">
+              <a
+                href="https://www.facebook.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-8 h-8 bg-white bg-opacity-10 rounded flex items-center justify-center hover:bg-white bg-opacity-20 transition-colors"
+              >
                 <Facebook className="w-4 h-4" />
               </a>
-              <a href="#" className="w-8 h-8 bg-white bg-opacity-10 rounded flex items-center justify-center hover:bg-white bg-opacity-20 transition-colors">
+              <a
+                href="https://twitter.com"
+                target="_blank"
+                rel="noreferrer"
+                className="w-8 h-8 bg-white bg-opacity-10 rounded flex items-center justify-center hover:bg-white bg-opacity-20 transition-colors"
+              >
                 <Twitter className="w-4 h-4" />
               </a>
             </div>
