@@ -181,6 +181,12 @@ function validateProductImageCount(type: ProductType, images: string[]) {
   }
 }
 
+function isFeaturedTableMissingError(error: any) {
+  const table = String(error?.meta?.table || '');
+  const message = String(error?.message || '');
+  return error?.code === 'P2021' && (table.includes('FeaturedProduct') || message.includes('FeaturedProduct'));
+}
+
 function getPrismaValidationErrorMessage(error: any) {
   const code = typeof error?.code === 'string' ? error.code : '';
   const field = error?.meta?.field_name || error?.meta?.target;
@@ -192,6 +198,9 @@ function getPrismaValidationErrorMessage(error: any) {
   }
   if (code === 'P2025') {
     return 'Referenced record was not found.';
+  }
+  if (code === 'P2021') {
+    return 'Required database table is missing. Please run latest database migrations.';
   }
   return null;
 }
@@ -1038,20 +1047,26 @@ router.get('/products', async (req, res, next) => {
       ...readyToWear.map((item) => ({ productId: item.id, productType: ProductType.READY_TO_WEAR })),
     ];
 
-    const featuredRows =
-      productRefs.length === 0
-        ? []
-        : await prisma.featuredProduct.findMany({
-            where: {
-              isActive: true,
-              OR: productRefs,
-            },
-            select: {
-              productId: true,
-              productType: true,
-              section: true,
-            },
-          });
+    let featuredRows: Array<{ productId: string; productType: ProductType; section: FeaturedSection }> = [];
+    if (productRefs.length > 0) {
+      try {
+        featuredRows = await prisma.featuredProduct.findMany({
+          where: {
+            isActive: true,
+            OR: productRefs,
+          },
+          select: {
+            productId: true,
+            productType: true,
+            section: true,
+          },
+        });
+      } catch (error) {
+        if (!isFeaturedTableMissingError(error)) {
+          throw error;
+        }
+      }
+    }
 
     const featuredMap = new Map<string, FeaturedSection[]>();
     for (const row of featuredRows) {
@@ -1191,10 +1206,17 @@ router.get('/products/:productType/:id', async (req, res, next) => {
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found.' });
       }
-      const featuredRows = await prisma.featuredProduct.findMany({
-        where: { productId: id, productType, isActive: true },
-        select: { section: true },
-      });
+      let featuredRows: Array<{ section: FeaturedSection }> = [];
+      try {
+        featuredRows = await prisma.featuredProduct.findMany({
+          where: { productId: id, productType, isActive: true },
+          select: { section: true },
+        });
+      } catch (error) {
+        if (!isFeaturedTableMissingError(error)) {
+          throw error;
+        }
+      }
       return res.json({
         success: true,
         data: {
@@ -1241,10 +1263,17 @@ router.get('/products/:productType/:id', async (req, res, next) => {
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found.' });
       }
-      const featuredRows = await prisma.featuredProduct.findMany({
-        where: { productId: id, productType, isActive: true },
-        select: { section: true },
-      });
+      let featuredRows: Array<{ section: FeaturedSection }> = [];
+      try {
+        featuredRows = await prisma.featuredProduct.findMany({
+          where: { productId: id, productType, isActive: true },
+          select: { section: true },
+        });
+      } catch (error) {
+        if (!isFeaturedTableMissingError(error)) {
+          throw error;
+        }
+      }
       return res.json({
         success: true,
         data: {
@@ -1288,10 +1317,17 @@ router.get('/products/:productType/:id', async (req, res, next) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
-    const featuredRows = await prisma.featuredProduct.findMany({
-      where: { productId: id, productType, isActive: true },
-      select: { section: true },
-    });
+    let featuredRows: Array<{ section: FeaturedSection }> = [];
+    try {
+      featuredRows = await prisma.featuredProduct.findMany({
+        where: { productId: id, productType, isActive: true },
+        select: { section: true },
+      });
+    } catch (error) {
+      if (!isFeaturedTableMissingError(error)) {
+        throw error;
+      }
+    }
     res.json({
       success: true,
       data: {
@@ -1622,9 +1658,15 @@ router.patch('/products/:productType/:id/moderate', async (req, res, next) => {
     }
 
     if (payload.action !== 'APPROVE' && payload.action !== 'PUBLISH') {
-      await prisma.featuredProduct.deleteMany({
-        where: { productId: id, productType },
-      });
+      try {
+        await prisma.featuredProduct.deleteMany({
+          where: { productId: id, productType },
+        });
+      } catch (error) {
+        if (!isFeaturedTableMissingError(error)) {
+          throw error;
+        }
+      }
     }
 
     if (payload.notifyVendor || payload.message) {
@@ -1763,12 +1805,18 @@ router.post('/products/moderate-bulk', async (req, res, next) => {
     }
 
     if (payload.action !== 'APPROVE' && payload.action !== 'PUBLISH') {
-      await prisma.featuredProduct.deleteMany({
-        where: {
-          productType: payload.productType,
-          productId: { in: payload.productIds },
-        },
-      });
+      try {
+        await prisma.featuredProduct.deleteMany({
+          where: {
+            productType: payload.productType,
+            productId: { in: payload.productIds },
+          },
+        });
+      } catch (error) {
+        if (!isFeaturedTableMissingError(error)) {
+          throw error;
+        }
+      }
     }
 
     if (payload.notifyVendor || payload.message) {
@@ -1819,26 +1867,39 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
 
     if (payload.isFeatured) {
       const section = payload.section || getDefaultFeaturedSectionForType(productType);
-      const featured = await prisma.featuredProduct.upsert({
-        where: {
-          productId_productType_section: {
+      let featured: any = null;
+      try {
+        featured = await prisma.featuredProduct.upsert({
+          where: {
+            productId_productType_section: {
+              productId: id,
+              productType,
+              section,
+            },
+          },
+          update: {
+            isActive: true,
+            displayOrder: payload.displayOrder ?? 0,
+          },
+          create: {
             productId: id,
             productType,
             section,
+            displayOrder: payload.displayOrder ?? 0,
+            isActive: true,
           },
-        },
-        update: {
-          isActive: true,
-          displayOrder: payload.displayOrder ?? 0,
-        },
-        create: {
-          productId: id,
-          productType,
-          section,
-          displayOrder: payload.displayOrder ?? 0,
-          isActive: true,
-        },
-      });
+        });
+      } catch (error) {
+        if (isFeaturedTableMissingError(error)) {
+          return res.json({
+            success: true,
+            warning: 'FEATURED_TABLE_MISSING',
+            message: 'Product saved. Featured tagging unavailable until database migration is applied.',
+            data: null,
+          });
+        }
+        throw error;
+      }
 
       return res.json({
         success: true,
@@ -1847,13 +1908,24 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
       });
     }
 
-    await prisma.featuredProduct.deleteMany({
-      where: {
-        productId: id,
-        productType,
-        ...(payload.section ? { section: payload.section } : {}),
-      },
-    });
+    try {
+      await prisma.featuredProduct.deleteMany({
+        where: {
+          productId: id,
+          productType,
+          ...(payload.section ? { section: payload.section } : {}),
+        },
+      });
+    } catch (error) {
+      if (isFeaturedTableMissingError(error)) {
+        return res.json({
+          success: true,
+          warning: 'FEATURED_TABLE_MISSING',
+          message: 'Product updated. Featured tagging unavailable until database migration is applied.',
+        });
+      }
+      throw error;
+    }
 
     res.json({
       success: true,

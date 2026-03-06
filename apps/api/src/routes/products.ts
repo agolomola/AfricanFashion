@@ -4,6 +4,12 @@ import { optionalAuth } from '../middleware/auth';
 
 const router = Router();
 
+function isFeaturedTableMissingError(error: any) {
+  const table = String(error?.meta?.table || '');
+  const message = String(error?.message || '');
+  return error?.code === 'P2021' && (table.includes('FeaturedProduct') || message.includes('FeaturedProduct'));
+}
+
 function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit = 20) {
   const page = Math.max(1, Number.parseInt(String(pageValue ?? '1'), 10) || 1);
   const limit = Math.min(100, Math.max(1, Number.parseInt(String(limitValue ?? defaultLimit), 10) || defaultLimit));
@@ -15,17 +21,24 @@ async function getFeaturedSectionsByProductIds(productIds: string[], productType
   if (productIds.length === 0) {
     return new Map<string, string[]>();
   }
-  const featuredRows = await prisma.featuredProduct.findMany({
-    where: {
-      productType,
-      isActive: true,
-      productId: { in: productIds },
-    },
-    select: {
-      productId: true,
-      section: true,
-    },
-  });
+  let featuredRows: Array<{ productId: string; section: string }> = [];
+  try {
+    featuredRows = await prisma.featuredProduct.findMany({
+      where: {
+        productType,
+        isActive: true,
+        productId: { in: productIds },
+      },
+      select: {
+        productId: true,
+        section: true,
+      },
+    });
+  } catch (error) {
+    if (!isFeaturedTableMissingError(error)) {
+      throw error;
+    }
+  }
   const featuredMap = new Map<string, string[]>();
   for (const row of featuredRows) {
     const existing = featuredMap.get(row.productId) || [];
@@ -36,14 +49,21 @@ async function getFeaturedSectionsByProductIds(productIds: string[], productType
 }
 
 async function getFeaturedSections(productId: string, productType: ProductType) {
-  const featuredRows = await prisma.featuredProduct.findMany({
-    where: {
-      productId,
-      productType,
-      isActive: true,
-    },
-    select: { section: true },
-  });
+  let featuredRows: Array<{ section: string }> = [];
+  try {
+    featuredRows = await prisma.featuredProduct.findMany({
+      where: {
+        productId,
+        productType,
+        isActive: true,
+      },
+      select: { section: true },
+    });
+  } catch (error) {
+    if (!isFeaturedTableMissingError(error)) {
+      throw error;
+    }
+  }
   return featuredRows.map((row) => row.section);
 }
 
@@ -632,11 +652,7 @@ router.get('/countries', async (req, res, next) => {
 // Get featured products
 router.get('/featured', async (req, res, next) => {
   try {
-    const [featuredRows, fabricsPool, designsPool, rtwPool] = await Promise.all([
-      prisma.featuredProduct.findMany({
-        where: { isActive: true },
-        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
-      }),
+    const [fabricsPool, designsPool, rtwPool] = await Promise.all([
       prisma.fabric.findMany({
         where: { status: ProductStatus.APPROVED, isAvailable: true },
         include: {
@@ -662,6 +678,17 @@ router.get('/featured', async (req, res, next) => {
         },
       }),
     ]);
+    let featuredRows: any[] = [];
+    try {
+      featuredRows = await prisma.featuredProduct.findMany({
+        where: { isActive: true },
+        orderBy: [{ displayOrder: 'asc' }, { createdAt: 'asc' }],
+      });
+    } catch (error) {
+      if (!isFeaturedTableMissingError(error)) {
+        throw error;
+      }
+    }
 
     const fabricsById = new Map(fabricsPool.map((item) => [item.id, item]));
     const designsById = new Map(designsPool.map((item) => [item.id, item]));
@@ -685,6 +712,12 @@ router.get('/featured', async (req, res, next) => {
       if (fabrics.length >= 4 && designs.length >= 4 && readyToWear.length >= 4) {
         break;
       }
+    }
+
+    if (featuredRows.length === 0) {
+      fabrics.push(...fabricsPool.slice(0, 4));
+      designs.push(...designsPool.slice(0, 4));
+      readyToWear.push(...rtwPool.slice(0, 4));
     }
 
     res.json({

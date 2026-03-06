@@ -16,6 +16,23 @@ const PRODUCT_TYPES = ['DESIGN', 'FABRIC', 'READY_TO_WEAR'] as const;
 
 const AUTO_FEATURED_LIMIT = 6;
 
+function isFeaturedTableMissingError(error: any) {
+  const table = String(error?.meta?.table || '');
+  const message = String(error?.message || '');
+  return error?.code === 'P2021' && (table.includes('FeaturedProduct') || message.includes('FeaturedProduct'));
+}
+
+const withSafeFeaturedRows = async (resolver: () => Promise<any[]>) => {
+  try {
+    return await resolver();
+  } catch (error) {
+    if (isFeaturedTableMissingError(error)) {
+      return [];
+    }
+    throw error;
+  }
+};
+
 const getFeaturedProductWithDetails = async (fp: any) => {
   if (fp.productType === 'DESIGN') {
     const product = await prisma.design.findUnique({
@@ -289,14 +306,16 @@ router.get('/featured/:section', async (req, res) => {
       });
     }
 
-    const featuredProducts = await prisma.featuredProduct.findMany({
-      where: {
-        section: section as any,
-        isActive: true,
-      },
-      orderBy: { displayOrder: 'asc' },
-      take: 12,
-    });
+    const featuredProducts = await withSafeFeaturedRows(() =>
+      prisma.featuredProduct.findMany({
+        where: {
+          section: section as any,
+          isActive: true,
+        },
+        orderBy: { displayOrder: 'asc' },
+        take: 12,
+      })
+    );
 
     const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
     const validProducts = productsWithDetails.filter((p) => p !== null);
@@ -322,14 +341,16 @@ router.get('/featured', async (req, res) => {
     const result: Record<string, any[]> = {};
 
     for (const section of sections) {
-      const featuredProducts = await prisma.featuredProduct.findMany({
-        where: {
-          section: section as any,
-          isActive: true,
-        },
-        orderBy: { displayOrder: 'asc' },
-        take: 6,
-      });
+      const featuredProducts = await withSafeFeaturedRows(() =>
+        prisma.featuredProduct.findMany({
+          where: {
+            section: section as any,
+            isActive: true,
+          },
+          orderBy: { displayOrder: 'asc' },
+          take: 6,
+        })
+      );
 
       const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
       const validProducts = productsWithDetails.filter((p) => p !== null);
@@ -468,9 +489,11 @@ router.delete('/admin/hero-slides/:id', authenticate, authorizePermissions(Permi
 // Get all featured products (admin)
 router.get('/admin/featured', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const featured = await prisma.featuredProduct.findMany({
-      orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
-    });
+    const featured = await withSafeFeaturedRows(() =>
+      prisma.featuredProduct.findMany({
+        orderBy: [{ section: 'asc' }, { displayOrder: 'asc' }],
+      })
+    );
     const details = await Promise.all(featured.map((item) => getFeaturedProductWithDetails(item)));
     const detailByFeaturedId = new Map(
       details.filter((item): item is any => Boolean(item)).map((item) => [item.featuredId, item])
@@ -533,16 +556,27 @@ router.post('/admin/featured', authenticate, authorizePermissions(Permissions.HO
       });
     }
 
-    const featured = await prisma.featuredProduct.create({
-      data: {
-        productId,
-        productType,
-        section,
-        displayOrder: displayOrder || 0,
-        customTitle,
-        customDescription,
-      },
-    });
+    let featured: any;
+    try {
+      featured = await prisma.featuredProduct.create({
+        data: {
+          productId,
+          productType,
+          section,
+          displayOrder: displayOrder || 0,
+          customTitle,
+          customDescription,
+        },
+      });
+    } catch (error) {
+      if (isFeaturedTableMissingError(error)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Featured products table is missing. Apply database migrations first.',
+        });
+      }
+      throw error;
+    }
 
     res.status(201).json({
       success: true,
@@ -564,15 +598,26 @@ const updateFeaturedProductHandler = async (req: any, res: any) => {
     const { id } = req.params;
     const { displayOrder, customTitle, customDescription, isActive } = req.body;
 
-    const featured = await prisma.featuredProduct.update({
-      where: { id },
-      data: {
-        displayOrder,
-        customTitle,
-        customDescription,
-        isActive,
-      },
-    });
+    let featured: any;
+    try {
+      featured = await prisma.featuredProduct.update({
+        where: { id },
+        data: {
+          displayOrder,
+          customTitle,
+          customDescription,
+          isActive,
+        },
+      });
+    } catch (error) {
+      if (isFeaturedTableMissingError(error)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Featured products table is missing. Apply database migrations first.',
+        });
+      }
+      throw error;
+    }
 
     res.json({
       success: true,
@@ -595,9 +640,19 @@ router.delete('/admin/featured/:id', authenticate, authorizePermissions(Permissi
   try {
     const { id } = req.params;
 
-    await prisma.featuredProduct.delete({
-      where: { id },
-    });
+    try {
+      await prisma.featuredProduct.delete({
+        where: { id },
+      });
+    } catch (error) {
+      if (isFeaturedTableMissingError(error)) {
+        return res.status(503).json({
+          success: false,
+          message: 'Featured products table is missing. Apply database migrations first.',
+        });
+      }
+      throw error;
+    }
 
     res.json({
       success: true,
