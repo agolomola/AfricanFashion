@@ -14,6 +14,8 @@ const FEATURED_SECTIONS = [
 
 const PRODUCT_TYPES = ['DESIGN', 'FABRIC', 'READY_TO_WEAR'] as const;
 
+const AUTO_FEATURED_LIMIT = 6;
+
 const getFeaturedProductWithDetails = async (fp: any) => {
   if (fp.productType === 'DESIGN') {
     const product = await prisma.design.findUnique({
@@ -132,6 +134,127 @@ const getFeaturedProductWithDetails = async (fp: any) => {
   return null;
 };
 
+const getAutoFeaturedBySection = async (section: (typeof FEATURED_SECTIONS)[number]) => {
+  if (section === 'FEATURED_DESIGNS') {
+    const products = await prisma.design.findMany({
+      where: { status: 'APPROVED', isAvailable: true },
+      include: {
+        designer: {
+          select: {
+            businessName: true,
+            country: true,
+          },
+        },
+        images: {
+          take: 1,
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: AUTO_FEATURED_LIMIT,
+    });
+
+    return products.map((product, index) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: Number(product.finalPrice),
+      image: product.images[0]?.url || '/images/placeholder.jpg',
+      designer: product.designer.businessName,
+      country: product.designer.country,
+      productType: 'DESIGN',
+      featuredId: `auto-design-${product.id}`,
+      section,
+      displayOrder: index,
+      isActive: true,
+      product: {
+        id: product.id,
+        name: product.name,
+      },
+    }));
+  }
+
+  if (section === 'FEATURED_FABRICS') {
+    const products = await prisma.fabric.findMany({
+      where: { status: 'APPROVED', isAvailable: true },
+      include: {
+        seller: {
+          select: {
+            businessName: true,
+            country: true,
+          },
+        },
+        images: {
+          take: 1,
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: AUTO_FEATURED_LIMIT,
+    });
+
+    return products.map((product, index) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: Number(product.finalPrice),
+      image: product.images[0]?.url || '/images/placeholder.jpg',
+      designer: product.seller.businessName,
+      country: product.seller.country,
+      productType: 'FABRIC',
+      featuredId: `auto-fabric-${product.id}`,
+      section,
+      displayOrder: index,
+      isActive: true,
+      product: {
+        id: product.id,
+        name: product.name,
+      },
+    }));
+  }
+
+  if (section === 'FEATURED_READY_TO_WEAR') {
+    const products = await prisma.readyToWear.findMany({
+      where: { status: 'APPROVED', isAvailable: true },
+      include: {
+        designer: {
+          select: {
+            businessName: true,
+            country: true,
+          },
+        },
+        images: {
+          take: 1,
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: AUTO_FEATURED_LIMIT,
+    });
+
+    return products.map((product, index) => ({
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      price: Number(product.basePrice),
+      image: product.images[0]?.url || '/images/placeholder.jpg',
+      designer: product.designer.businessName,
+      country: product.designer.country,
+      productType: 'READY_TO_WEAR',
+      featuredId: `auto-rtw-${product.id}`,
+      section,
+      displayOrder: index,
+      isActive: true,
+      product: {
+        id: product.id,
+        name: product.name,
+      },
+    }));
+  }
+
+  return [];
+};
+
 // ==================== PUBLIC ENDPOINTS (for frontend) ====================
 
 // Get active hero slides
@@ -176,13 +299,12 @@ router.get('/featured/:section', async (req, res) => {
     });
 
     const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
-
-    // Filter out nulls (products that no longer exist)
     const validProducts = productsWithDetails.filter((p) => p !== null);
+    const fallbackProducts = validProducts.length > 0 ? validProducts : await getAutoFeaturedBySection(section as any);
 
     res.json({
       success: true,
-      data: validProducts,
+      data: fallbackProducts,
     });
   } catch (error) {
     console.error('Error fetching featured products:', error);
@@ -210,8 +332,8 @@ router.get('/featured', async (req, res) => {
       });
 
       const productsWithDetails = await Promise.all(featuredProducts.map((fp) => getFeaturedProductWithDetails(fp)));
-
-      result[section] = productsWithDetails.filter((p) => p !== null);
+      const validProducts = productsWithDetails.filter((p) => p !== null);
+      result[section] = validProducts.length > 0 ? validProducts : await getAutoFeaturedBySection(section);
     }
 
     res.json({
