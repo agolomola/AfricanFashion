@@ -16,6 +16,26 @@ const FEATURED_SECTIONS = [
 const PRODUCT_TYPES = ['DESIGN', 'FABRIC', 'READY_TO_WEAR'] as const;
 
 const AUTO_FEATURED_LIMIT = 6;
+const RELAXED_PUBLIC_STATUSES = ['APPROVED', 'PENDING_REVIEW', 'DRAFT'] as const;
+
+const getStrictVisibilityWhere = () => ({
+  status: 'APPROVED',
+  isAvailable: true,
+});
+
+const getRelaxedVisibilityWhere = () => ({
+  status: { in: [...RELAXED_PUBLIC_STATUSES] },
+});
+
+const findManyWithVisibilityFallback = async <T>(
+  finder: (where: Record<string, unknown>) => Promise<T[]>
+) => {
+  const strictRows = await finder(getStrictVisibilityWhere());
+  if (strictRows.length > 0) {
+    return strictRows;
+  }
+  return finder(getRelaxedVisibilityWhere());
+};
 
 router.use(async (_req, res, next) => {
   try {
@@ -163,23 +183,25 @@ const getFeaturedProductWithDetails = async (fp: any) => {
 
 const getAutoFeaturedBySection = async (section: (typeof FEATURED_SECTIONS)[number]) => {
   if (section === 'FEATURED_DESIGNS') {
-    const products = await prisma.design.findMany({
-      where: { status: 'APPROVED', isAvailable: true },
-      include: {
-        designer: {
-          select: {
-            businessName: true,
-            country: true,
+    const products = await findManyWithVisibilityFallback((visibilityWhere) =>
+      prisma.design.findMany({
+        where: visibilityWhere,
+        include: {
+          designer: {
+            select: {
+              businessName: true,
+              country: true,
+            },
+          },
+          images: {
+            take: 1,
+            orderBy: { sortOrder: 'asc' },
           },
         },
-        images: {
-          take: 1,
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: AUTO_FEATURED_LIMIT,
-    });
+        orderBy: { createdAt: 'desc' },
+        take: AUTO_FEATURED_LIMIT,
+      })
+    );
 
     return products.map((product, index) => ({
       id: product.id,
@@ -202,23 +224,25 @@ const getAutoFeaturedBySection = async (section: (typeof FEATURED_SECTIONS)[numb
   }
 
   if (section === 'FEATURED_FABRICS') {
-    const products = await prisma.fabric.findMany({
-      where: { status: 'APPROVED', isAvailable: true },
-      include: {
-        seller: {
-          select: {
-            businessName: true,
-            country: true,
+    const products = await findManyWithVisibilityFallback((visibilityWhere) =>
+      prisma.fabric.findMany({
+        where: visibilityWhere,
+        include: {
+          seller: {
+            select: {
+              businessName: true,
+              country: true,
+            },
+          },
+          images: {
+            take: 1,
+            orderBy: { sortOrder: 'asc' },
           },
         },
-        images: {
-          take: 1,
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: AUTO_FEATURED_LIMIT,
-    });
+        orderBy: { createdAt: 'desc' },
+        take: AUTO_FEATURED_LIMIT,
+      })
+    );
 
     return products.map((product, index) => ({
       id: product.id,
@@ -241,23 +265,25 @@ const getAutoFeaturedBySection = async (section: (typeof FEATURED_SECTIONS)[numb
   }
 
   if (section === 'FEATURED_READY_TO_WEAR') {
-    const products = await prisma.readyToWear.findMany({
-      where: { status: 'APPROVED', isAvailable: true },
-      include: {
-        designer: {
-          select: {
-            businessName: true,
-            country: true,
+    const products = await findManyWithVisibilityFallback((visibilityWhere) =>
+      prisma.readyToWear.findMany({
+        where: visibilityWhere,
+        include: {
+          designer: {
+            select: {
+              businessName: true,
+              country: true,
+            },
+          },
+          images: {
+            take: 1,
+            orderBy: { sortOrder: 'asc' },
           },
         },
-        images: {
-          take: 1,
-          orderBy: { sortOrder: 'asc' },
-        },
-      },
-      orderBy: { createdAt: 'desc' },
-      take: AUTO_FEATURED_LIMIT,
-    });
+        orderBy: { createdAt: 'desc' },
+        take: AUTO_FEATURED_LIMIT,
+      })
+    );
 
     return products.map((product, index) => ({
       id: product.id,
@@ -685,53 +711,59 @@ router.get('/admin/products-for-featured', authenticate, authorizePermissions(Pe
     let products: any[] = [];
 
     if (type === 'DESIGN' || !type) {
-      const designs = await prisma.design.findMany({
-        where: { status: 'APPROVED', isAvailable: true },
-        select: {
-          id: true,
-          name: true,
-          designer: {
-            select: {
-              businessName: true,
+      const designs = await findManyWithVisibilityFallback((visibilityWhere) =>
+        prisma.design.findMany({
+          where: visibilityWhere,
+          select: {
+            id: true,
+            name: true,
+            designer: {
+              select: {
+                businessName: true,
+              },
             },
           },
-        },
-        take: 50,
-      });
+          take: 50,
+        })
+      );
       products = [...products, ...designs.map((d) => ({ ...d, type: 'DESIGN' }))];
     }
 
     if (type === 'FABRIC' || !type) {
-      const fabrics = await prisma.fabric.findMany({
-        where: { status: 'APPROVED', isAvailable: true },
-        select: {
-          id: true,
-          name: true,
-          seller: {
-            select: {
-              businessName: true,
+      const fabrics = await findManyWithVisibilityFallback((visibilityWhere) =>
+        prisma.fabric.findMany({
+          where: visibilityWhere,
+          select: {
+            id: true,
+            name: true,
+            seller: {
+              select: {
+                businessName: true,
+              },
             },
           },
-        },
-        take: 50,
-      });
+          take: 50,
+        })
+      );
       products = [...products, ...fabrics.map((f) => ({ ...f, type: 'FABRIC' }))];
     }
 
     if (type === 'READY_TO_WEAR' || !type) {
-      const rtw = await prisma.readyToWear.findMany({
-        where: { status: 'APPROVED', isAvailable: true },
-        select: {
-          id: true,
-          name: true,
-          designer: {
-            select: {
-              businessName: true,
+      const rtw = await findManyWithVisibilityFallback((visibilityWhere) =>
+        prisma.readyToWear.findMany({
+          where: visibilityWhere,
+          select: {
+            id: true,
+            name: true,
+            designer: {
+              select: {
+                businessName: true,
+              },
             },
           },
-        },
-        take: 50,
-      });
+          take: 50,
+        })
+      );
       products = [...products, ...rtw.map((r) => ({ ...r, type: 'READY_TO_WEAR' }))];
     }
 

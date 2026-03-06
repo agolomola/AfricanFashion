@@ -17,6 +17,35 @@ function parsePagination(pageValue: unknown, limitValue: unknown, defaultLimit =
   return { page, limit, skip };
 }
 
+const RELAXED_PUBLIC_STATUSES: ProductStatus[] = [
+  ProductStatus.APPROVED,
+  ProductStatus.PENDING_REVIEW,
+  ProductStatus.DRAFT,
+];
+
+const getStrictPublicVisibilityWhere = () => ({
+  status: ProductStatus.APPROVED,
+  isAvailable: true,
+});
+
+const getRelaxedPublicVisibilityWhere = () => ({
+  status: { in: RELAXED_PUBLIC_STATUSES },
+});
+
+async function resolvePublicVisibilityWhere(
+  counter: (visibilityWhere: Record<string, unknown>) => Promise<number>
+) {
+  const strictWhere = getStrictPublicVisibilityWhere();
+  const strictCount = await counter(strictWhere);
+  if (strictCount > 0) {
+    return { visibilityWhere: strictWhere, total: strictCount };
+  }
+
+  const relaxedWhere = getRelaxedPublicVisibilityWhere();
+  const relaxedCount = await counter(relaxedWhere);
+  return { visibilityWhere: relaxedWhere, total: relaxedCount };
+}
+
 async function getFeaturedSectionsByProductIds(productIds: string[], productType: ProductType) {
   if (productIds.length === 0) {
     return new Map<string, string[]>();
@@ -108,47 +137,43 @@ router.get('/fabrics', async (req, res, next) => {
   try {
     const { country, materialTypeId, sellerUserId, search, page, limit } = req.query;
 
-    const where: any = {
-      status: ProductStatus.APPROVED,
-      isAvailable: true,
-    };
+    const baseWhere: any = {};
 
     if (country) {
-      where.seller = { country: country as string };
+      baseWhere.seller = { country: country as string };
     }
     if (sellerUserId) {
-      where.seller = { ...(where.seller || {}), userId: sellerUserId as string };
+      baseWhere.seller = { ...(baseWhere.seller || {}), userId: sellerUserId as string };
     }
 
     if (materialTypeId) {
-      where.materialTypeId = materialTypeId as string;
+      baseWhere.materialTypeId = materialTypeId as string;
     }
 
     if (search) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
         { description: { contains: search as string, mode: 'insensitive' } },
       ];
     }
 
     const pagination = parsePagination(page, limit, 20);
-
-    const [fabrics, total] = await Promise.all([
-      prisma.fabric.findMany({
-        where,
-        skip: pagination.skip,
-        take: pagination.limit,
-        include: {
-          materialType: true,
-          seller: {
-            select: { country: true, city: true, businessName: true },
-          },
-          images: true,
+    const { visibilityWhere, total } = await resolvePublicVisibilityWhere((visibility) =>
+      prisma.fabric.count({ where: { ...baseWhere, ...visibility } })
+    );
+    const fabrics = await prisma.fabric.findMany({
+      where: { ...baseWhere, ...visibilityWhere },
+      skip: pagination.skip,
+      take: pagination.limit,
+      include: {
+        materialType: true,
+        seller: {
+          select: { country: true, city: true, businessName: true },
         },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.fabric.count({ where }),
-    ]);
+        images: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
     const featuredMap = await getFeaturedSectionsByProductIds(
       fabrics.map((fabric) => fabric.id),
       ProductType.FABRIC
@@ -235,62 +260,58 @@ router.get('/designs', async (req, res, next) => {
   try {
     const { categoryId, country, designerId, designerUserId, search, page, limit } = req.query;
 
-    const where: any = {
-      status: ProductStatus.APPROVED,
-      isAvailable: true,
-    };
+    const baseWhere: any = {};
 
-    if (categoryId) where.categoryId = categoryId as string;
-    if (country) where.designer = { ...(where.designer || {}), country: country as string };
-    if (designerId) where.designerId = designerId as string;
-    if (designerUserId) where.designer = { ...(where.designer || {}), userId: designerUserId as string };
+    if (categoryId) baseWhere.categoryId = categoryId as string;
+    if (country) baseWhere.designer = { ...(baseWhere.designer || {}), country: country as string };
+    if (designerId) baseWhere.designerId = designerId as string;
+    if (designerUserId) baseWhere.designer = { ...(baseWhere.designer || {}), userId: designerUserId as string };
 
     if (search) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
         { description: { contains: search as string, mode: 'insensitive' } },
       ];
     }
 
     const pagination = parsePagination(page, limit, 20);
-
-    const [designs, total] = await Promise.all([
-      prisma.design.findMany({
-        where,
-        skip: pagination.skip,
-        take: pagination.limit,
-        include: {
-          category: true,
-          designer: {
-            select: {
-              businessName: true,
-              country: true,
-              city: true,
-              rating: true,
-            },
+    const { visibilityWhere, total } = await resolvePublicVisibilityWhere((visibility) =>
+      prisma.design.count({ where: { ...baseWhere, ...visibility } })
+    );
+    const designs = await prisma.design.findMany({
+      where: { ...baseWhere, ...visibilityWhere },
+      skip: pagination.skip,
+      take: pagination.limit,
+      include: {
+        category: true,
+        designer: {
+          select: {
+            businessName: true,
+            country: true,
+            city: true,
+            rating: true,
           },
-          images: true,
-          suitableFabrics: {
-            include: {
-              fabric: {
-                select: {
-                  id: true,
-                  name: true,
-                  finalPrice: true,
-                  images: { take: 1 },
-                  seller: { select: { country: true } },
-                },
+        },
+        images: true,
+        suitableFabrics: {
+          include: {
+            fabric: {
+              select: {
+                id: true,
+                name: true,
+                finalPrice: true,
+                images: { take: 1 },
+                seller: { select: { country: true } },
               },
             },
           },
-          measurementVariables: {
-            orderBy: { sortOrder: 'asc' },
-          },
         },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.design.count({ where }),
-    ]);
+        measurementVariables: {
+          orderBy: { sortOrder: 'asc' },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
     const featuredMap = await getFeaturedSectionsByProductIds(
       designs.map((design) => design.id),
       ProductType.DESIGN
@@ -387,49 +408,45 @@ router.get('/ready-to-wear', async (req, res, next) => {
   try {
     const { categoryId, country, designerId, designerUserId, search, page, limit } = req.query;
 
-    const where: any = {
-      status: ProductStatus.APPROVED,
-      isAvailable: true,
-    };
+    const baseWhere: any = {};
 
-    if (categoryId) where.categoryId = categoryId as string;
-    if (country) where.designer = { ...(where.designer || {}), country: country as string };
-    if (designerId) where.designerId = designerId as string;
-    if (designerUserId) where.designer = { ...(where.designer || {}), userId: designerUserId as string };
+    if (categoryId) baseWhere.categoryId = categoryId as string;
+    if (country) baseWhere.designer = { ...(baseWhere.designer || {}), country: country as string };
+    if (designerId) baseWhere.designerId = designerId as string;
+    if (designerUserId) baseWhere.designer = { ...(baseWhere.designer || {}), userId: designerUserId as string };
 
     if (search) {
-      where.OR = [
+      baseWhere.OR = [
         { name: { contains: search as string, mode: 'insensitive' } },
         { description: { contains: search as string, mode: 'insensitive' } },
       ];
     }
 
     const pagination = parsePagination(page, limit, 20);
-
-    const [products, total] = await Promise.all([
-      prisma.readyToWear.findMany({
-        where,
-        skip: pagination.skip,
-        take: pagination.limit,
-        include: {
-          category: true,
-          designer: {
-            select: {
-              businessName: true,
-              country: true,
-              city: true,
-              rating: true,
-            },
-          },
-          images: true,
-          sizeVariations: {
-            where: { stock: { gt: 0 } },
+    const { visibilityWhere, total } = await resolvePublicVisibilityWhere((visibility) =>
+      prisma.readyToWear.count({ where: { ...baseWhere, ...visibility } })
+    );
+    const products = await prisma.readyToWear.findMany({
+      where: { ...baseWhere, ...visibilityWhere },
+      skip: pagination.skip,
+      take: pagination.limit,
+      include: {
+        category: true,
+        designer: {
+          select: {
+            businessName: true,
+            country: true,
+            city: true,
+            rating: true,
           },
         },
-        orderBy: { createdAt: 'desc' },
-      }),
-      prisma.readyToWear.count({ where }),
-    ]);
+        images: true,
+        sizeVariations: {
+          where: { stock: { gt: 0 } },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
     const featuredMap = await getFeaturedSectionsByProductIds(
       products.map((product) => product.id),
       ProductType.READY_TO_WEAR
@@ -524,11 +541,10 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
         return res.status(404).json({ success: false, message: 'Vendor not found.' });
       }
 
-      const fabrics = await prisma.fabric.findMany({
+      const strictFabrics = await prisma.fabric.findMany({
         where: {
           sellerId: seller.id,
-          status: ProductStatus.APPROVED,
-          isAvailable: true,
+          ...getStrictPublicVisibilityWhere(),
         },
         include: {
           images: { orderBy: { sortOrder: 'asc' } },
@@ -536,6 +552,20 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
         },
         orderBy: { createdAt: 'desc' },
       });
+      const fabrics =
+        strictFabrics.length > 0
+          ? strictFabrics
+          : await prisma.fabric.findMany({
+              where: {
+                sellerId: seller.id,
+                ...getRelaxedPublicVisibilityWhere(),
+              },
+              include: {
+                images: { orderBy: { sortOrder: 'asc' } },
+                materialType: true,
+              },
+              orderBy: { createdAt: 'desc' },
+            });
 
       return res.json({
         success: true,
@@ -567,12 +597,11 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
       return res.status(404).json({ success: false, message: 'Vendor not found.' });
     }
 
-    const [designs, readyToWear] = await Promise.all([
+    const [strictDesigns, strictReadyToWear] = await Promise.all([
       prisma.design.findMany({
         where: {
           designerId: designer.id,
-          status: ProductStatus.APPROVED,
-          isAvailable: true,
+          ...getStrictPublicVisibilityWhere(),
         },
         include: {
           images: { orderBy: { sortOrder: 'asc' } },
@@ -583,8 +612,7 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
       prisma.readyToWear.findMany({
         where: {
           designerId: designer.id,
-          status: ProductStatus.APPROVED,
-          isAvailable: true,
+          ...getStrictPublicVisibilityWhere(),
         },
         include: {
           images: { orderBy: { sortOrder: 'asc' } },
@@ -593,6 +621,35 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
         },
         orderBy: { createdAt: 'desc' },
       }),
+    ]);
+    const [designs, readyToWear] = await Promise.all([
+      strictDesigns.length > 0
+        ? Promise.resolve(strictDesigns)
+        : prisma.design.findMany({
+            where: {
+              designerId: designer.id,
+              ...getRelaxedPublicVisibilityWhere(),
+            },
+            include: {
+              images: { orderBy: { sortOrder: 'asc' } },
+              category: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
+      strictReadyToWear.length > 0
+        ? Promise.resolve(strictReadyToWear)
+        : prisma.readyToWear.findMany({
+            where: {
+              designerId: designer.id,
+              ...getRelaxedPublicVisibilityWhere(),
+            },
+            include: {
+              images: { orderBy: { sortOrder: 'asc' } },
+              category: true,
+              sizeVariations: true,
+            },
+            orderBy: { createdAt: 'desc' },
+          }),
     ]);
 
     res.json({
@@ -652,9 +709,9 @@ router.get('/countries', async (req, res, next) => {
 // Get featured products
 router.get('/featured', async (req, res, next) => {
   try {
-    const [fabricsPool, designsPool, rtwPool] = await Promise.all([
+    const [strictFabricsPool, strictDesignsPool, strictRtwPool] = await Promise.all([
       prisma.fabric.findMany({
-        where: { status: ProductStatus.APPROVED, isAvailable: true },
+        where: getStrictPublicVisibilityWhere(),
         include: {
           materialType: true,
           images: { take: 1 },
@@ -662,7 +719,7 @@ router.get('/featured', async (req, res, next) => {
         },
       }),
       prisma.design.findMany({
-        where: { status: ProductStatus.APPROVED, isAvailable: true },
+        where: getStrictPublicVisibilityWhere(),
         include: {
           category: true,
           images: { take: 1 },
@@ -670,13 +727,45 @@ router.get('/featured', async (req, res, next) => {
         },
       }),
       prisma.readyToWear.findMany({
-        where: { status: ProductStatus.APPROVED, isAvailable: true },
+        where: getStrictPublicVisibilityWhere(),
         include: {
           category: true,
           images: { take: 1 },
           designer: { select: { businessName: true, country: true } },
         },
       }),
+    ]);
+    const [fabricsPool, designsPool, rtwPool] = await Promise.all([
+      strictFabricsPool.length > 0
+        ? Promise.resolve(strictFabricsPool)
+        : prisma.fabric.findMany({
+            where: getRelaxedPublicVisibilityWhere(),
+            include: {
+              materialType: true,
+              images: { take: 1 },
+              seller: { select: { country: true } },
+            },
+          }),
+      strictDesignsPool.length > 0
+        ? Promise.resolve(strictDesignsPool)
+        : prisma.design.findMany({
+            where: getRelaxedPublicVisibilityWhere(),
+            include: {
+              category: true,
+              images: { take: 1 },
+              designer: { select: { businessName: true, country: true } },
+            },
+          }),
+      strictRtwPool.length > 0
+        ? Promise.resolve(strictRtwPool)
+        : prisma.readyToWear.findMany({
+            where: getRelaxedPublicVisibilityWhere(),
+            include: {
+              category: true,
+              images: { take: 1 },
+              designer: { select: { businessName: true, country: true } },
+            },
+          }),
     ]);
     let featuredRows: any[] = [];
     try {
