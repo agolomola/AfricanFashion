@@ -47,6 +47,7 @@ export default function ReadyToWearDetail() {
   const { formatFromUsd } = useCurrency();
   const { id } = useParams();
   const [product, setProduct] = useState<ReadyToWearProduct | null>(null);
+  const [relatedProducts, setRelatedProducts] = useState<ReadyToWearProduct[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedImage, setSelectedImage] = useState(0);
@@ -91,6 +92,7 @@ export default function ReadyToWearDetail() {
           };
 
           setProduct(mappedProduct);
+          void fetchRelatedProducts(mappedProduct);
           if (mappedProduct.sizes && mappedProduct.sizes.length > 0) {
             setSelectedSize(mappedProduct.sizes[0]);
           }
@@ -110,6 +112,64 @@ export default function ReadyToWearDetail() {
 
     fetchProduct();
   }, [id]);
+
+  const mapReadyToWearRow = (row: any): ReadyToWearProduct => {
+    const variations = row.sizeVariations || [];
+    const inStockVariations = variations.filter((variation: any) => Number(variation.stock || 0) > 0);
+    const basePrice = Number(row.basePrice || 0);
+    const minPrice = inStockVariations.length > 0
+      ? Math.min(...inStockVariations.map((variation: any) => Number(variation.price || basePrice)))
+      : basePrice;
+    return {
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      price: minPrice,
+      images: (row.images || []).map((img: any) => ({ url: resolveAssetUrl(img.url) })),
+      designer: {
+        id: row.designer?.userId || row.designerId,
+        businessName: row.designer?.businessName || 'Designer',
+        country: row.designer?.country || '',
+        rating: Number(row.designer?.rating || 0),
+        reviewCount: 0,
+      },
+      category: row.category,
+      sizes: (inStockVariations.length > 0 ? inStockVariations : variations).map((variation: any) => variation.size),
+      inStock: variations.some((variation: any) => Number(variation.stock || 0) > 0),
+      isFeatured: Boolean(row.isFeatured),
+      featuredSections: row.featuredSections || [],
+    };
+  };
+
+  const fetchRelatedProducts = async (currentProduct: ReadyToWearProduct) => {
+    try {
+      const primary = await api.products.getReadyToWear({
+        categoryId: currentProduct.category?.id || undefined,
+        country: currentProduct.designer?.country || undefined,
+        page: 1,
+        limit: 12,
+      });
+      const fallback = await api.products.getReadyToWear({
+        categoryId: currentProduct.category?.id || undefined,
+        page: 1,
+        limit: 12,
+      });
+      const merged = [
+        ...(primary.success ? primary.data?.products || [] : []),
+        ...(fallback.success ? fallback.data?.products || [] : []),
+      ];
+      const unique = new Map<string, ReadyToWearProduct>();
+      for (const row of merged) {
+        const mapped = mapReadyToWearRow(row);
+        if (mapped.id === currentProduct.id) continue;
+        if (!unique.has(mapped.id)) unique.set(mapped.id, mapped);
+      }
+      setRelatedProducts(Array.from(unique.values()).slice(0, 4));
+    } catch (relatedError) {
+      console.error('Failed to load related ready-to-wear:', relatedError);
+      setRelatedProducts([]);
+    }
+  };
 
   if (loading) {
     return (
@@ -137,14 +197,25 @@ export default function ReadyToWearDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-4">
-          <Link to="/ready-to-wear" className="inline-flex items-center text-gray-600 hover:text-coral-500 transition-colors">
-            <ArrowLeft className="w-4 h-4 mr-2" />
-            Back to Ready To Wear
-          </Link>
+      <section className="relative h-56 md:h-72 overflow-hidden">
+        <img
+          src={product.images?.[0]?.url || '/images/placeholder.jpg'}
+          alt={product.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/25" />
+        <div className="absolute inset-0 flex items-end">
+          <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-6 md:pb-8">
+            <Link to="/ready-to-wear" className="inline-flex items-center text-white/90 hover:text-white transition-colors mb-3">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Ready To Wear
+            </Link>
+            <p className="text-xs md:text-sm font-semibold tracking-wide text-coral-300 uppercase">Ready To Wear</p>
+            <h1 className="text-2xl md:text-4xl font-bold text-white line-clamp-2">{product.name}</h1>
+            <p className="text-sm md:text-base text-white/80 mt-1">{product.category?.name || 'Ready To Wear'}</p>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-8">
         <div className="grid lg:grid-cols-2 gap-10 lg:gap-12">
@@ -379,6 +450,47 @@ export default function ReadyToWearDetail() {
           </div>
         </div>
       </div>
+
+      <section className="pb-12">
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Related Ready To Wear</h2>
+              <p className="text-sm text-gray-500">Suggested from the same category and country.</p>
+            </div>
+            <Link
+              to={`/ready-to-wear${product.category?.id ? `?category=${encodeURIComponent(product.category.id)}` : ''}`}
+              className="text-sm font-medium text-coral-600 hover:text-coral-700"
+            >
+              View all
+            </Link>
+          </div>
+          {relatedProducts.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {relatedProducts.map((item) => (
+                <Link key={item.id} to={`/ready-to-wear/${item.id}`} className="group bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="bg-gray-100 overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                    <img
+                      src={item.images?.[0]?.url || '/images/placeholder.jpg'}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1">{item.designer?.businessName}</p>
+                    <p className="text-sm font-semibold text-coral-600 mt-1">{formatFromUsd(item.price)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 p-4 text-sm text-gray-600">
+              Related products will appear as matching ready-to-wear products are added.
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

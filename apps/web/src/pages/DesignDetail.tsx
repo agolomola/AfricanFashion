@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Heart, 
   Share2, 
@@ -62,6 +62,14 @@ interface Design {
   featuredSections?: string[];
 }
 
+interface RelatedDesignCard {
+  id: string;
+  name: string;
+  image: string;
+  designerName: string;
+  price: number;
+}
+
 export default function DesignDetail() {
   const { formatFromUsd } = useCurrency();
   const { id } = useParams<{ id: string }>();
@@ -79,6 +87,7 @@ export default function DesignDetail() {
   const [showMeasurementModal, setShowMeasurementModal] = useState(false);
   const [isWishlisted, setIsWishlisted] = useState(false);
   const [activeTab, setActiveTab] = useState<'details' | 'fabrics' | 'measurements'>('details');
+  const [relatedDesigns, setRelatedDesigns] = useState<RelatedDesignCard[]>([]);
   const shoppingBlockedForRole = Boolean(user && !isCustomerRole(user.role));
 
   useEffect(() => {
@@ -134,6 +143,7 @@ export default function DesignDetail() {
           featuredSections: response.data.featuredSections || [],
         };
         setDesign(mappedDesign);
+        void fetchRelatedDesigns(mappedDesign);
         // Initialize fabric meters
         const initialMeters: Record<string, number> = {};
         mappedDesign.suitableFabrics.forEach((sf: any) => {
@@ -145,6 +155,44 @@ export default function DesignDetail() {
       console.error('Failed to fetch design:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const mapRelatedDesign = (row: any): RelatedDesignCard => ({
+    id: row.id,
+    name: row.name,
+    image: resolveAssetUrl(row.images?.[0]?.url),
+    designerName: row.designer?.businessName || 'Designer',
+    price: Number(row.finalPrice || row.basePrice || 0),
+  });
+
+  const fetchRelatedDesigns = async (currentDesign: Design) => {
+    try {
+      const primary = await api.products.getDesigns({
+        categoryId: currentDesign.category?.id || undefined,
+        country: currentDesign.designer?.country || undefined,
+        page: 1,
+        limit: 12,
+      });
+      const fallback = await api.products.getDesigns({
+        categoryId: currentDesign.category?.id || undefined,
+        page: 1,
+        limit: 12,
+      });
+      const merged = [
+        ...(primary.success ? primary.data?.designs || [] : []),
+        ...(fallback.success ? fallback.data?.designs || [] : []),
+      ];
+      const unique = new Map<string, RelatedDesignCard>();
+      for (const row of merged) {
+        const mapped = mapRelatedDesign(row);
+        if (!mapped.id || mapped.id === currentDesign.id) continue;
+        if (!unique.has(mapped.id)) unique.set(mapped.id, mapped);
+      }
+      setRelatedDesigns(Array.from(unique.values()).slice(0, 4));
+    } catch (relatedError) {
+      console.error('Failed to load related designs:', relatedError);
+      setRelatedDesigns([]);
     }
   };
 
@@ -245,18 +293,25 @@ export default function DesignDetail() {
 
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Breadcrumb */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
-          <button 
-            onClick={() => navigate('/designs')}
-            className="flex items-center text-gray-600 hover:text-coral-500 transition-colors"
-          >
-            <ChevronLeft className="w-4 h-4 mr-1" />
-            Back to Designs
-          </button>
+      <section className="relative h-56 md:h-72 overflow-hidden">
+        <img
+          src={design.images?.[0] || '/images/placeholder.jpg'}
+          alt={design.name}
+          className="w-full h-full object-cover"
+        />
+        <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/25" />
+        <div className="absolute inset-0 flex items-end">
+          <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 md:pb-8">
+            <Link to="/designs" className="inline-flex items-center text-white/90 hover:text-white transition-colors mb-3">
+              <ChevronLeft className="w-4 h-4 mr-1" />
+              Back to Designs
+            </Link>
+            <p className="text-xs md:text-sm font-semibold tracking-wide text-coral-300 uppercase">Custom To Wear</p>
+            <h1 className="text-2xl md:text-4xl font-bold text-white line-clamp-2">{design.name}</h1>
+            <p className="text-sm md:text-base text-white/80 mt-1">{design.category?.name || 'Design'}</p>
+          </div>
         </div>
-      </div>
+      </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
@@ -562,6 +617,47 @@ export default function DesignDetail() {
           </div>
         </div>
       </div>
+
+      <section className="pb-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900">Related Designs</h2>
+              <p className="text-sm text-gray-500">Suggested from the same category and market.</p>
+            </div>
+            <Link
+              to={`/designs${design.category?.id ? `?category=${encodeURIComponent(design.category.id)}` : ''}`}
+              className="text-sm font-medium text-coral-600 hover:text-coral-700"
+            >
+              View all
+            </Link>
+          </div>
+          {relatedDesigns.length > 0 ? (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
+              {relatedDesigns.map((item) => (
+                <Link key={item.id} to={`/designs/${item.id}`} className="group bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                  <div className="bg-gray-100 overflow-hidden" style={{ aspectRatio: '3/4' }}>
+                    <img
+                      src={item.image || '/images/placeholder.jpg'}
+                      alt={item.name}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
+                  <div className="p-3">
+                    <p className="text-sm font-semibold text-gray-900 line-clamp-1">{item.name}</p>
+                    <p className="text-xs text-gray-500 line-clamp-1">{item.designerName}</p>
+                    <p className="text-sm font-semibold text-coral-600 mt-1">{formatFromUsd(item.price)}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white border border-gray-200 p-4 text-sm text-gray-600">
+              Related products will appear as matching designs are added.
+            </div>
+          )}
+        </div>
+      </section>
 
       {/* Measurement Guide Modal */}
       {showMeasurementModal && (
