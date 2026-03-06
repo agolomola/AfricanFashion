@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent, type DragEvent } from 'react';
 import { 
   Scissors, 
   DollarSign, 
@@ -92,6 +92,19 @@ const formatFileSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const getFileKey = (file: File) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`;
+
+const mergeUniqueFiles = (existing: File[], incoming: File[], maxCount: number) => {
+  const map = new Map<string, File>();
+  for (const file of existing) {
+    map.set(getFileKey(file), file);
+  }
+  for (const file of incoming) {
+    map.set(getFileKey(file), file);
+  }
+  return Array.from(map.values()).slice(0, maxCount);
+};
+
 export default function DesignerDashboard() {
   const [stats, setStats] = useState<DesignerStats | null>(null);
   const [designs, setDesigns] = useState<Design[]>([]);
@@ -115,6 +128,7 @@ export default function DesignerDashboard() {
   const [stockDrafts, setStockDrafts] = useState<Record<string, Record<string, number>>>({});
   const [savingStockProductId, setSavingStockProductId] = useState<string | null>(null);
   const [designImages, setDesignImages] = useState<File[]>([]);
+  const [draggedDesignImageIndex, setDraggedDesignImageIndex] = useState<number | null>(null);
   const [newDesign, setNewDesign] = useState({
     name: '',
     description: '',
@@ -441,6 +455,41 @@ export default function DesignerDashboard() {
 
   const removeDesignImageAt = (index: number) => {
     setDesignImages((previous) => previous.filter((_, idx) => idx !== index));
+  };
+
+  const reorderDesignImages = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setDesignImages((previous) => {
+      if (fromIndex < 0 || fromIndex >= previous.length || toIndex < 0 || toIndex >= previous.length) {
+        return previous;
+      }
+      const copy = [...previous];
+      const [moved] = copy.splice(fromIndex, 1);
+      copy.splice(toIndex, 0, moved);
+      return copy;
+    });
+  };
+
+  const handleDesignImageSelection = (files: File[]) => {
+    if (files.length === 0) return;
+    setDesignImages((previous) => {
+      const merged = mergeUniqueFiles(previous, files, 6);
+      const attempted = previous.length + files.length;
+      if (attempted > 6 && merged.length === 6) {
+        setModalError('Maximum 6 images allowed. Extra images were ignored.');
+      }
+      return merged;
+    });
+  };
+
+  const handleDesignImageInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleDesignImageSelection(Array.from(event.target.files || []));
+    event.target.value = '';
+  };
+
+  const handleDesignImageDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    handleDesignImageSelection(Array.from(event.dataTransfer.files || []));
   };
 
   if (loading) {
@@ -988,34 +1037,73 @@ export default function DesignerDashboard() {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Design Images *</label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/avif,image/heic,image/heif"
-                  multiple
-                  onChange={(e) => setDesignImages(Array.from(e.target.files || []))}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
+                <label
+                  className="w-full border border-dashed border-gray-300 rounded-lg p-4 text-center text-sm text-gray-600 cursor-pointer hover:border-coral-400 hover:bg-coral-50/50 transition-colors block"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={handleDesignImageDrop}
+                >
+                  Drag and drop design images here, or click to browse
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/avif,image/heic,image/heif"
+                    multiple
+                    onChange={handleDesignImageInputChange}
+                    className="hidden"
+                  />
+                </label>
                 {designImages.length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">
                     {designImages.length} image(s) selected • Max {MAX_UPLOAD_MB}MB each
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">Design image rule: minimum 4, maximum 6.</p>
+                <p className="text-xs text-gray-500 mt-1">Design image rule: minimum 4, maximum 6. Drag file rows to reorder display order.</p>
                 {designImages.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {designImages.map((file, index) => (
-                      <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 bg-white"
+                        draggable
+                        onDragStart={() => setDraggedDesignImageIndex(index)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={() => {
+                          if (draggedDesignImageIndex === null) return;
+                          reorderDesignImages(draggedDesignImageIndex, index);
+                          setDraggedDesignImageIndex(null);
+                        }}
+                        onDragEnd={() => setDraggedDesignImageIndex(null)}
+                      >
                         <div className="min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">{file.name}</p>
+                          <p className="text-xs font-medium text-gray-800 truncate">
+                            {index + 1}. {file.name}
+                          </p>
                           <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
                         </div>
-                        <button
-                          type="button"
-                          className="text-xs text-red-600 hover:text-red-700"
-                          onClick={() => removeDesignImageAt(index)}
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="text-xs text-gray-600 hover:text-gray-800 disabled:opacity-40"
+                            onClick={() => reorderDesignImages(index, index - 1)}
+                            disabled={index === 0}
+                          >
+                            Up
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-gray-600 hover:text-gray-800 disabled:opacity-40"
+                            onClick={() => reorderDesignImages(index, index + 1)}
+                            disabled={index === designImages.length - 1}
+                          >
+                            Down
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-red-600 hover:text-red-700"
+                            onClick={() => removeDesignImageAt(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

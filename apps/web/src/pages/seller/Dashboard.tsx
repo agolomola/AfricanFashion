@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ChangeEvent, type DragEvent } from 'react';
 import { 
   Package, 
   DollarSign, 
@@ -90,6 +90,19 @@ const formatFileSize = (bytes: number) => {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 };
 
+const getFileKey = (file: File) => `${file.name}:${file.size}:${file.lastModified}:${file.type}`;
+
+const mergeUniqueFiles = (existing: File[], incoming: File[], maxCount: number) => {
+  const map = new Map<string, File>();
+  for (const file of existing) {
+    map.set(getFileKey(file), file);
+  }
+  for (const file of incoming) {
+    map.set(getFileKey(file), file);
+  }
+  return Array.from(map.values()).slice(0, maxCount);
+};
+
 export default function SellerDashboard() {
   const toast = useToast();
   const [stats, setStats] = useState<SellerStats | null>(null);
@@ -105,6 +118,7 @@ export default function SellerDashboard() {
   const [creatingFabric, setCreatingFabric] = useState(false);
   const [materials, setMaterials] = useState<Array<{ id: string; name: string }>>([]);
   const [newFabricImages, setNewFabricImages] = useState<File[]>([]);
+  const [draggedFabricImageIndex, setDraggedFabricImageIndex] = useState<number | null>(null);
   const [newFabric, setNewFabric] = useState({
     name: '',
     description: '',
@@ -424,6 +438,41 @@ export default function SellerDashboard() {
 
   const removeFabricImageAt = (index: number) => {
     setNewFabricImages((previous) => previous.filter((_, idx) => idx !== index));
+  };
+
+  const reorderFabricImages = (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return;
+    setNewFabricImages((previous) => {
+      if (fromIndex < 0 || fromIndex >= previous.length || toIndex < 0 || toIndex >= previous.length) {
+        return previous;
+      }
+      const copy = [...previous];
+      const [moved] = copy.splice(fromIndex, 1);
+      copy.splice(toIndex, 0, moved);
+      return copy;
+    });
+  };
+
+  const handleFabricImageSelection = (files: File[]) => {
+    if (files.length === 0) return;
+    setNewFabricImages((previous) => {
+      const merged = mergeUniqueFiles(previous, files, 4);
+      const attempted = previous.length + files.length;
+      if (attempted > 4 && merged.length === 4) {
+        setModalError('Maximum 4 images allowed. Extra images were ignored.');
+      }
+      return merged;
+    });
+  };
+
+  const handleFabricImageInputChange = (event: ChangeEvent<HTMLInputElement>) => {
+    handleFabricImageSelection(Array.from(event.target.files || []));
+    event.target.value = '';
+  };
+
+  const handleFabricImageDrop = (event: DragEvent<HTMLLabelElement>) => {
+    event.preventDefault();
+    handleFabricImageSelection(Array.from(event.dataTransfer.files || []));
   };
 
   if (loading) {
@@ -923,34 +972,73 @@ export default function SellerDashboard() {
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Fabric Images *</label>
-                <input
-                  type="file"
-                  accept="image/jpeg,image/jpg,image/png,image/webp,image/avif,image/heic,image/heif"
-                  multiple
-                  onChange={(e) => setNewFabricImages(Array.from(e.target.files || []))}
-                  className="w-full px-3 py-2 border rounded-lg"
-                />
+                <label
+                  className="w-full border border-dashed border-gray-300 rounded-lg p-4 text-center text-sm text-gray-600 cursor-pointer hover:border-coral-400 hover:bg-coral-50/50 transition-colors block"
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={handleFabricImageDrop}
+                >
+                  Drag and drop fabric images here, or click to browse
+                  <input
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp,image/avif,image/heic,image/heif"
+                    multiple
+                    onChange={handleFabricImageInputChange}
+                    className="hidden"
+                  />
+                </label>
                 {newFabricImages.length > 0 && (
                   <p className="text-xs text-gray-500 mt-1">
                     {newFabricImages.length} image(s) selected • Max {MAX_UPLOAD_MB}MB each
                   </p>
                 )}
-                <p className="text-xs text-gray-500 mt-1">Image rule: minimum 3 and maximum 4.</p>
+                <p className="text-xs text-gray-500 mt-1">Image rule: minimum 3 and maximum 4. Drag file rows to reorder display order.</p>
                 {newFabricImages.length > 0 && (
                   <div className="mt-3 space-y-2">
                     {newFabricImages.map((file, index) => (
-                      <div key={`${file.name}-${index}`} className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2">
+                      <div
+                        key={`${file.name}-${index}`}
+                        className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 bg-white"
+                        draggable
+                        onDragStart={() => setDraggedFabricImageIndex(index)}
+                        onDragOver={(event) => event.preventDefault()}
+                        onDrop={() => {
+                          if (draggedFabricImageIndex === null) return;
+                          reorderFabricImages(draggedFabricImageIndex, index);
+                          setDraggedFabricImageIndex(null);
+                        }}
+                        onDragEnd={() => setDraggedFabricImageIndex(null)}
+                      >
                         <div className="min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">{file.name}</p>
+                          <p className="text-xs font-medium text-gray-800 truncate">
+                            {index + 1}. {file.name}
+                          </p>
                           <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
                         </div>
-                        <button
-                          type="button"
-                          className="text-xs text-red-600 hover:text-red-700"
-                          onClick={() => removeFabricImageAt(index)}
-                        >
-                          Remove
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            className="text-xs text-gray-600 hover:text-gray-800 disabled:opacity-40"
+                            onClick={() => reorderFabricImages(index, index - 1)}
+                            disabled={index === 0}
+                          >
+                            Up
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-gray-600 hover:text-gray-800 disabled:opacity-40"
+                            onClick={() => reorderFabricImages(index, index + 1)}
+                            disabled={index === newFabricImages.length - 1}
+                          >
+                            Down
+                          </button>
+                          <button
+                            type="button"
+                            className="text-xs text-red-600 hover:text-red-700"
+                            onClick={() => removeFabricImageAt(index)}
+                          >
+                            Remove
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
