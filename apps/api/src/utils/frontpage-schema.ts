@@ -4,6 +4,13 @@ type SchemaKey = 'banners' | 'homepage' | 'homepageSections';
 
 const ensuredSchemas = new Set<SchemaKey>();
 const inFlightSchemas = new Map<SchemaKey, Promise<void>>();
+const disabledSchemas = new Set<SchemaKey>();
+
+function isPermissionDeniedError(error: any) {
+  const code = String(error?.code || '');
+  const message = String(error?.message || '').toLowerCase();
+  return code === '42501' || message.includes('permission denied');
+}
 
 async function runStatements(statements: string[]) {
   for (const statement of statements) {
@@ -12,7 +19,7 @@ async function runStatements(statements: string[]) {
 }
 
 async function ensureSchema(key: SchemaKey, statements: string[]) {
-  if (ensuredSchemas.has(key)) {
+  if (ensuredSchemas.has(key) || disabledSchemas.has(key)) {
     return;
   }
 
@@ -23,8 +30,18 @@ async function ensureSchema(key: SchemaKey, statements: string[]) {
   }
 
   const task = (async () => {
-    await runStatements(statements);
-    ensuredSchemas.add(key);
+    try {
+      await runStatements(statements);
+      ensuredSchemas.add(key);
+    } catch (error) {
+      if (isPermissionDeniedError(error)) {
+        // In restricted production databases, app users may not have CREATE privileges.
+        // Treat schema initialization as best-effort and continue using existing tables.
+        disabledSchemas.add(key);
+        return;
+      }
+      throw error;
+    }
   })();
 
   inFlightSchemas.set(key, task);
