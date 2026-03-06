@@ -29,6 +29,13 @@ const byCountryName = new Map(AFRICAN_CURRENCY_BASELINE.map((row) => [normalizeC
 
 const GLOBAL_VISITOR_CURRENCY_FALLBACK: AfricanCurrencyRow[] = [
   {
+    countryCode: 'US',
+    country: 'United States',
+    currencyCode: 'USD',
+    currencyName: 'US Dollar',
+    usdPerUnit: 1,
+  },
+  {
     countryCode: 'GB',
     country: 'United Kingdom',
     currencyCode: 'GBP',
@@ -283,18 +290,44 @@ export function getAllowedCurrenciesForVendor(params: {
 }
 
 export function inferCountryFromHeaders(headers: Record<string, string | string[] | undefined>) {
-  const rawCode = String(
-    headers['x-vercel-ip-country'] ||
-      headers['cf-ipcountry'] ||
-      headers['x-country-code'] ||
-      headers['x-geo-country'] ||
-      ''
-  )
-    .trim()
-    .toUpperCase();
-  const maybeCode = rawCode === 'UK' ? 'GB' : rawCode;
-  if (!maybeCode) return null;
-  return byCountryCode.get(maybeCode) || null;
+  const readHeader = (value: string | string[] | undefined) => {
+    if (Array.isArray(value)) return String(value[0] || '');
+    return String(value || '');
+  };
+
+  const normalizeCountryCode = (value: string) => {
+    const token = String(value || '')
+      .split(',')[0]
+      .trim()
+      .toUpperCase();
+    if (token === 'UK') return 'GB';
+    return token;
+  };
+
+  const headerCandidates = [
+    headers['x-vercel-ip-country'],
+    headers['cf-ipcountry'],
+    headers['x-country-code'],
+    headers['x-geo-country'],
+  ];
+
+  for (const candidate of headerCandidates) {
+    const code = normalizeCountryCode(readHeader(candidate));
+    if (!code) continue;
+    const row = byCountryCode.get(code);
+    if (row) return row;
+  }
+
+  // Fallback: infer from browser language when edge geo headers are absent.
+  const acceptLanguage = readHeader(headers['accept-language']);
+  const regionMatch = acceptLanguage.match(/-[A-Za-z]{2}\b/);
+  if (regionMatch) {
+    const regionCode = normalizeCountryCode(regionMatch[0].slice(1));
+    const row = byCountryCode.get(regionCode);
+    if (row) return row;
+  }
+
+  return null;
 }
 
 export async function refreshMatrixFromThirdParty(matrix: AfricanCurrencyRow[]) {
