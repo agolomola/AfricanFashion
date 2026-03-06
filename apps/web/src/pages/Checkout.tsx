@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { 
   CardElement, 
@@ -34,7 +34,7 @@ interface ShippingAddress {
 
 export default function Checkout() {
   const navigate = useNavigate();
-  const { formatFromUsd } = useCurrency();
+  const { formatFromUsd, selectedCurrency } = useCurrency();
   const stripe = useStripe();
   const elements = useElements();
   const { user } = useAuthStore();
@@ -44,6 +44,9 @@ export default function Checkout() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [clientSecret, setClientSecret] = useState<string | null>(null);
+  const [paymentCurrency, setPaymentCurrency] = useState('usd');
+  const [paymentSupportedCurrencies, setPaymentSupportedCurrencies] = useState<string[]>(['usd']);
+  const [paymentCurrencyNotice, setPaymentCurrencyNotice] = useState('');
   
   const fullName = user?.firstName && user?.lastName 
     ? `${user.firstName} ${user.lastName}` 
@@ -63,6 +66,19 @@ export default function Checkout() {
   const shipping = totalPrice > 200 ? 0 : 25;
   const finalTotal = totalPrice + shipping;
 
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.payments.getConfig();
+        if (res.success) {
+          setPaymentSupportedCurrencies(res.data.supportedCurrencies || ['usd']);
+        }
+      } catch (err) {
+        console.error('Failed to load payment configuration:', err);
+      }
+    })();
+  }, []);
+
   const handleShippingSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -70,13 +86,23 @@ export default function Checkout() {
 
     try {
       // Create payment intent
+      const requestedCurrency = (selectedCurrency || 'USD').toLowerCase();
       const response = await api.payments.createPaymentIntent({
-        amount: Math.round(finalTotal * 100), // Convert to cents
-        currency: 'usd',
+        amountUsd: finalTotal,
+        currency: requestedCurrency,
       });
 
       if (response.success) {
         setClientSecret(response.data.clientSecret);
+        const effectiveCurrency = response.data.currency || 'usd';
+        setPaymentCurrency(effectiveCurrency);
+        if (effectiveCurrency !== requestedCurrency) {
+          setPaymentCurrencyNotice(
+            `${requestedCurrency.toUpperCase()} is not currently supported by gateway. Payment will be charged in ${effectiveCurrency.toUpperCase()}.`
+          );
+        } else {
+          setPaymentCurrencyNotice('');
+        }
         setStep('payment');
       }
     } catch (err: any) {
@@ -260,6 +286,10 @@ export default function Checkout() {
                   <MapPin className="w-5 h-5 text-amber-600" />
                   <h2 className="text-lg font-semibold">Shipping Address</h2>
                 </div>
+                <p className="mb-4 text-xs text-gray-500">
+                  Payment currency preference: {selectedCurrency}. Gateway-supported currencies:{' '}
+                  {paymentSupportedCurrencies.map((code) => code.toUpperCase()).join(', ')}
+                </p>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="md:col-span-2">
@@ -391,6 +421,12 @@ export default function Checkout() {
                   <h2 className="text-lg font-semibold">Payment Details</h2>
                 </div>
 
+                {paymentCurrencyNotice && (
+                  <div className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+                    {paymentCurrencyNotice}
+                  </div>
+                )}
+
                 <div className="p-4 bg-gray-50 rounded-lg mb-6">
                   <div className="flex items-center gap-2 mb-4">
                     <Lock className="w-4 h-4 text-green-600" />
@@ -412,7 +448,9 @@ export default function Checkout() {
                     className="flex-1"
                     disabled={!stripe || loading}
                   >
-                    {loading ? 'Processing...' : `Pay ${formatFromUsd(finalTotal)} (charged in USD)`}
+                    {loading
+                      ? 'Processing...'
+                      : `Pay ${formatFromUsd(finalTotal, paymentCurrency.toUpperCase())} (charged in ${paymentCurrency.toUpperCase()})`}
                   </Button>
                 </div>
               </form>

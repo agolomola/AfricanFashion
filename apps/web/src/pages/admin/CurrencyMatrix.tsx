@@ -20,6 +20,13 @@ interface RuleRow {
 export default function AdminCurrencyMatrix() {
   const [matrix, setMatrix] = useState<MatrixRow[]>([]);
   const [rules, setRules] = useState<RuleRow[]>([]);
+  const [health, setHealth] = useState<{
+    lastRefreshedAt: string | null;
+    staleAfterHours: number;
+    isStale: boolean;
+    lastSource: string | null;
+  } | null>(null);
+  const [overrideCount, setOverrideCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -33,6 +40,8 @@ export default function AdminCurrencyMatrix() {
       if (res.success) {
         setMatrix(res.data.matrix || []);
         setRules(res.data.rules || []);
+        setHealth(res.data.health || null);
+        setOverrideCount(Object.keys(res.data.overrides || {}).length);
       }
     } catch (err: any) {
       setError(err?.response?.data?.message || 'Failed to load currency matrix.');
@@ -108,6 +117,25 @@ export default function AdminCurrencyMatrix() {
           Refresh From Provider
         </Button>
       </div>
+
+      {health && (
+        <div
+          className={`rounded-lg border px-3 py-2 text-sm ${
+            health.isStale ? 'border-red-200 bg-red-50 text-red-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'
+          }`}
+        >
+          {health.isStale
+            ? `Exchange rates are stale (>${health.staleAfterHours}h). Last refresh: ${
+                health.lastRefreshedAt ? new Date(health.lastRefreshedAt).toLocaleString() : 'never'
+              }.`
+            : `Exchange rates are fresh. Last refresh: ${
+                health.lastRefreshedAt ? new Date(health.lastRefreshedAt).toLocaleString() : 'n/a'
+              }.`}
+          <span className="ml-2 text-xs opacity-80">
+            Source: {String(health.lastSource || 'manual')} • Manual overrides: {overrideCount}
+          </span>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">

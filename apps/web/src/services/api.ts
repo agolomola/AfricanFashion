@@ -135,7 +135,20 @@ const currencyApi = {
     }>('/currency/my-options'),
 
   getAdminMatrix: () =>
-    apiService.get<{ success: boolean; data: { matrix: any[]; rules: any[] } }>('/currency/admin/matrix'),
+    apiService.get<{
+      success: boolean;
+      data: {
+        matrix: any[];
+        rules: any[];
+        health?: {
+          lastRefreshedAt: string | null;
+          staleAfterHours: number;
+          isStale: boolean;
+          lastSource: string | null;
+        };
+        overrides?: Record<string, any>;
+      };
+    }>('/currency/admin/matrix'),
 
   updateCountryRate: (data: {
     countryCode: string;
@@ -939,8 +952,23 @@ const qaApi = {
 
 // Payments API
 const paymentsApi = {
-  createPaymentIntent: (data: { amount: number; currency: string }) =>
-    apiService.post<{ success: boolean; data: { clientSecret: string; paymentIntentId: string } }>('/payments/create-intent', data),
+  getConfig: () =>
+    apiService.get<{ success: boolean; data: { supportedCurrencies: string[]; defaultCurrency: string } }>('/payments/config'),
+
+  createPaymentIntent: (data: { amountUsd: number; currency: string }) =>
+    apiService.post<
+      {
+        success: boolean;
+        data: {
+          clientSecret: string;
+          paymentIntentId: string;
+          currency: string;
+          amountMinor: number;
+          convertedAmountMajor: number;
+          requestedCurrency: string;
+        };
+      }
+    >('/payments/create-intent', data),
 
   confirmPayment: (paymentIntentId: string) =>
     apiService.post<{ success: boolean; data: any }>('/payments/confirm', { paymentIntentId }),
