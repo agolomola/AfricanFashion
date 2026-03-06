@@ -27,6 +27,8 @@ const getRelaxedVisibilityWhere = () => ({
   status: { in: [...RELAXED_PUBLIC_STATUSES] },
 });
 
+const getAnyVisibilityWhere = () => ({});
+
 const findManyWithVisibilityFallback = async <T>(
   finder: (where: Record<string, unknown>) => Promise<T[]>
 ) => {
@@ -34,7 +36,11 @@ const findManyWithVisibilityFallback = async <T>(
   if (strictRows.length > 0) {
     return strictRows;
   }
-  return finder(getRelaxedVisibilityWhere());
+  const relaxedRows = await finder(getRelaxedVisibilityWhere());
+  if (relaxedRows.length > 0) {
+    return relaxedRows;
+  }
+  return finder(getAnyVisibilityWhere());
 };
 
 router.use(async (_req, res, next) => {
