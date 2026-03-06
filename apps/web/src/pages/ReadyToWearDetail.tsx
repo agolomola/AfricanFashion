@@ -251,7 +251,13 @@ export default function ReadyToWearDetail() {
                 <h3 className="font-semibold text-gray-900">{product.designer?.businessName || 'Unknown Designer'}</h3>
                 <p className="text-sm text-gray-500">Ready-to-wear designer</p>
               </div>
-              <Button variant="outline" size="sm">View Store</Button>
+              {product.designer?.id ? (
+                <Link to={`/store/designer/${product.designer.id}`}>
+                  <Button variant="outline" size="sm">View Store</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" size="sm" disabled>View Store</Button>
+              )}
             </div>
 
             <div className="p-4 bg-coral-50 rounded-xl border border-coral-100">

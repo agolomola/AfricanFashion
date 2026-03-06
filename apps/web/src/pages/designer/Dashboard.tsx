@@ -13,7 +13,7 @@ import {
   Upload,
   X
 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -21,6 +21,8 @@ import DataTable from '../../components/dashboard/DataTable';
 import { BarChart, LineChart } from '../../components/dashboard/SimpleChart';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
+import { useAuthStore } from '../../store/authStore';
+import { getVendorStorePathForRole } from '../../auth/rbac';
 
 interface DesignerStats {
   totalDesigns: number;
@@ -106,6 +108,7 @@ const mergeUniqueFiles = (existing: File[], incoming: File[], maxCount: number) 
 };
 
 export default function DesignerDashboard() {
+  const { user } = useAuthStore();
   const [stats, setStats] = useState<DesignerStats | null>(null);
   const [designs, setDesigns] = useState<Design[]>([]);
   const [readyToWearProducts, setReadyToWearProducts] = useState<any[]>([]);
@@ -135,10 +138,16 @@ export default function DesignerDashboard() {
     categoryId: '',
     basePrice: '',
   });
+  const [copiedStorefront, setCopiedStorefront] = useState(false);
   const [selectedFabrics, setSelectedFabrics] = useState<Record<string, number>>({});
   const [modalError, setModalError] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
+  const vendorStorePath = getVendorStorePathForRole(user?.role, user?.id);
+  const vendorStoreUrl =
+    vendorStorePath && typeof window !== 'undefined'
+      ? `${window.location.origin}${vendorStorePath}`
+      : vendorStorePath || '';
 
   useEffect(() => {
     fetchDashboardData();
@@ -312,6 +321,17 @@ export default function DesignerDashboard() {
   const navigateToTab = (tab: 'overview' | 'designs' | 'orders') => {
     const path = tab === 'overview' ? '/designer' : `/designer/${tab}`;
     navigate(path);
+  };
+
+  const copyStorefrontUrl = async () => {
+    if (!vendorStoreUrl) return;
+    try {
+      await navigator.clipboard.writeText(vendorStoreUrl);
+      setCopiedStorefront(true);
+      window.setTimeout(() => setCopiedStorefront(false), 1800);
+    } catch {
+      window.prompt('Copy storefront URL:', vendorStoreUrl);
+    }
   };
 
   const toggleFabricSelection = (fabricId: string) => {
@@ -530,6 +550,20 @@ export default function DesignerDashboard() {
           Add New Design
         </Button>
       </div>
+
+      {vendorStorePath && (
+        <div className="rounded-xl border border-coral-100 bg-coral-50/70 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-coral-700">Your storefront URL</p>
+          <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Link to={vendorStorePath} className="text-sm text-coral-700 hover:text-coral-800 underline break-all">
+              {vendorStoreUrl}
+            </Link>
+            <Button variant="outline" size="sm" onClick={copyStorefrontUrl}>
+              {copiedStorefront ? 'Copied' : 'Copy URL'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

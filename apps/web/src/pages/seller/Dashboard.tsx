@@ -14,7 +14,7 @@ import {
   Upload,
   X
 } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api } from '../../services/api';
 import StatCard from '../../components/dashboard/StatCard';
 import ActivityFeed from '../../components/dashboard/ActivityFeed';
@@ -23,6 +23,8 @@ import { BarChart, LineChart } from '../../components/dashboard/SimpleChart';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
 import { useToast } from '../../components/ui/ToastProvider';
+import { useAuthStore } from '../../store/authStore';
+import { getVendorStorePathForRole } from '../../auth/rbac';
 
 interface SellerStats {
   totalFabrics: number;
@@ -105,6 +107,7 @@ const mergeUniqueFiles = (existing: File[], incoming: File[], maxCount: number) 
 
 export default function SellerDashboard() {
   const toast = useToast();
+  const { user } = useAuthStore();
   const [stats, setStats] = useState<SellerStats | null>(null);
   const [fabrics, setFabrics] = useState<Fabric[]>([]);
   const [orders, setOrders] = useState<FabricOrder[]>([]);
@@ -132,8 +135,14 @@ export default function SellerDashboard() {
   const [usdPerUnitByCurrency, setUsdPerUnitByCurrency] = useState<Record<string, number>>({ USD: 1 });
   const [defaultCurrency, setDefaultCurrency] = useState('USD');
   const [modalError, setModalError] = useState('');
+  const [copiedStorefront, setCopiedStorefront] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
+  const vendorStorePath = getVendorStorePathForRole(user?.role, user?.id);
+  const vendorStoreUrl =
+    vendorStorePath && typeof window !== 'undefined'
+      ? `${window.location.origin}${vendorStorePath}`
+      : vendorStorePath || '';
 
   useEffect(() => {
     fetchDashboardData();
@@ -307,6 +316,17 @@ export default function SellerDashboard() {
   const navigateToTab = (tab: 'overview' | 'fabrics' | 'orders') => {
     const path = tab === 'overview' ? '/seller' : `/seller/${tab}`;
     navigate(path);
+  };
+
+  const copyStorefrontUrl = async () => {
+    if (!vendorStoreUrl) return;
+    try {
+      await navigator.clipboard.writeText(vendorStoreUrl);
+      setCopiedStorefront(true);
+      window.setTimeout(() => setCopiedStorefront(false), 1800);
+    } catch {
+      window.prompt('Copy storefront URL:', vendorStoreUrl);
+    }
   };
 
   const handleCreateFabric = async () => {
@@ -515,6 +535,20 @@ export default function SellerDashboard() {
           Add New Fabric
         </Button>
       </div>
+
+      {vendorStorePath && (
+        <div className="rounded-xl border border-coral-100 bg-coral-50/70 p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-coral-700">Your storefront URL</p>
+          <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <Link to={vendorStorePath} className="text-sm text-coral-700 hover:text-coral-800 underline break-all">
+              {vendorStoreUrl}
+            </Link>
+            <Button variant="outline" size="sm" onClick={copyStorefrontUrl}>
+              {copiedStorefront ? 'Copied' : 'Copy URL'}
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

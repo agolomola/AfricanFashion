@@ -540,7 +540,12 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
 
     if (role === 'seller') {
       const seller = await prisma.fabricSellerProfile.findFirst({
-        where: { userId },
+        where: {
+          OR: [
+            { userId },
+            { id: userId },
+          ],
+        },
         include: {
           user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
         },
@@ -610,7 +615,12 @@ router.get('/vendor/:role/:userId', async (req, res, next) => {
     }
 
     const designer = await prisma.designerProfile.findFirst({
-      where: { userId },
+      where: {
+        OR: [
+          { userId },
+          { id: userId },
+        ],
+      },
       include: {
         user: { select: { id: true, firstName: true, lastName: true, avatar: true } },
       },

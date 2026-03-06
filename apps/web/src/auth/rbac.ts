@@ -38,3 +38,24 @@ export function getHomeRouteForRole(role: string | undefined | null): string {
 export function isCustomerRole(role: string | undefined | null): boolean {
   return normalizeRole(role) === 'CUSTOMER';
 }
+
+export function getVendorStorePath(role: 'seller' | 'designer', vendorId: string): string {
+  return `/store/${role}/${vendorId}`;
+}
+
+export function getVendorStorePathForRole(
+  role: string | undefined | null,
+  vendorId: string | undefined | null
+): string | null {
+  if (!vendorId) {
+    return null;
+  }
+  const normalized = normalizeRole(role);
+  if (normalized === 'FABRIC_SELLER') {
+    return getVendorStorePath('seller', vendorId);
+  }
+  if (normalized === 'FASHION_DESIGNER') {
+    return getVendorStorePath('designer', vendorId);
+  }
+  return null;
+}

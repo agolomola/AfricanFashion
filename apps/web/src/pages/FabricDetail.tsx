@@ -220,7 +220,13 @@ export default function FabricDetail() {
                 <h3 className="font-semibold text-gray-900">{fabric.seller?.businessName || 'Unknown Seller'}</h3>
                 <p className="text-sm text-gray-500">Fabric seller</p>
               </div>
-              <Button variant="outline" size="sm">View Store</Button>
+              {fabric.seller?.id ? (
+                <Link to={`/store/seller/${fabric.seller.id}`}>
+                  <Button variant="outline" size="sm">View Store</Button>
+                </Link>
+              ) : (
+                <Button variant="outline" size="sm" disabled>View Store</Button>
+              )}
             </div>
 
             <div className="p-4 bg-coral-50 rounded-xl border border-coral-100">

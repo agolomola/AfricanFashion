@@ -211,6 +211,7 @@ function App() {
               />
               <Route path="/try-on/:id" element={<TryOn />} />
               <Route path="/cart" element={<Cart />} />
+              <Route path="/store/:role/:userId" element={<VendorStore />} />
               <Route path="/vendor/:role/:userId" element={<VendorStore />} />
             </Route>
 

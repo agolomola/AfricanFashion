@@ -18,8 +18,11 @@ import {
   Layers,
   DollarSign,
   Image as ImageIcon,
+  Copy,
+  Check,
 } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
+import { getVendorStorePathForRole } from '../auth/rbac';
 
 import { 
   User, 
@@ -89,6 +92,7 @@ interface DashboardLayoutProps {
 
 export default function DashboardLayout({ userType }: DashboardLayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [copiedStorefront, setCopiedStorefront] = useState(false);
   const { user, logout } = useAuthStore();
   const location = useLocation();
   const navigate = useNavigate();
@@ -96,16 +100,26 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
   const items = navItems[userType] || [];
   const roleLabel = roleLabels[userType] || 'User';
   const displayName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User';
-  const viewStoreHref =
-    userType === 'seller' && user?.id
-      ? `/vendor/seller/${user.id}`
-      : userType === 'designer' && user?.id
-        ? `/vendor/designer/${user.id}`
-        : '/';
+  const vendorStoreHref = getVendorStorePathForRole(user?.role, user?.id);
+  const storefrontUrl =
+    vendorStoreHref && typeof window !== 'undefined'
+      ? `${window.location.origin}${vendorStoreHref}`
+      : vendorStoreHref || '';
 
   const handleLogout = () => {
     logout();
     navigate('/');
+  };
+
+  const handleCopyStorefront = async () => {
+    if (!storefrontUrl) return;
+    try {
+      await navigator.clipboard.writeText(storefrontUrl);
+      setCopiedStorefront(true);
+      window.setTimeout(() => setCopiedStorefront(false), 1800);
+    } catch {
+      window.prompt('Copy storefront URL:', storefrontUrl);
+    }
   };
 
   return (
@@ -160,7 +174,13 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
                     </span>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">{displayName}</p>
+                    {vendorStoreHref ? (
+                      <Link to={vendorStoreHref} className="text-sm font-medium truncate hover:text-coral-200 transition-colors">
+                        {displayName}
+                      </Link>
+                    ) : (
+                      <p className="text-sm font-medium truncate">{displayName}</p>
+                    )}
                     <p className="text-xs text-white/50">{roleLabel}</p>
                   </div>
                 </div>
@@ -196,12 +216,29 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
           </button>
 
           <div className="flex items-center gap-4">
-            <Link
-              to={viewStoreHref}
-              className="text-sm text-gray-600 hover:text-coral-500 transition-colors"
-            >
-              View Store
-            </Link>
+            {vendorStoreHref ? (
+              <>
+                <div className="hidden lg:block text-right">
+                  <p className="text-[11px] uppercase tracking-wide text-gray-400">Storefront URL</p>
+                  <Link to={vendorStoreHref} className="text-sm text-gray-600 hover:text-coral-500 transition-colors">
+                    {storefrontUrl}
+                  </Link>
+                </div>
+                <button
+                  onClick={handleCopyStorefront}
+                  className="inline-flex items-center gap-1.5 rounded-md border border-gray-200 px-2.5 py-1.5 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  {copiedStorefront ? <Check className="h-3.5 w-3.5 text-green-600" /> : <Copy className="h-3.5 w-3.5" />}
+                  {copiedStorefront ? 'Copied' : 'Copy URL'}
+                </button>
+                <Link
+                  to={vendorStoreHref}
+                  className="text-sm text-gray-600 hover:text-coral-500 transition-colors"
+                >
+                  View Store
+                </Link>
+              </>
+            ) : null}
           </div>
         </header>
 

@@ -353,7 +353,17 @@ export default function DesignDetail() {
                   {design.designer.city}, {design.designer.country}
                 </div>
               </div>
-              <Button variant="outline" size="sm">View Profile</Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={!design.designer?.id}
+                onClick={() => {
+                  if (!design.designer?.id) return;
+                  navigate(`/store/designer/${design.designer.id}`);
+                }}
+              >
+                View Profile
+              </Button>
             </div>
 
             {/* Price */}
