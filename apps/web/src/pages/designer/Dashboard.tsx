@@ -331,6 +331,9 @@ export default function DesignerDashboard() {
         const uploadResponse = await api.upload.image(formData);
         if (uploadResponse.success) {
           uploadedImages.push({ url: uploadResponse.data.url, alt: newDesign.name });
+        } else {
+          setModalError(uploadResponse.message || 'One or more images failed to upload.');
+          return;
         }
       }
       if (uploadedImages.length === 0) {

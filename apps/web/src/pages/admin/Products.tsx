@@ -194,6 +194,7 @@ export default function AdminProducts() {
   const uploadProductImage = async (file: File) => {
     try {
       setUploadingImage(true);
+      setFormError('');
       const data = new FormData();
       data.append('image', file);
       const response = await api.upload.image(data);
@@ -203,9 +204,13 @@ export default function AdminProducts() {
           if (prev.images.length >= rule.max) return prev;
           return { ...prev, images: [...prev.images, response.data.url] };
         });
+        return;
       }
+      setFormError('Image upload failed. Please try another image.');
     } catch (error) {
       console.error('Failed to upload image:', error);
+      const message = (error as any)?.response?.data?.message || 'Image upload failed.';
+      setFormError(message);
     } finally {
       setUploadingImage(false);
     }

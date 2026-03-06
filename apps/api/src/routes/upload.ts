@@ -8,8 +8,12 @@ import { Permissions } from '../rbac';
 const router = Router();
 const allowedMimeTypes: Record<string, string> = {
   'image/jpeg': '.jpg',
+  'image/jpg': '.jpg',
   'image/png': '.png',
   'image/webp': '.webp',
+  'image/avif': '.avif',
+  'image/heic': '.heic',
+  'image/heif': '.heif',
 };
 
 // Configure multer storage
@@ -37,13 +41,50 @@ const upload = multer({
   storage,
   fileFilter,
   limits: {
-    fileSize: 5 * 1024 * 1024, // 5MB max
+    fileSize: 10 * 1024 * 1024, // 10MB max
   },
 });
 
+const runSingleUpload = (req: any, res: any): Promise<void> =>
+  new Promise((resolve, reject) => {
+    upload.single('image')(req, res, (err: any) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+
+const runMultiUpload = (req: any, res: any): Promise<void> =>
+  new Promise((resolve, reject) => {
+    upload.array('images', 10)(req, res, (err: any) => {
+      if (err) return reject(err);
+      resolve();
+    });
+  });
+
+function mapUploadError(error: any) {
+  if (error instanceof multer.MulterError) {
+    if (error.code === 'LIMIT_FILE_SIZE') {
+      return {
+        status: 400,
+        message: 'Image is too large. Max allowed size is 10MB.',
+      };
+    }
+    return {
+      status: 400,
+      message: error.message || 'Invalid upload payload.',
+    };
+  }
+  return {
+    status: 400,
+    message: error?.message || 'Invalid upload payload.',
+  };
+}
+
 // Upload single image
-router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), upload.single('image'), (req, res) => {
+router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
+    await runSingleUpload(req, res);
+
     if (!req.file) {
       return res.status(400).json({
         success: false,
@@ -62,17 +103,20 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
         size: req.file.size,
       },
     });
-  } catch (error: any) {
-    res.status(500).json({
+  } catch (error) {
+    const mapped = mapUploadError(error);
+    res.status(mapped.status).json({
       success: false,
-      message: error.message || 'Failed to upload image.',
+      message: mapped.message,
     });
   }
 });
 
 // Upload multiple images
-router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), upload.array('images', 10), (req, res) => {
+router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
+    await runMultiUpload(req, res);
+
     if (!req.files || (req.files as any[]).length === 0) {
       return res.status(400).json({
         success: false,
@@ -92,10 +136,11 @@ router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CR
       message: `${files.length} image(s) uploaded successfully.`,
       data: uploadedImages,
     });
-  } catch (error: any) {
-    res.status(500).json({
+  } catch (error) {
+    const mapped = mapUploadError(error);
+    res.status(mapped.status).json({
       success: false,
-      message: error.message || 'Failed to upload images.',
+      message: mapped.message,
     });
   }
 });

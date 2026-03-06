@@ -93,6 +93,7 @@ startCurrencyAutoSync();
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
   const prismaCode = typeof err?.code === 'string' ? err.code : '';
+  const isMulterError = err?.name === 'MulterError';
   const mappedStatusFromPrisma =
     prismaCode === 'P2002'
       ? 409
@@ -101,7 +102,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
         : prismaCode === 'P2025'
           ? 404
           : undefined;
-  const statusCode = err.status || mappedStatusFromPrisma || 500;
+  const statusCode = err.status || (isMulterError ? 400 : mappedStatusFromPrisma) || 500;
   const isClientError = statusCode >= 400 && statusCode < 500;
   const prismaField = err?.meta?.field_name || err?.meta?.target;
   const prismaMessage =
