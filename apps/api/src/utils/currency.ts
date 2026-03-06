@@ -42,7 +42,159 @@ const GLOBAL_VISITOR_CURRENCY_FALLBACK: AfricanCurrencyRow[] = [
     currencyName: 'British Pound Sterling',
     usdPerUnit: 1.27,
   },
+  {
+    countryCode: 'CA',
+    country: 'Canada',
+    currencyCode: 'CAD',
+    currencyName: 'Canadian Dollar',
+    usdPerUnit: 0.74,
+  },
+  {
+    countryCode: 'AU',
+    country: 'Australia',
+    currencyCode: 'AUD',
+    currencyName: 'Australian Dollar',
+    usdPerUnit: 0.66,
+  },
+  {
+    countryCode: 'NZ',
+    country: 'New Zealand',
+    currencyCode: 'NZD',
+    currencyName: 'New Zealand Dollar',
+    usdPerUnit: 0.61,
+  },
+  {
+    countryCode: 'DE',
+    country: 'Germany',
+    currencyCode: 'EUR',
+    currencyName: 'Euro',
+    usdPerUnit: 1.09,
+  },
+  {
+    countryCode: 'FR',
+    country: 'France',
+    currencyCode: 'EUR',
+    currencyName: 'Euro',
+    usdPerUnit: 1.09,
+  },
+  {
+    countryCode: 'ES',
+    country: 'Spain',
+    currencyCode: 'EUR',
+    currencyName: 'Euro',
+    usdPerUnit: 1.09,
+  },
+  {
+    countryCode: 'IT',
+    country: 'Italy',
+    currencyCode: 'EUR',
+    currencyName: 'Euro',
+    usdPerUnit: 1.09,
+  },
+  {
+    countryCode: 'NL',
+    country: 'Netherlands',
+    currencyCode: 'EUR',
+    currencyName: 'Euro',
+    usdPerUnit: 1.09,
+  },
+  {
+    countryCode: 'CH',
+    country: 'Switzerland',
+    currencyCode: 'CHF',
+    currencyName: 'Swiss Franc',
+    usdPerUnit: 1.13,
+  },
+  {
+    countryCode: 'SE',
+    country: 'Sweden',
+    currencyCode: 'SEK',
+    currencyName: 'Swedish Krona',
+    usdPerUnit: 0.095,
+  },
+  {
+    countryCode: 'NO',
+    country: 'Norway',
+    currencyCode: 'NOK',
+    currencyName: 'Norwegian Krone',
+    usdPerUnit: 0.094,
+  },
+  {
+    countryCode: 'DK',
+    country: 'Denmark',
+    currencyCode: 'DKK',
+    currencyName: 'Danish Krone',
+    usdPerUnit: 0.146,
+  },
+  {
+    countryCode: 'JP',
+    country: 'Japan',
+    currencyCode: 'JPY',
+    currencyName: 'Japanese Yen',
+    usdPerUnit: 0.0067,
+  },
+  {
+    countryCode: 'CN',
+    country: 'China',
+    currencyCode: 'CNY',
+    currencyName: 'Chinese Yuan',
+    usdPerUnit: 0.14,
+  },
+  {
+    countryCode: 'IN',
+    country: 'India',
+    currencyCode: 'INR',
+    currencyName: 'Indian Rupee',
+    usdPerUnit: 0.012,
+  },
+  {
+    countryCode: 'SG',
+    country: 'Singapore',
+    currencyCode: 'SGD',
+    currencyName: 'Singapore Dollar',
+    usdPerUnit: 0.74,
+  },
+  {
+    countryCode: 'AE',
+    country: 'United Arab Emirates',
+    currencyCode: 'AED',
+    currencyName: 'UAE Dirham',
+    usdPerUnit: 0.272,
+  },
+  {
+    countryCode: 'SA',
+    country: 'Saudi Arabia',
+    currencyCode: 'SAR',
+    currencyName: 'Saudi Riyal',
+    usdPerUnit: 0.266,
+  },
+  {
+    countryCode: 'QA',
+    country: 'Qatar',
+    currencyCode: 'QAR',
+    currencyName: 'Qatari Riyal',
+    usdPerUnit: 0.275,
+  },
+  {
+    countryCode: 'BR',
+    country: 'Brazil',
+    currencyCode: 'BRL',
+    currencyName: 'Brazilian Real',
+    usdPerUnit: 0.20,
+  },
+  {
+    countryCode: 'MX',
+    country: 'Mexico',
+    currencyCode: 'MXN',
+    currencyName: 'Mexican Peso',
+    usdPerUnit: 0.059,
+  },
 ];
+
+const COUNTRY_CODE_ALIASES: Record<string, string> = {
+  UK: 'GB',
+  EL: 'GR',
+};
 
 for (const row of GLOBAL_VISITOR_CURRENCY_FALLBACK) {
   const code = row.countryCode.toUpperCase();
@@ -300,8 +452,7 @@ export function inferCountryFromHeaders(headers: Record<string, string | string[
       .split(',')[0]
       .trim()
       .toUpperCase();
-    if (token === 'UK') return 'GB';
-    return token;
+    return COUNTRY_CODE_ALIASES[token] || token;
   };
 
   const headerCandidates = [
@@ -319,12 +470,22 @@ export function inferCountryFromHeaders(headers: Record<string, string | string[
   }
 
   // Fallback: infer from browser language when edge geo headers are absent.
+  // Example header values: "en-US,en;q=0.9" or "fr-FR,fr;q=0.8,en-US;q=0.6"
   const acceptLanguage = readHeader(headers['accept-language']);
-  const regionMatch = acceptLanguage.match(/-[A-Za-z]{2}\b/);
-  if (regionMatch) {
-    const regionCode = normalizeCountryCode(regionMatch[0].slice(1));
+  const languageTags = acceptLanguage
+    .split(',')
+    .map((part) => part.split(';')[0].trim())
+    .filter(Boolean);
+
+  for (const tag of languageTags) {
+    const parts = tag.split('-').map((part) => part.trim()).filter(Boolean);
+    if (parts.length < 2) continue;
+    const regionCode = normalizeCountryCode(parts[parts.length - 1]);
+    if (!regionCode || regionCode.length !== 2) continue;
     const row = byCountryCode.get(regionCode);
-    if (row) return row;
+    if (row) {
+      return row;
+    }
   }
 
   return null;
