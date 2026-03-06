@@ -44,7 +44,6 @@ interface ProductFormState {
   stockYards: number;
   images: string[];
   isFeatured: boolean;
-  featuredSection: string;
 }
 
 const EMPTY_FORM: ProductFormState = {
@@ -62,7 +61,6 @@ const EMPTY_FORM: ProductFormState = {
   stockYards: 0,
   images: [],
   isFeatured: false,
-  featuredSection: '',
 };
 
 const MAX_UPLOAD_MB = 10;
@@ -191,7 +189,6 @@ export default function AdminProducts() {
           stockYards: Number(details.data.stockYards || 0),
           images: (details.data.images || []).map((img: any) => img.url).filter(Boolean),
           isFeatured: (details.data.featuredSections || []).length > 0,
-          featuredSection: details.data.featuredSections?.[0] || '',
         });
         setFormError('');
         setShowProductModal(true);
@@ -311,7 +308,6 @@ export default function AdminProducts() {
         try {
           await api.admin.setProductFeatured(productForm.type, productId, {
             isFeatured: productForm.isFeatured,
-            section: productForm.featuredSection || undefined,
           });
         } catch (error: any) {
           featuredWarning = error?.response?.data?.message || 'Featured toggle update failed.';
@@ -894,18 +890,15 @@ export default function AdminProducts() {
                 </span>
               </label>
               {productForm.isFeatured && (
-                <select
-                  value={productForm.featuredSection}
-                  onChange={(e) => setProductForm({ ...productForm, featuredSection: e.target.value })}
-                  className="px-3 py-2 border rounded-lg w-full"
-                >
-                  <option value="">Auto section</option>
-                  <option value="FEATURED_DESIGNS">Featured Designs</option>
-                  <option value="FEATURED_FABRICS">Featured Fabrics</option>
-                  <option value="FEATURED_READY_TO_WEAR">Featured Ready to Wear</option>
-                  <option value="TRENDING_NOW">Trending Now</option>
-                  <option value="NEW_ARRIVALS">New Arrivals</option>
-                </select>
+                <p className="text-xs text-gray-500">
+                  Featured section is assigned automatically by product type:
+                  {' '}
+                  {productForm.type === 'FABRIC'
+                    ? 'Featured Fabrics'
+                    : productForm.type === 'READY_TO_WEAR'
+                      ? 'Featured Ready To Wear'
+                      : 'Featured Designs'}
+                </p>
               )}
             </div>
 
