@@ -39,6 +39,21 @@ const uploadedImageSchema = z
       : value
   );
 
+function getPrismaValidationErrorMessage(error: any) {
+  const code = typeof error?.code === 'string' ? error.code : '';
+  const field = error?.meta?.field_name || error?.meta?.target;
+  if (code === 'P2002') {
+    return `Duplicate value for ${Array.isArray(field) ? field.join(', ') : field || 'a unique field'}.`;
+  }
+  if (code === 'P2003' || code === 'P2014') {
+    return `Invalid reference for ${Array.isArray(field) ? field.join(', ') : field || 'related field'}.`;
+  }
+  if (code === 'P2025') {
+    return 'Referenced record was not found.';
+  }
+  return null;
+}
+
 function percentageChange(currentValue: number, previousValue: number) {
   if (previousValue === 0) {
     return currentValue > 0 ? 100 : 0;
@@ -396,6 +411,13 @@ router.post('/fabrics', async (req, res, next) => {
         errors: error.issues,
       });
     }
+    const prismaMessage = getPrismaValidationErrorMessage(error);
+    if (prismaMessage) {
+      return res.status(400).json({
+        success: false,
+        message: prismaMessage,
+      });
+    }
     next(error);
   }
 });
@@ -516,6 +538,13 @@ router.patch('/fabrics/:id', async (req, res, next) => {
         success: false,
         message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid fabric payload.',
         errors: error.issues,
+      });
+    }
+    const prismaMessage = getPrismaValidationErrorMessage(error);
+    if (prismaMessage) {
+      return res.status(400).json({
+        success: false,
+        message: prismaMessage,
       });
     }
     next(error);

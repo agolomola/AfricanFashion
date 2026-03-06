@@ -181,6 +181,21 @@ function validateProductImageCount(type: ProductType, images: string[]) {
   }
 }
 
+function getPrismaValidationErrorMessage(error: any) {
+  const code = typeof error?.code === 'string' ? error.code : '';
+  const field = error?.meta?.field_name || error?.meta?.target;
+  if (code === 'P2002') {
+    return `Duplicate value for ${Array.isArray(field) ? field.join(', ') : field || 'a unique field'}.`;
+  }
+  if (code === 'P2003' || code === 'P2014') {
+    return `Invalid reference for ${Array.isArray(field) ? field.join(', ') : field || 'related field'}.`;
+  }
+  if (code === 'P2025') {
+    return 'Referenced record was not found.';
+  }
+  return null;
+}
+
 async function getMeasurementTemplates() {
   const latest = await prisma.activityLog.findFirst({
     where: { action: 'MEASUREMENT_TEMPLATES_UPDATED' },
@@ -1419,6 +1434,13 @@ router.post('/products', async (req, res, next) => {
         message: error.message,
       });
     }
+    const prismaMessage = getPrismaValidationErrorMessage(error);
+    if (prismaMessage) {
+      return res.status(400).json({
+        success: false,
+        message: prismaMessage,
+      });
+    }
     next(error);
   }
 });
@@ -1525,6 +1547,13 @@ router.patch('/products/:productType/:id', async (req, res, next) => {
       return res.status(400).json({
         success: false,
         message: error.message,
+      });
+    }
+    const prismaMessage = getPrismaValidationErrorMessage(error);
+    if (prismaMessage) {
+      return res.status(400).json({
+        success: false,
+        message: prismaMessage,
       });
     }
     next(error);

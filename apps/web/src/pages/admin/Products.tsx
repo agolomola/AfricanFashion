@@ -306,15 +306,23 @@ export default function AdminProducts() {
         productId = created?.data?.id;
       }
 
+      let featuredWarning = '';
       if (productId) {
-        await api.admin.setProductFeatured(productForm.type, productId, {
-          isFeatured: productForm.isFeatured,
-          section: productForm.featuredSection || undefined,
-        });
+        try {
+          await api.admin.setProductFeatured(productForm.type, productId, {
+            isFeatured: productForm.isFeatured,
+            section: productForm.featuredSection || undefined,
+          });
+        } catch (error: any) {
+          featuredWarning = error?.response?.data?.message || 'Featured toggle update failed.';
+        }
       }
 
       setShowProductModal(false);
       await fetchProducts();
+      if (featuredWarning) {
+        window.alert(`Product saved, but featured toggle failed: ${featuredWarning}`);
+      }
     } catch (error: any) {
       const firstIssue = error?.response?.data?.errors?.[0];
       const issuePath = Array.isArray(firstIssue?.path) ? firstIssue.path.join('.') : '';
