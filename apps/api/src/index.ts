@@ -92,6 +92,7 @@ startCurrencyAutoSync();
 // Error handling middleware
 app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
   console.error('Error:', err);
+  const isZodError = err?.name === 'ZodError' && Array.isArray(err?.issues);
   const prismaCode = typeof err?.code === 'string' ? err.code : '';
   const isMulterError = err?.name === 'MulterError';
   const mappedStatusFromPrisma =
@@ -102,7 +103,7 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
         : prismaCode === 'P2025'
           ? 404
           : undefined;
-  const statusCode = err.status || (isMulterError ? 400 : mappedStatusFromPrisma) || 500;
+  const statusCode = err.status || (isZodError ? 400 : undefined) || (isMulterError ? 400 : mappedStatusFromPrisma) || 500;
   const isClientError = statusCode >= 400 && statusCode < 500;
   const prismaField = err?.meta?.field_name || err?.meta?.target;
   const prismaMessage =
@@ -115,9 +116,17 @@ app.use((err: any, req: express.Request, res: express.Response, next: express.Ne
           : prismaCode === 'P2025'
             ? 'Requested record was not found.'
             : null;
+  const zodIssue = isZodError ? err.issues[0] : null;
+  const zodField = Array.isArray(zodIssue?.path) ? zodIssue.path.join('.') : 'payload';
+  const zodMessage = zodIssue?.message ? `${zodField}: ${zodIssue.message}` : null;
+  const fallbackDatabaseMessage = prismaCode ? `Database request failed (${prismaCode}).` : null;
   res.status(statusCode).json({
     success: false,
-    message: isClientError ? (prismaMessage || err.message || 'Request failed') : 'Internal server error',
+    message: isClientError
+      ? (zodMessage || prismaMessage || err.message || 'Request failed')
+      : (fallbackDatabaseMessage || 'Internal server error'),
+    ...(isZodError && { errors: err.issues }),
+    ...(prismaCode && { code: prismaCode }),
     ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
   });
 });

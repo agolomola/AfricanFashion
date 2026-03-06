@@ -1860,6 +1860,22 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
       message: 'Product removed from featured list.',
     });
   } catch (error) {
+    if (error instanceof z.ZodError) {
+      const firstIssue = error.issues[0];
+      const field = firstIssue?.path?.join('.') || 'payload';
+      return res.status(400).json({
+        success: false,
+        message: firstIssue?.message ? `${field}: ${firstIssue.message}` : 'Invalid featured payload.',
+        errors: error.issues,
+      });
+    }
+    const prismaMessage = getPrismaValidationErrorMessage(error);
+    if (prismaMessage) {
+      return res.status(400).json({
+        success: false,
+        message: prismaMessage,
+      });
+    }
     next(error);
   }
 });
