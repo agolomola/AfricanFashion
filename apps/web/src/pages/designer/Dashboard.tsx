@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent, type DragEvent } from 'react';
+import { useState, useEffect, useMemo, type ChangeEvent, type DragEvent } from 'react';
 import { 
   Scissors, 
   DollarSign, 
@@ -491,6 +491,23 @@ export default function DesignerDashboard() {
     event.preventDefault();
     handleDesignImageSelection(Array.from(event.dataTransfer.files || []));
   };
+
+  const designImagePreviews = useMemo(
+    () =>
+      designImages.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+        key: getFileKey(file),
+      })),
+    [designImages]
+  );
+
+  useEffect(
+    () => () => {
+      designImagePreviews.forEach((item) => URL.revokeObjectURL(item.url));
+    },
+    [designImagePreviews]
+  );
 
   if (loading) {
     return (
@@ -1059,9 +1076,9 @@ export default function DesignerDashboard() {
                 <p className="text-xs text-gray-500 mt-1">Design image rule: minimum 4, maximum 6. Drag file rows to reorder display order.</p>
                 {designImages.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    {designImages.map((file, index) => (
+                    {designImagePreviews.map(({ file, url, key }, index) => (
                       <div
-                        key={`${file.name}-${index}`}
+                        key={`${key}-${index}`}
                         className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 bg-white"
                         draggable
                         onDragStart={() => setDraggedDesignImageIndex(index)}
@@ -1073,11 +1090,18 @@ export default function DesignerDashboard() {
                         }}
                         onDragEnd={() => setDraggedDesignImageIndex(null)}
                       >
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">
-                            {index + 1}. {file.name}
-                          </p>
-                          <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
+                        <div className="min-w-0 flex items-center gap-3">
+                          <img
+                            src={url}
+                            alt={`Design upload preview ${index + 1}`}
+                            className="h-12 w-12 rounded-md object-cover border border-gray-200 flex-shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-800 truncate">
+                              {index + 1}. {file.name}
+                            </p>
+                            <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <button

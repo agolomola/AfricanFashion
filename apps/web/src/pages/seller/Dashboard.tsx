@@ -1,4 +1,4 @@
-import { useState, useEffect, type ChangeEvent, type DragEvent } from 'react';
+import { useState, useEffect, useMemo, type ChangeEvent, type DragEvent } from 'react';
 import { 
   Package, 
   DollarSign, 
@@ -474,6 +474,23 @@ export default function SellerDashboard() {
     event.preventDefault();
     handleFabricImageSelection(Array.from(event.dataTransfer.files || []));
   };
+
+  const fabricImagePreviews = useMemo(
+    () =>
+      newFabricImages.map((file) => ({
+        file,
+        url: URL.createObjectURL(file),
+        key: getFileKey(file),
+      })),
+    [newFabricImages]
+  );
+
+  useEffect(
+    () => () => {
+      fabricImagePreviews.forEach((item) => URL.revokeObjectURL(item.url));
+    },
+    [fabricImagePreviews]
+  );
 
   if (loading) {
     return (
@@ -994,9 +1011,9 @@ export default function SellerDashboard() {
                 <p className="text-xs text-gray-500 mt-1">Image rule: minimum 3 and maximum 4. Drag file rows to reorder display order.</p>
                 {newFabricImages.length > 0 && (
                   <div className="mt-3 space-y-2">
-                    {newFabricImages.map((file, index) => (
+                    {fabricImagePreviews.map(({ file, url, key }, index) => (
                       <div
-                        key={`${file.name}-${index}`}
+                        key={`${key}-${index}`}
                         className="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 bg-white"
                         draggable
                         onDragStart={() => setDraggedFabricImageIndex(index)}
@@ -1008,11 +1025,18 @@ export default function SellerDashboard() {
                         }}
                         onDragEnd={() => setDraggedFabricImageIndex(null)}
                       >
-                        <div className="min-w-0">
-                          <p className="text-xs font-medium text-gray-800 truncate">
-                            {index + 1}. {file.name}
-                          </p>
-                          <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
+                        <div className="min-w-0 flex items-center gap-3">
+                          <img
+                            src={url}
+                            alt={`Fabric upload preview ${index + 1}`}
+                            className="h-12 w-12 rounded-md object-cover border border-gray-200 flex-shrink-0"
+                          />
+                          <div className="min-w-0">
+                            <p className="text-xs font-medium text-gray-800 truncate">
+                              {index + 1}. {file.name}
+                            </p>
+                            <p className="text-[11px] text-gray-500">{formatFileSize(file.size)}</p>
+                          </div>
                         </div>
                         <div className="flex items-center gap-2">
                           <button
