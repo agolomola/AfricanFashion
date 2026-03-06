@@ -278,8 +278,10 @@ export default function SellerDashboard() {
     setShowStockModal(true);
   };
 
-  const lowStockFabrics = fabrics.filter(f => f.stockMeters < 20);
-  const pendingOrders = orders.filter(o => o.status === 'CONFIRMED');
+  const safeFabrics = Array.isArray(fabrics) ? fabrics : [];
+  const safeOrders = Array.isArray(orders) ? orders : [];
+  const lowStockFabrics = safeFabrics.filter((f) => Number(f?.stockMeters || 0) < 20);
+  const pendingOrders = safeOrders.filter((o) => o?.status === 'CONFIRMED');
 
   const getOrderVariant = (status: string) => {
     if (status === 'DELIVERED') return 'green';
@@ -534,7 +536,7 @@ export default function SellerDashboard() {
         />
         <StatCard
           title="Revenue"
-          value={`$${(stats?.totalRevenue || 0).toFixed(2)}`}
+          value={`$${Number(stats?.totalRevenue || 0).toFixed(2)}`}
           change={stats?.revenueChange}
           icon={DollarSign}
           iconColor="text-coral-500"
@@ -646,14 +648,14 @@ export default function SellerDashboard() {
                 </Button>
               </div>
               <div className="space-y-3">
-                {orders.slice(0, 5).map((order) => (
+                {safeOrders.slice(0, 5).map((order) => (
                   <div key={order.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
                     <div>
                       <p className="font-medium text-gray-900">{order.orderNumber}</p>
                       <p className="text-sm text-gray-500">{order.fabricName} · {order.meters}m</p>
                     </div>
                     <div className="text-right">
-                      <p className="font-medium text-coral-600">${order.totalAmount.toFixed(2)}</p>
+                      <p className="font-medium text-coral-600">${Number(order.totalAmount || 0).toFixed(2)}</p>
                       
                       <Badge variant={getOrderVariant(order.status)} size="sm">
                         {order.status}
@@ -730,7 +732,7 @@ export default function SellerDashboard() {
                 )
               },
             ]}
-            data={fabrics}
+            data={safeFabrics}
             keyExtractor={(item) => item.id}
             searchable
             searchKeys={['name', 'materialType.name']}
@@ -761,7 +763,7 @@ export default function SellerDashboard() {
             { 
               key: 'totalAmount', 
               header: 'Amount',
-              render: (item) => `$${item.totalAmount.toFixed(2)}`
+              render: (item) => `$${Number(item.totalAmount || 0).toFixed(2)}`
             },
             { 
               key: 'designerCountry', 
@@ -783,7 +785,7 @@ export default function SellerDashboard() {
               )
             },
           ]}
-          data={orders}
+          data={safeOrders}
           keyExtractor={(item) => item.id}
           searchable
           searchKeys={['orderNumber', 'fabricName', 'designerCountry']}

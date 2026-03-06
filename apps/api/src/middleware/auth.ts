@@ -32,17 +32,32 @@ declare global {
 }
 
 // Generate JWT token
-export function generateToken(user: { id: string; email: string; role: UserRole }) {
+export function generateToken(user: { id: string; email: string; role: UserRole; sessionIssuedAt?: number }) {
   return jwt.sign(
-    { id: user.id, email: user.email, role: user.role },
+    {
+      id: user.id,
+      email: user.email,
+      role: user.role,
+      ...(typeof user.sessionIssuedAt === 'number' ? { sessionIssuedAt: user.sessionIssuedAt } : {}),
+    },
     SECRET,
     { expiresIn: '7d' }
   );
 }
 
 // Verify JWT token
-export function verifyToken(token: string): { id: string; email: string; role: UserRole } {
-  return jwt.verify(token, SECRET) as { id: string; email: string; role: UserRole };
+export function verifyToken(token: string): {
+  id: string;
+  email: string;
+  role: UserRole;
+  sessionIssuedAt?: number;
+} {
+  return jwt.verify(token, SECRET) as {
+    id: string;
+    email: string;
+    role: UserRole;
+    sessionIssuedAt?: number;
+  };
 }
 
 // Authentication middleware
@@ -70,6 +85,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         firstName: true,
         lastName: true,
         status: true,
+        lastLogin: true,
       },
     });
 
@@ -85,6 +101,29 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
         success: false,
         message: 'Account is not active. Please contact support.',
       });
+    }
+
+    // Enforce one active device/session at a time for sellers and designers.
+    // A newer login updates lastLogin and invalidates older JWT sessionIssuedAt values.
+    if (user.role === 'FABRIC_SELLER' || user.role === 'FASHION_DESIGNER') {
+      const tokenSessionIssuedAt = Number(decoded.sessionIssuedAt || 0);
+      const currentSessionIssuedAt = Number(user.lastLogin?.getTime() || 0);
+
+      if (!tokenSessionIssuedAt || !currentSessionIssuedAt) {
+        return res.status(401).json({
+          success: false,
+          message: 'Session expired. Please sign in again.',
+        });
+      }
+
+      // Allow tiny timestamp drift from database precision truncation.
+      const allowedDriftMs = 2000;
+      if (Math.abs(currentSessionIssuedAt - tokenSessionIssuedAt) > allowedDriftMs) {
+        return res.status(401).json({
+          success: false,
+          message: 'You have been signed out because your account was used on another device.',
+        });
+      }
     }
 
     req.user = user;
@@ -160,10 +199,19 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
         firstName: true,
         lastName: true,
         status: true,
+        lastLogin: true,
       },
     });
 
     if (user && user.status === 'ACTIVE') {
+      if (user.role === 'FABRIC_SELLER' || user.role === 'FASHION_DESIGNER') {
+        const tokenSessionIssuedAt = Number(decoded.sessionIssuedAt || 0);
+        const currentSessionIssuedAt = Number(user.lastLogin?.getTime() || 0);
+        const allowedDriftMs = 2000;
+        if (!tokenSessionIssuedAt || !currentSessionIssuedAt || Math.abs(currentSessionIssuedAt - tokenSessionIssuedAt) > allowedDriftMs) {
+          return next();
+        }
+      }
       req.user = user;
     }
 

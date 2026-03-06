@@ -130,13 +130,20 @@ router.post('/register', async (req, res, next) => {
     });
 
     // Only ACTIVE users should receive an authentication token immediately.
-    const token = user.status === UserStatus.ACTIVE
-      ? generateToken({
-          id: user.id,
-          email: user.email,
-          role: user.role as UserRole,
-        })
-      : null;
+    let token: string | null = null;
+    if (user.status === UserStatus.ACTIVE) {
+      const sessionIssuedAt = Date.now();
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLogin: new Date(sessionIssuedAt) },
+      });
+      token = generateToken({
+        id: user.id,
+        email: user.email,
+        role: user.role as UserRole,
+        sessionIssuedAt,
+      });
+    }
 
     res.status(201).json({
       success: true,
@@ -208,10 +215,11 @@ router.post('/login', async (req, res, next) => {
       });
     }
 
-    // Update last login
+    // Update last login. This acts as session versioning for one-device login.
+    const sessionIssuedAt = Date.now();
     await prisma.user.update({
       where: { id: user.id },
-      data: { lastLogin: new Date() },
+      data: { lastLogin: new Date(sessionIssuedAt) },
     });
 
     // Generate token
@@ -219,6 +227,7 @@ router.post('/login', async (req, res, next) => {
       id: user.id,
       email: user.email,
       role: user.role,
+      sessionIssuedAt,
     });
 
     res.json({
@@ -372,7 +381,14 @@ router.post('/change-password', authenticate, async (req, res, next) => {
 
 // Logout (client-side token removal, but we can track it if needed)
 router.post('/logout', authenticate, async (req, res) => {
-  // In a more advanced setup, we could blacklist the token
+  if (req.user?.role === UserRole.FABRIC_SELLER || req.user?.role === UserRole.FASHION_DESIGNER) {
+    // Rotate seller/designer session marker so current JWT cannot be reused.
+    await prisma.user.update({
+      where: { id: req.user.id },
+      data: { lastLogin: new Date() },
+    });
+  }
+
   res.json({
     success: true,
     message: 'Logout successful.',

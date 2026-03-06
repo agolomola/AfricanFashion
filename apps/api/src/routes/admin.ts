@@ -960,14 +960,7 @@ router.get('/products', async (req, res, next) => {
 
     const fetchLimit = pagination.page * pagination.limit;
 
-    const [
-      fabrics,
-      designs,
-      readyToWear,
-      totalFabrics,
-      totalDesigns,
-      totalReadyToWear,
-    ] = await Promise.all([
+    const [fabrics, designs, readyToWear, totalFabrics, totalDesigns, totalReadyToWear] = await Promise.all([
       requestedType && requestedType !== ProductType.FABRIC
         ? Promise.resolve([])
         : prisma.fabric.findMany({
@@ -975,18 +968,19 @@ router.get('/products', async (req, res, next) => {
             skip: requestedType === ProductType.FABRIC ? pagination.skip : 0,
             take: requestedType === ProductType.FABRIC ? pagination.limit : fetchLimit,
             orderBy: { createdAt: 'desc' },
-            include: {
-              materialType: { select: { name: true } },
-              seller: {
-                select: {
-                  id: true,
-                  userId: true,
-                  businessName: true,
-                  country: true,
-                  user: { select: { firstName: true, lastName: true } },
-                },
-              },
-              images: { take: 1, orderBy: { sortOrder: 'asc' } },
+            select: {
+              id: true,
+              sellerId: true,
+              name: true,
+              description: true,
+              status: true,
+              isAvailable: true,
+              materialTypeId: true,
+              sellerPrice: true,
+              finalPrice: true,
+              createdAt: true,
+              updatedAt: true,
+              images: { select: { url: true }, take: 1, orderBy: { sortOrder: 'asc' } },
               _count: { select: { orderItems: true } },
             },
           }),
@@ -997,18 +991,19 @@ router.get('/products', async (req, res, next) => {
             skip: requestedType === ProductType.DESIGN ? pagination.skip : 0,
             take: requestedType === ProductType.DESIGN ? pagination.limit : fetchLimit,
             orderBy: { createdAt: 'desc' },
-            include: {
-              category: { select: { name: true } },
-              designer: {
-                select: {
-                  id: true,
-                  userId: true,
-                  businessName: true,
-                  country: true,
-                  user: { select: { firstName: true, lastName: true } },
-                },
-              },
-              images: { take: 1, orderBy: { sortOrder: 'asc' } },
+            select: {
+              id: true,
+              designerId: true,
+              name: true,
+              description: true,
+              status: true,
+              isAvailable: true,
+              categoryId: true,
+              basePrice: true,
+              finalPrice: true,
+              createdAt: true,
+              updatedAt: true,
+              images: { select: { url: true }, take: 1, orderBy: { sortOrder: 'asc' } },
               _count: { select: { orderItems: true } },
             },
           }),
@@ -1019,18 +1014,18 @@ router.get('/products', async (req, res, next) => {
             skip: requestedType === ProductType.READY_TO_WEAR ? pagination.skip : 0,
             take: requestedType === ProductType.READY_TO_WEAR ? pagination.limit : fetchLimit,
             orderBy: { createdAt: 'desc' },
-            include: {
-              category: { select: { name: true } },
-              designer: {
-                select: {
-                  id: true,
-                  userId: true,
-                  businessName: true,
-                  country: true,
-                  user: { select: { firstName: true, lastName: true } },
-                },
-              },
-              images: { take: 1, orderBy: { sortOrder: 'asc' } },
+            select: {
+              id: true,
+              designerId: true,
+              name: true,
+              description: true,
+              status: true,
+              isAvailable: true,
+              categoryId: true,
+              basePrice: true,
+              createdAt: true,
+              updatedAt: true,
+              images: { select: { url: true }, take: 1, orderBy: { sortOrder: 'asc' } },
               _count: { select: { orderItems: true } },
             },
           }),
@@ -1040,6 +1035,64 @@ router.get('/products', async (req, res, next) => {
         ? Promise.resolve(0)
         : prisma.readyToWear.count({ where: rtwWhere }),
     ]);
+
+    const unique = <T>(items: T[]) => Array.from(new Set(items));
+
+    const materialTypeIds = unique(fabrics.map((item) => item.materialTypeId).filter(Boolean));
+    const categoryIds = unique(
+      [...designs.map((item) => item.categoryId), ...readyToWear.map((item) => item.categoryId)].filter(Boolean)
+    );
+    const sellerProfileIds = unique(fabrics.map((item) => item.sellerId).filter(Boolean));
+    const designerProfileIds = unique(
+      [...designs.map((item) => item.designerId), ...readyToWear.map((item) => item.designerId)].filter(Boolean)
+    );
+
+    const [materialTypes, categories, sellerProfiles, designerProfiles] = await Promise.all([
+      materialTypeIds.length
+        ? prisma.materialType.findMany({
+            where: { id: { in: materialTypeIds as string[] } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+      categoryIds.length
+        ? prisma.productCategory.findMany({
+            where: { id: { in: categoryIds as string[] } },
+            select: { id: true, name: true },
+          })
+        : Promise.resolve([]),
+      sellerProfileIds.length
+        ? prisma.fabricSellerProfile.findMany({
+            where: { id: { in: sellerProfileIds as string[] } },
+            select: {
+              id: true,
+              userId: true,
+              businessName: true,
+              country: true,
+            },
+          })
+        : Promise.resolve([]),
+      designerProfileIds.length
+        ? prisma.designerProfile.findMany({
+            where: { id: { in: designerProfileIds as string[] } },
+            select: {
+              id: true,
+              userId: true,
+              businessName: true,
+              country: true,
+            },
+          })
+        : Promise.resolve([]),
+    ]);
+
+    const ownerUserIds = unique(
+      [...sellerProfiles.map((item) => item.userId), ...designerProfiles.map((item) => item.userId)].filter(Boolean)
+    );
+    const users = ownerUserIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: ownerUserIds as string[] } },
+          select: { id: true, firstName: true, lastName: true },
+        })
+      : [];
 
     const productRefs = [
       ...fabrics.map((item) => ({ productId: item.id, productType: ProductType.FABRIC })),
@@ -1076,9 +1129,27 @@ router.get('/products', async (req, res, next) => {
       featuredMap.set(key, existing);
     }
 
+    const materialTypeById = new Map(materialTypes.map((item) => [item.id, item]));
+    const categoryById = new Map(categories.map((item) => [item.id, item]));
+    const sellerProfileById = new Map(sellerProfiles.map((item) => [item.id, item]));
+    const designerProfileById = new Map(designerProfiles.map((item) => [item.id, item]));
+    const userById = new Map(users.map((item) => [item.id, item]));
+
+    const getOwnerName = (businessName: string | null | undefined, userId: string | null | undefined) => {
+      if (businessName && businessName.trim()) {
+        return businessName.trim();
+      }
+      if (!userId) return 'Unknown';
+      const user = userById.get(userId);
+      if (!user) return 'Unknown';
+      const fullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+      return fullName || 'Unknown';
+    };
+
     const mapped = [
       ...fabrics.map((item) => {
         const key = `${ProductType.FABRIC}:${item.id}`;
+        const sellerProfile = sellerProfileById.get(item.sellerId);
         return {
           id: item.id,
           type: ProductType.FABRIC,
@@ -1089,13 +1160,10 @@ router.get('/products', async (req, res, next) => {
           materialTypeId: item.materialTypeId,
           basePrice: Number(item.sellerPrice || 0),
           finalPrice: Number(item.finalPrice || 0),
-          category: item.materialType?.name || 'Material',
-          ownerName:
-            item.seller.businessName ||
-            `${item.seller.user?.firstName || ''} ${item.seller.user?.lastName || ''}`.trim() ||
-            'Unknown',
-          ownerCountry: item.seller.country,
-          ownerUserId: item.seller.userId,
+          category: materialTypeById.get(item.materialTypeId)?.name || 'Material',
+          ownerName: getOwnerName(sellerProfile?.businessName, sellerProfile?.userId),
+          ownerCountry: sellerProfile?.country || null,
+          ownerUserId: sellerProfile?.userId,
           orderCount: item._count.orderItems,
           image: item.images[0]?.url || null,
           createdAt: item.createdAt,
@@ -1106,6 +1174,7 @@ router.get('/products', async (req, res, next) => {
       }),
       ...designs.map((item) => {
         const key = `${ProductType.DESIGN}:${item.id}`;
+        const designerProfile = designerProfileById.get(item.designerId);
         return {
           id: item.id,
           type: ProductType.DESIGN,
@@ -1116,13 +1185,10 @@ router.get('/products', async (req, res, next) => {
           categoryId: item.categoryId,
           basePrice: Number(item.basePrice || 0),
           finalPrice: Number(item.finalPrice || 0),
-          category: item.category?.name || 'Design',
-          ownerName:
-            item.designer.businessName ||
-            `${item.designer.user?.firstName || ''} ${item.designer.user?.lastName || ''}`.trim() ||
-            'Unknown',
-          ownerCountry: item.designer.country,
-          ownerUserId: item.designer.userId,
+          category: categoryById.get(item.categoryId)?.name || 'Design',
+          ownerName: getOwnerName(designerProfile?.businessName, designerProfile?.userId),
+          ownerCountry: designerProfile?.country || null,
+          ownerUserId: designerProfile?.userId,
           orderCount: item._count.orderItems,
           image: item.images[0]?.url || null,
           createdAt: item.createdAt,
@@ -1133,6 +1199,7 @@ router.get('/products', async (req, res, next) => {
       }),
       ...readyToWear.map((item) => {
         const key = `${ProductType.READY_TO_WEAR}:${item.id}`;
+        const designerProfile = designerProfileById.get(item.designerId);
         return {
           id: item.id,
           type: ProductType.READY_TO_WEAR,
@@ -1143,13 +1210,10 @@ router.get('/products', async (req, res, next) => {
           categoryId: item.categoryId,
           basePrice: Number(item.basePrice || 0),
           finalPrice: Number(item.basePrice || 0),
-          category: item.category?.name || 'Ready To Wear',
-          ownerName:
-            item.designer.businessName ||
-            `${item.designer.user?.firstName || ''} ${item.designer.user?.lastName || ''}`.trim() ||
-            'Unknown',
-          ownerCountry: item.designer.country,
-          ownerUserId: item.designer.userId,
+          category: categoryById.get(item.categoryId)?.name || 'Ready To Wear',
+          ownerName: getOwnerName(designerProfile?.businessName, designerProfile?.userId),
+          ownerCountry: designerProfile?.country || null,
+          ownerUserId: designerProfile?.userId,
           orderCount: item._count.orderItems,
           image: item.images[0]?.url || null,
           createdAt: item.createdAt,

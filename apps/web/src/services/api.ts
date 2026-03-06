@@ -597,7 +597,12 @@ const adminApi = {
       return response;
     }
 
-    const products = (response.data?.products || []).map((product: any) => ({
+    const sourceRows = Array.isArray(response.data?.products)
+      ? response.data.products
+      : Array.isArray(response.data as any)
+        ? (response.data as any)
+        : [];
+    const products = sourceRows.map((product: any) => ({
       ...product,
       basePrice: Number(product?.basePrice || 0),
       finalPrice: Number(product?.finalPrice || 0),
@@ -608,7 +613,7 @@ const adminApi = {
       success: true,
       data: {
         products,
-        pagination: response.data?.pagination,
+        pagination: response.data?.pagination || { page: 1, pages: 1, total: products.length, limit: products.length },
       },
     };
   },
@@ -744,6 +749,35 @@ const adminApi = {
     apiService.patch<{ success: boolean; data: any }>(`/banners/${id}/toggle`),
 };
 
+const toFiniteNumber = (value: unknown, fallback = 0) => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const normalizeSellerStats = (payload: any) => {
+  const source = payload?.stats && typeof payload?.stats === 'object' ? payload.stats : payload;
+  const monthlySales = Array.isArray(source?.monthlySales) ? source.monthlySales : [];
+  const topFabrics = Array.isArray(source?.topFabrics) ? source.topFabrics : [];
+
+  return {
+    totalFabrics: toFiniteNumber(source?.totalFabrics),
+    totalSales: toFiniteNumber(source?.totalSales ?? source?.totalOrders),
+    totalRevenue: toFiniteNumber(source?.totalRevenue),
+    pendingOrders: toFiniteNumber(source?.pendingOrders),
+    lowStockItems: toFiniteNumber(source?.lowStockItems),
+    monthlySales: monthlySales.map((item: any) => ({
+      label: String(item?.label || ''),
+      value: toFiniteNumber(item?.value),
+    })),
+    topFabrics: topFabrics.map((item: any) => ({
+      label: String(item?.label || ''),
+      value: toFiniteNumber(item?.value),
+    })),
+    salesChange: toFiniteNumber(source?.salesChange),
+    revenueChange: toFiniteNumber(source?.revenueChange),
+  };
+};
+
 // Fabric Seller API
 const sellerApi = {
   getDashboard: () =>
@@ -754,21 +788,28 @@ const sellerApi = {
     if (!response.success) {
       return response;
     }
+    const sourceRows = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray((response.data as any)?.fabrics)
+        ? (response.data as any).fabrics
+        : [];
     return {
       success: true,
-      data: (response.data || []).map((fabric: any) => ({
+      data: sourceRows.map((fabric: any) => ({
         id: fabric.id,
         name: fabric.name,
-        pricePerMeter: Number(fabric.finalPrice || fabric.sellerPrice || 0),
+        pricePerMeter: toFiniteNumber(fabric.finalPrice || fabric.sellerPrice),
         currencyCode: fabric.currencyCode || 'USD',
-        localSellerPrice: Number(fabric.localSellerPrice || 0),
-        sellerPriceUsd: Number(fabric.sellerPriceUsd || fabric.sellerPrice || 0),
-        stockMeters: Number(fabric.stockYards || 0),
-        images: (fabric.images || []).map((img: any) => resolveAssetUrl(img.url)).filter(Boolean),
-        orderCount: Number(fabric?._count?.orderItems || 0),
+        localSellerPrice: toFiniteNumber(fabric.localSellerPrice),
+        sellerPriceUsd: toFiniteNumber(fabric.sellerPriceUsd || fabric.sellerPrice),
+        stockMeters: toFiniteNumber(fabric.stockYards),
+        images: (fabric.images || [])
+          .map((img: any) => resolveAssetUrl(typeof img === 'string' ? img : img?.url))
+          .filter(Boolean),
+        orderCount: toFiniteNumber(fabric?._count?.orderItems),
         status: fabric.status === 'APPROVED' ? 'ACTIVE' : fabric.status,
         materialType: fabric.materialType,
-        minOrderMeters: Number(fabric.minYards || 1),
+        minOrderMeters: toFiniteNumber(fabric.minYards, 1),
       })),
     };
   },
@@ -784,14 +825,19 @@ const sellerApi = {
     if (!response.success) {
       return response;
     }
+    const sourceRows = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray((response.data as any)?.orders)
+        ? (response.data as any).orders
+        : [];
     return {
       success: true,
-      data: (response.data || []).map((item: any) => ({
+      data: sourceRows.map((item: any) => ({
         id: item.id,
         orderNumber: item.order?.orderNumber || 'N/A',
         fabricName: item.fabric?.name || 'Unknown Fabric',
-        meters: Number(item.yards || 0),
-        totalAmount: Number(item.totalPrice || 0),
+        meters: toFiniteNumber(item.yards),
+        totalAmount: toFiniteNumber(item.totalPrice),
         status: item.status || 'PENDING',
         designerCountry: item.order?.designOrder?.design?.designer?.country || '',
         createdAt: item.order?.createdAt || item.createdAt,
@@ -802,26 +848,22 @@ const sellerApi = {
 
   getStats: async () => {
     try {
-      return await apiService.get<{ success: boolean; data: any }>('/fabric-seller/stats');
+      const response = await apiService.get<{ success: boolean; data: any }>('/fabric-seller/stats');
+      if (!response.success) {
+        return response;
+      }
+      return {
+        success: true,
+        data: normalizeSellerStats(response.data),
+      };
     } catch {
       const fallback = await apiService.get<{ success: boolean; data: any }>('/fabric-seller/dashboard');
       if (!fallback.success) {
         return fallback;
       }
-      const stats = fallback.data?.stats || {};
       return {
         success: true,
-        data: {
-          totalFabrics: Number(stats.totalFabrics || 0),
-          totalSales: Number(stats.totalOrders || 0),
-          totalRevenue: Number(stats.totalRevenue || 0),
-          pendingOrders: Number(stats.pendingOrders || 0),
-          lowStockItems: 0,
-          monthlySales: [],
-          topFabrics: [],
-          salesChange: 0,
-          revenueChange: 0,
-        },
+        data: normalizeSellerStats(fallback.data),
       };
     }
   },
