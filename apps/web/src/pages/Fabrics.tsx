@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent, type SyntheticEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Search, Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Loader2, Heart, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
 import { api } from '../services/api';
 import Badge from '../components/ui/Badge';
 import Button from '../components/ui/Button';
@@ -53,6 +53,8 @@ export default function Fabrics() {
     search: '',
     country: '',
     materialTypeId: '',
+    minPrice: '',
+    maxPrice: '',
     sortBy: 'newest' as 'newest' | 'price-low' | 'price-high',
   };
   const [fabrics, setFabrics] = useState<FabricCard[]>([]);
@@ -135,14 +137,26 @@ export default function Fabrics() {
   }, [filters, page, reloadToken]);
 
   const sortedFabrics = useMemo(() => {
-    const rows = [...fabrics];
+    const minPrice = filters.minPrice ? Number(filters.minPrice) : null;
+    const maxPrice = filters.maxPrice ? Number(filters.maxPrice) : null;
+    const hasMinPrice = Number.isFinite(minPrice) && minPrice !== null;
+    const hasMaxPrice = Number.isFinite(maxPrice) && maxPrice !== null;
+
+    let rows = [...fabrics];
+    if (hasMinPrice) {
+      rows = rows.filter((fabric) => Number(fabric.pricePerMeter || 0) >= Number(minPrice));
+    }
+    if (hasMaxPrice) {
+      rows = rows.filter((fabric) => Number(fabric.pricePerMeter || 0) <= Number(maxPrice));
+    }
+
     if (filters.sortBy === 'price-low') {
       rows.sort((a, b) => a.pricePerMeter - b.pricePerMeter);
     } else if (filters.sortBy === 'price-high') {
       rows.sort((a, b) => b.pricePerMeter - a.pricePerMeter);
     }
     return rows;
-  }, [fabrics, filters.sortBy]);
+  }, [fabrics, filters.minPrice, filters.maxPrice, filters.sortBy]);
 
   const applyFilters = (event?: FormEvent<HTMLFormElement>) => {
     event?.preventDefault();
@@ -156,7 +170,13 @@ export default function Fabrics() {
     setPage(1);
   };
 
-  const activeFiltersCount = [draftFilters.search, draftFilters.country, draftFilters.materialTypeId].filter(Boolean).length;
+  const activeFiltersCount = [
+    draftFilters.search,
+    draftFilters.country,
+    draftFilters.materialTypeId,
+    draftFilters.minPrice,
+    draftFilters.maxPrice,
+  ].filter(Boolean).length;
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -179,58 +199,94 @@ export default function Fabrics() {
       </section>
 
       <div className="bg-white border-b border-gray-200 sticky top-0 z-30 shadow-sm">
-        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-4">
-          <form onSubmit={applyFilters} className="flex flex-wrap items-center gap-3">
-            <div className="relative flex-1 min-w-[220px]">
-              <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />
+        <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 py-3">
+          <form onSubmit={applyFilters} className="flex flex-wrap items-center gap-2 md:gap-3">
+            <div className="relative min-w-[220px] flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
               <input
                 type="text"
                 value={draftFilters.search}
                 onChange={(e) => setDraftFilters((previous) => ({ ...previous, search: e.target.value }))}
                 placeholder="Search fabrics..."
-                className="w-full pl-12 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-coral-500"
+                className="w-full pl-10 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
               />
             </div>
-            <select
-              value={draftFilters.country}
-              onChange={(e) => setDraftFilters((previous) => ({ ...previous, country: e.target.value }))}
-              className="px-3 py-3 border rounded-lg bg-white"
-            >
-              <option value="">All Countries</option>
-              {countries.map((item) => (
-                <option key={item} value={item}>
-                  {item}
-                </option>
-              ))}
-            </select>
-            <select
-              value={draftFilters.materialTypeId}
-              onChange={(e) => setDraftFilters((previous) => ({ ...previous, materialTypeId: e.target.value }))}
-              className="px-3 py-3 border rounded-lg bg-white"
-            >
-              <option value="">All Materials</option>
-              {materials.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={draftFilters.sortBy}
-              onChange={(e) =>
-                setDraftFilters((previous) => ({
-                  ...previous,
-                  sortBy: e.target.value as 'newest' | 'price-low' | 'price-high',
-                }))
-              }
-              className="px-3 py-3 border rounded-lg bg-white"
-            >
-              <option value="newest">Newest</option>
-              <option value="price-low">Price: Low-High</option>
-              <option value="price-high">Price: High-Low</option>
-            </select>
 
-            <Button type="submit" size="sm" className="h-[46px]">
+            <div className="relative">
+              <select
+                value={draftFilters.materialTypeId}
+                onChange={(e) => setDraftFilters((previous) => ({ ...previous, materialTypeId: e.target.value }))}
+                className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
+              >
+                <option value="">All Categories</option>
+                {materials.map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.name}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+
+            <div className="relative">
+              <select
+                value={draftFilters.country}
+                onChange={(e) => setDraftFilters((previous) => ({ ...previous, country: e.target.value }))}
+                className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
+              >
+                <option value="">All Countries</option>
+                {countries.map((item) => (
+                  <option key={item} value={item}>
+                    {item}
+                  </option>
+                ))}
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+
+            <div className="flex items-center gap-1">
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                <input
+                  type="number"
+                  placeholder="Min"
+                  value={draftFilters.minPrice}
+                  onChange={(e) => setDraftFilters((previous) => ({ ...previous, minPrice: e.target.value }))}
+                  className="w-20 pl-5 pr-2 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500"
+                />
+              </div>
+              <span className="text-gray-400 text-sm">-</span>
+              <div className="relative">
+                <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-xs">$</span>
+                <input
+                  type="number"
+                  placeholder="Max"
+                  value={draftFilters.maxPrice}
+                  onChange={(e) => setDraftFilters((previous) => ({ ...previous, maxPrice: e.target.value }))}
+                  className="w-20 pl-5 pr-2 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500"
+                />
+              </div>
+            </div>
+
+            <div className="relative">
+              <select
+                value={draftFilters.sortBy}
+                onChange={(e) =>
+                  setDraftFilters((previous) => ({
+                    ...previous,
+                    sortBy: e.target.value as 'newest' | 'price-low' | 'price-high',
+                  }))
+                }
+                className="pl-3 pr-8 py-2 text-sm border rounded-lg appearance-none cursor-pointer focus:ring-2 focus:ring-coral-500 bg-white"
+              >
+                <option value="newest">Newest</option>
+                <option value="price-low">Price: Low-High</option>
+                <option value="price-high">Price: High-Low</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+            </div>
+
+            <Button type="submit" size="sm" className="h-[38px]">
               Apply Filters
             </Button>
 
