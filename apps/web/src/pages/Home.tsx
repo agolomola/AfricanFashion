@@ -766,26 +766,27 @@ export default function Home() {
 
       {/* Countries Marquee */}
       {countries.length > 0 && (
-        <section className="relative -mt-8 md:-mt-10 lg:-mt-12 z-20 pb-6 bg-transparent overflow-hidden">
-          <div
-            ref={countryStripRef}
-            onMouseEnter={() => setIsCountryStripHovered(true)}
-            onMouseLeave={() => {
-              countryStripDragRef.current.isDragging = false;
-              setIsCountryStripDragging(false);
-              setIsCountryStripHovered(false);
-            }}
-            onMouseDown={handleCountryStripMouseDown}
-            onMouseMove={handleCountryStripMouseMove}
-            onMouseUp={handleCountryStripMouseUp}
-            onWheel={handleCountryStripWheel}
-            className={`flex overflow-x-auto gap-4 select-none [&::-webkit-scrollbar]:hidden ${
-              isCountryStripDragging ? 'cursor-grabbing' : 'cursor-grab'
-            }`}
-            style={{ scrollbarWidth: 'none' }}
-          >
-            {countries.map((country, index) => (
-              (() => {
+        <section className="relative -mt-24 md:-mt-28 lg:-mt-32 z-20 pb-8 bg-transparent overflow-hidden">
+          <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+            <div
+              ref={countryStripRef}
+              onMouseEnter={() => setIsCountryStripHovered(true)}
+              onMouseLeave={() => {
+                countryStripDragRef.current.isDragging = false;
+                setIsCountryStripDragging(false);
+                setIsCountryStripHovered(false);
+              }}
+              onMouseDown={handleCountryStripMouseDown}
+              onMouseMove={handleCountryStripMouseMove}
+              onMouseUp={handleCountryStripMouseUp}
+              onWheel={handleCountryStripWheel}
+              className={`flex overflow-x-auto gap-5 select-none [&::-webkit-scrollbar]:hidden ${
+                isCountryStripDragging ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {countries.map((country, index) => (
+                (() => {
                 const destination = resolveCardDestination({
                   linkType: country.linkType,
                   storySlug: country.story?.slug,
@@ -838,8 +839,9 @@ export default function Home() {
                     {cardContent}
                   </Link>
                 );
-              })()
-            ))}
+                })()
+              ))}
+            </div>
           </div>
         </section>
       )}
