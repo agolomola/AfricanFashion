@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type SyntheticEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../services/api';
@@ -23,6 +23,18 @@ interface Product {
   sizes: string[];
   isFeatured?: boolean;
 }
+
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 const countryFlags: Record<string, string> = {
   Ghana: '🇬🇭',
@@ -157,7 +169,12 @@ export default function ReadyToWear() {
   return (
     <div className="min-h-screen bg-gray-50">
       <section className="relative h-64 md:h-80 overflow-hidden">
-        <img src="/images/hero-readytowear.jpg" alt="Ready to Wear" className="w-full h-full object-cover" />
+        <img
+          src="/images/hero-readytowear.jpg"
+          alt="Ready to Wear"
+          onError={handleImageFallback('hero-ready-to-wear', 1920, 1080)}
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.5), transparent)' }} />
         <div className="absolute inset-0 flex items-center">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
@@ -264,6 +281,7 @@ export default function ReadyToWear() {
                       <img
                         src={product.images?.[0]?.url || '/placeholder.jpg'}
                         alt={product.name}
+                        onError={handleImageFallback(`ready-to-wear-${product.id}`)}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       {product.isFeatured && (

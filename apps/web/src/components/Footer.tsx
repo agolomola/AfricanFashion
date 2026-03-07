@@ -45,8 +45,8 @@ export default function Footer() {
             <h4 className="font-semibold mb-4">Shop</h4>
             <ul className="space-y-2 text-sm text-white text-opacity-70">
               <li><Link to="/ready-to-wear" className="hover:text-white transition-colors">Ready To Wear</Link></li>
-              <li><Link to="/designs" className="hover:text-white transition-colors">Custom To Wear</Link></li>
-              <li><Link to="/fabrics" className="hover:text-white transition-colors">Fabrics</Link></li>
+              <li><Link to="/custom-to-wear" className="hover:text-white transition-colors">Custom To Wear</Link></li>
+              <li><Link to="/fabrics-to-sell" className="hover:text-white transition-colors">Fabrics To Sell</Link></li>
               <li><Link to="/ready-to-wear" className="hover:text-white transition-colors">New Arrivals</Link></li>
             </ul>
           </div>

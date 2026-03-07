@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type SyntheticEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Search, Loader2, Heart, ChevronLeft, ChevronRight } from 'lucide-react';
 import { api } from '../services/api';
@@ -22,6 +22,18 @@ interface FabricCard {
   };
   isFeatured?: boolean;
 }
+
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 const countryFlags: Record<string, string> = {
   Ghana: '🇬🇭',
@@ -149,13 +161,18 @@ export default function Fabrics() {
   return (
     <div className="min-h-screen bg-gray-50">
       <section className="relative h-64 md:h-80 overflow-hidden">
-        <img src="/images/hero-fabrics.jpg" alt="African Fabrics" className="w-full h-full object-cover" />
+        <img
+          src="/images/hero-fabrics.jpg"
+          alt="Fabrics To Sell"
+          onError={handleImageFallback('hero-fabrics-to-sell', 1920, 1080)}
+          className="w-full h-full object-cover"
+        />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.5), transparent)' }} />
         <div className="absolute inset-0 flex items-center">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
             <div className="max-w-2xl">
-              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">African Fabrics</h1>
-              <p className="text-lg text-white text-opacity-80">Premium textiles from across the continent.</p>
+              <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">Fabrics To Sell</h1>
+              <p className="text-lg text-white text-opacity-80">Premium textiles listed by sellers across the continent.</p>
             </div>
           </div>
         </div>
@@ -248,12 +265,13 @@ export default function Fabrics() {
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 md:gap-6">
               {sortedFabrics.map((fabric) => (
-                <Link key={fabric.id} to={`/fabrics/${fabric.id}`} className="group">
+                <Link key={fabric.id} to={`/fabrics-to-sell/${fabric.id}`} className="group">
                   <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
                     <div className="overflow-hidden relative bg-gray-100" style={{ aspectRatio: '3/4' }}>
                       <img
                         src={fabric.images?.[0]?.url || '/placeholder.jpg'}
                         alt={fabric.name}
+                        onError={handleImageFallback(`fabric-${fabric.id}`)}
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                       />
                       {fabric.isFeatured && (

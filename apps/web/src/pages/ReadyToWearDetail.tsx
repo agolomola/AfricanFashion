@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type SyntheticEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Truck, Check, Loader2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import Button from '../components/ui/Button';
@@ -42,6 +42,18 @@ const countryFlags: Record<string, string> = {
   'South Africa': '🇿🇦',
   'Tanzania': '🇹🇿',
 };
+
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 export default function ReadyToWearDetail() {
   const { formatFromUsd } = useCurrency();
@@ -201,6 +213,7 @@ export default function ReadyToWearDetail() {
         <img
           src={product.images?.[0]?.url || '/images/placeholder.jpg'}
           alt={product.name}
+          onError={handleImageFallback(`rtw-hero-${product.id}`, 1920, 1080)}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/25" />
@@ -224,6 +237,7 @@ export default function ReadyToWearDetail() {
               <img
                 src={product.images?.[selectedImage]?.url || '/images/placeholder.jpg'}
                 alt={product.name}
+                onError={handleImageFallback(`rtw-detail-${product.id}`)}
                 className="w-full h-full object-cover"
               />
 
@@ -272,7 +286,7 @@ export default function ReadyToWearDetail() {
                       selectedImage === idx ? 'border-coral-500' : 'border-transparent'
                     }`}
                   >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <img src={img.url} alt="" onError={handleImageFallback(`rtw-thumb-${product.id}-${idx}`, 300, 300)} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -473,6 +487,7 @@ export default function ReadyToWearDetail() {
                     <img
                       src={item.images?.[0]?.url || '/images/placeholder.jpg'}
                       alt={item.name}
+                      onError={handleImageFallback(`related-rtw-${item.id}`)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>

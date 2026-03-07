@@ -41,8 +41,21 @@ export function resolveAssetUrl(url: string | undefined | null): string {
     return '';
   }
   if (/^https?:\/\//i.test(normalized)) {
-    // Normalize legacy URLs that accidentally stored /api/uploads/*
-    return normalized.replace(/\/api\/uploads\//i, '/uploads/');
+    // Normalize legacy URLs and re-home localhost/upload links to the API origin.
+    const cleaned = normalized.replace(/\/api\/uploads\//i, '/uploads/');
+    try {
+      const parsed = new URL(cleaned);
+      const isLocalLegacyHost =
+        parsed.hostname === 'localhost' ||
+        parsed.hostname === '127.0.0.1' ||
+        parsed.hostname === '0.0.0.0';
+      if (isLocalLegacyHost && parsed.pathname.startsWith('/uploads/')) {
+        return `${API_ORIGIN}${parsed.pathname}`;
+      }
+    } catch {
+      // Ignore parse errors and return cleaned URL as-is.
+    }
+    return cleaned;
   }
   if (normalized.startsWith('/api/uploads/')) {
     return `${API_ORIGIN}${normalized.replace(/^\/api/, '')}`;

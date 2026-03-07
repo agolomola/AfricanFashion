@@ -39,13 +39,13 @@ const shopCategories = [
     title: 'Custom To Wear',
     description: 'Bespoke pieces tailored to your exact measurements — made just for you in 10-14 days.',
     image: fallbackImage('shop-category-custom'),
-    link: '/designs',
+    link: '/custom-to-wear',
   },
   {
     title: 'Fabrics To Buy',
     description: 'Premium African textiles by the yard — Kente, Ankara, Kitenge and more direct from artisans.',
     image: fallbackImage('shop-category-fabrics'),
-    link: '/fabrics',
+    link: '/fabrics-to-sell',
   },
 ];
 
@@ -155,7 +155,7 @@ const defaultHeroSlides: HeroSlide[] = [
     title: 'New Arrivals',
     subtitle: 'New arrivals from the most talented designers across the continent',
     ctaText: 'Explore',
-    ctaLink: '/designs',
+    ctaLink: '/custom-to-wear',
   },
   {
     id: '3',
@@ -256,7 +256,7 @@ export default function Home() {
         title: slide?.title || 'African Fashion',
         subtitle: slide?.subtitle || '',
         ctaText: slide?.ctaText || 'Shop Now',
-        ctaLink: slide?.ctaLink || '/designs',
+        ctaLink: slide?.ctaLink || '/custom-to-wear',
       })
     );
 
@@ -277,7 +277,7 @@ export default function Home() {
         title: heroBanner.title || normalized[0]?.title || 'African Fashion',
         subtitle: heroBanner.subtitle || normalized[0]?.subtitle || '',
         ctaText: heroBanner.ctaText || normalized[0]?.ctaText || 'Shop Now',
-        ctaLink: heroBanner.ctaLink || normalized[0]?.ctaLink || '/designs',
+        ctaLink: heroBanner.ctaLink || normalized[0]?.ctaLink || '/custom-to-wear',
       },
       ...normalized,
     ];
@@ -459,7 +459,7 @@ export default function Home() {
   // Product card component
   const ProductCard = ({ product }: { product: FeaturedProduct }) => (
     <Link
-      to={`/${product.productType === 'DESIGN' ? 'designs' : product.productType === 'FABRIC' ? 'fabrics' : 'ready-to-wear'}/${product.id}`}
+      to={`/${product.productType === 'DESIGN' ? 'custom-to-wear' : product.productType === 'FABRIC' ? 'fabrics-to-sell' : 'ready-to-wear'}/${product.id}`}
       className="group block bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
     >
       <div className="relative overflow-hidden bg-gray-100" style={{ aspectRatio: '3/4' }}>
@@ -623,7 +623,7 @@ export default function Home() {
             {[...countries, ...countries].map((country, index) => (
               <Link
                 key={`${country.name}-${index}`}
-                to={`/designs?country=${country.name}`}
+                to={`/custom-to-wear?country=${country.name}`}
                 className="group relative flex-shrink-0 w-[14.4rem] h-32 mx-2 overflow-hidden"
               >
                 <img
@@ -727,7 +727,7 @@ export default function Home() {
                 <ChevronRight className="w-5 h-5" />
               </button>
               <Link
-                to="/designs"
+                to="/custom-to-wear"
                 className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
               >
                 View All <ArrowRight className="w-4 h-4" />
@@ -819,7 +819,7 @@ export default function Home() {
                 <ChevronRight className="w-5 h-5" />
               </button>
               <Link
-                to="/fabrics"
+                to="/fabrics-to-sell"
                 className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
               >
                 View All <ArrowRight className="w-4 h-4" />
@@ -874,7 +874,7 @@ export default function Home() {
               {spotlightDesigners.map((designer) => (
                 <Link
                   key={designer.id}
-                  to={`/designs?country=${encodeURIComponent(designer.country)}`}
+                  to={`/custom-to-wear?country=${encodeURIComponent(designer.country)}`}
                   className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                 >
                   <div className="h-[250px] overflow-hidden bg-gray-100">
@@ -977,7 +977,7 @@ export default function Home() {
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
-                  to="/designs"
+                  to="/custom-to-wear"
                   className="inline-flex items-center justify-center gap-2 bg-white text-coral-600 px-6 py-3 rounded font-semibold hover:bg-gray-100 transition-colors"
                 >
                   Shop Now

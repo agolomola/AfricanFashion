@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type SyntheticEvent } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Ruler, Loader2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import Button from '../components/ui/Button';
@@ -40,6 +40,18 @@ const countryFlags: Record<string, string> = {
   'South Africa': '🇿🇦',
   'Tanzania': '🇹🇿',
 };
+
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 export default function FabricDetail() {
   const { formatFromUsd } = useCurrency();
@@ -167,7 +179,7 @@ export default function FabricDetail() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 mb-4">{error || 'Fabric not found'}</p>
-          <Link to="/fabrics" className="text-coral-500 hover:underline">
+          <Link to="/fabrics-to-sell" className="text-coral-500 hover:underline">
             Back to Fabrics
           </Link>
         </div>
@@ -183,12 +195,13 @@ export default function FabricDetail() {
         <img
           src={fabric.images?.[0]?.url || '/images/placeholder.jpg'}
           alt={fabric.name}
+          onError={handleImageFallback(`fabric-hero-${fabric.id}`, 1920, 1080)}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/25" />
         <div className="absolute inset-0 flex items-end">
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12 pb-6 md:pb-8">
-            <Link to="/fabrics" className="inline-flex items-center text-white/90 hover:text-white transition-colors mb-3">
+            <Link to="/fabrics-to-sell" className="inline-flex items-center text-white/90 hover:text-white transition-colors mb-3">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Fabrics
             </Link>
@@ -206,6 +219,7 @@ export default function FabricDetail() {
               <img
                 src={fabric.images?.[selectedImage]?.url || '/images/placeholder.jpg'}
                 alt={fabric.name}
+                onError={handleImageFallback(`fabric-detail-${fabric.id}`)}
                 className="w-full h-full object-cover"
               />
 
@@ -247,7 +261,7 @@ export default function FabricDetail() {
                       selectedImage === idx ? 'border-coral-500' : 'border-transparent'
                     }`}
                   >
-                    <img src={img.url} alt="" className="w-full h-full object-cover" />
+                    <img src={img.url} alt="" onError={handleImageFallback(`fabric-thumb-${fabric.id}-${idx}`, 300, 300)} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -379,18 +393,19 @@ export default function FabricDetail() {
               <h2 className="text-2xl font-bold text-gray-900">Related Fabrics</h2>
               <p className="text-sm text-gray-500">Suggested by material type and country.</p>
             </div>
-            <Link to={`/fabrics?materialTypeId=${encodeURIComponent(fabric.materialType?.id || '')}`} className="text-sm font-medium text-coral-600 hover:text-coral-700">
+            <Link to={`/fabrics-to-sell?materialTypeId=${encodeURIComponent(fabric.materialType?.id || '')}`} className="text-sm font-medium text-coral-600 hover:text-coral-700">
               View all
             </Link>
           </div>
           {relatedFabrics.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {relatedFabrics.map((item) => (
-                <Link key={item.id} to={`/fabrics/${item.id}`} className="group bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <Link key={item.id} to={`/fabrics-to-sell/${item.id}`} className="group bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                   <div className="bg-gray-100 overflow-hidden" style={{ aspectRatio: '3/4' }}>
                     <img
                       src={item.images?.[0]?.url || '/images/placeholder.jpg'}
                       alt={item.name}
+                      onError={handleImageFallback(`related-fabric-${item.id}`)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>

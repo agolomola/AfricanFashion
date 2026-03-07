@@ -87,13 +87,17 @@ function App() {
             {/* Public Routes */}
             <Route element={<MainLayout />}>
               <Route path="/" element={<Home />} />
+              <Route path="/custom-to-wear" element={<Designs />} />
+              <Route path="/custom-to-wear/:id" element={<DesignDetail />} />
+              <Route path="/fabrics-to-sell" element={<Fabrics />} />
+              <Route path="/fabrics-to-sell/:id" element={<FabricDetail />} />
               <Route path="/designs" element={<Designs />} />
               <Route path="/designs/:id" element={<DesignDetail />} />
               <Route path="/fabrics" element={<Fabrics />} />
               <Route path="/fabrics/:id" element={<FabricDetail />} />
               <Route path="/ready-to-wear" element={<ReadyToWear />} />
               <Route path="/ready-to-wear/:id" element={<ReadyToWearDetail />} />
-              <Route path="/designers" element={<Navigate to="/designs" replace />} />
+              <Route path="/designers" element={<Navigate to="/custom-to-wear" replace />} />
               <Route
                 path="/about"
                 element={
@@ -103,7 +107,7 @@ function App() {
                     primaryCtaLabel="Explore Collections"
                     primaryCtaHref="/ready-to-wear"
                     secondaryCtaLabel="Meet Designers"
-                    secondaryCtaHref="/designs"
+                    secondaryCtaHref="/custom-to-wear"
                   />
                 }
               />
@@ -127,7 +131,7 @@ function App() {
                     title="Sustainability"
                     description="We prioritize durable products, responsible sourcing, and mindful production. Our mission is to celebrate fashion while reducing waste and supporting long-term local value creation."
                     primaryCtaLabel="Shop Fabrics"
-                    primaryCtaHref="/fabrics"
+                    primaryCtaHref="/fabrics-to-sell"
                     secondaryCtaLabel="About Us"
                     secondaryCtaHref="/about"
                   />

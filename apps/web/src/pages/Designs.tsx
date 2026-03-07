@@ -1,5 +1,5 @@
 // Cache bust: v9103
-import { useState, useEffect, useMemo, type FormEvent } from 'react';
+import { useState, useEffect, useMemo, type FormEvent, type SyntheticEvent } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { api } from '../services/api';
@@ -41,6 +41,18 @@ interface Pagination {
   total: number;
   pages: number;
 }
+
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 // Sample designs for demonstration
 const sampleDesigns: Design[] = [
@@ -419,7 +431,7 @@ export default function Designs() {
           type="text"
           value={draftFilters.search}
           onChange={(e) => updateDraftFilter('search', e.target.value)}
-          placeholder="Search designs, designers, styles..."
+          placeholder="Search custom looks, designers, styles..."
           className="w-full pl-10 pr-3 py-2 text-sm border rounded-lg focus:ring-2 focus:ring-coral-500 focus:border-transparent bg-white"
         />
       </div>
@@ -512,7 +524,7 @@ export default function Designs() {
 
       {/* Results Count */}
       <div className="ml-auto text-xs text-gray-500">
-        Showing {filteredDesigns.length} of {pagination?.total || 0} designs
+        Showing {filteredDesigns.length} of {pagination?.total || 0} custom-to-wear products
       </div>
     </form>
   );
@@ -524,6 +536,7 @@ export default function Designs() {
         <img
           src="/images/hero-designs.jpg"
           alt="African Fashion Designs"
+          onError={handleImageFallback('hero-custom-to-wear', 1920, 1080)}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(15, 23, 42, 0.8), rgba(15, 23, 42, 0.5), transparent)' }} />
@@ -531,10 +544,10 @@ export default function Designs() {
           <div className="w-full px-4 sm:px-6 lg:px-8 xl:px-12">
             <div className="max-w-3xl">
               <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-3">
-                Designer Collections
+                Custom To Wear
               </h1>
               <p className="text-base md:text-lg text-white text-opacity-80 mb-4">
-                Discover unique African fashion designs from talented designers across the continent.
+                Discover made-to-measure looks from talented designers across the continent.
               </p>
               
               <div className="flex flex-wrap gap-2 mt-4">
@@ -597,7 +610,7 @@ export default function Designs() {
                 <div className="w-20 h-20 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <Search className="w-10 h-10 text-gray-400" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">No designs found</h3>
+                <h3 className="text-xl font-semibold text-gray-900 mb-2">No custom-to-wear products found</h3>
                 <p className="text-gray-500 mb-4">Try adjusting your filters or search terms</p>
                 <Button onClick={clearFilters} variant="outline">
                   Clear All Filters
@@ -610,7 +623,7 @@ export default function Designs() {
                   {filteredDesigns.map((design) => (
                     <Link 
                       key={design.id} 
-                      to={`/designs/${design.id}`} 
+                      to={`/custom-to-wear/${design.id}`} 
                       className="group"
                     >
                       <div className="bg-white shadow-sm border border-gray-100 overflow-hidden transition-all duration-200 hover:shadow-md hover:-translate-y-1">
@@ -619,6 +632,7 @@ export default function Designs() {
                           <img
                             src={design.images?.[0]?.url || '/placeholder.jpg'}
                             alt={design.name}
+                            onError={handleImageFallback(`design-${design.id}`)}
                             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                             loading="lazy"
                           />
@@ -698,7 +712,7 @@ export default function Designs() {
                 {/* Page Info */}
                 {pagination && (
                   <p className="text-center text-gray-500 mt-4">
-                    Page {pagination.page} of {pagination.pages} - Showing {filteredDesigns.length} of {pagination.total} designs
+                    Page {pagination.page} of {pagination.pages} - Showing {filteredDesigns.length} of {pagination.total} custom-to-wear products
                   </p>
                 )}
               </>

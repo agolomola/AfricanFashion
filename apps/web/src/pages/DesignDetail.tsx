@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type SyntheticEvent } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { 
   Heart, 
@@ -69,6 +69,18 @@ interface RelatedDesignCard {
   designerName: string;
   price: number;
 }
+
+const fallbackImage = (seed: string, width = 1200, height = 1600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 1200, height = 1600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
 
 export default function DesignDetail() {
   const { formatFromUsd } = useCurrency();
@@ -285,7 +297,7 @@ export default function DesignDetail() {
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900 mb-2">Design Not Found</h2>
           <p className="text-gray-600 mb-4">The design you're looking for doesn't exist.</p>
-          <Button onClick={() => navigate('/designs')}>Browse Designs</Button>
+          <Button onClick={() => navigate('/custom-to-wear')}>Browse Designs</Button>
         </div>
       </div>
     );
@@ -297,12 +309,13 @@ export default function DesignDetail() {
         <img
           src={design.images?.[0] || '/images/placeholder.jpg'}
           alt={design.name}
+          onError={handleImageFallback(`design-hero-${design.id}`, 1920, 1080)}
           className="w-full h-full object-cover"
         />
         <div className="absolute inset-0 bg-gradient-to-r from-black/70 via-black/50 to-black/25" />
         <div className="absolute inset-0 flex items-end">
           <div className="w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-6 md:pb-8">
-            <Link to="/designs" className="inline-flex items-center text-white/90 hover:text-white transition-colors mb-3">
+            <Link to="/custom-to-wear" className="inline-flex items-center text-white/90 hover:text-white transition-colors mb-3">
               <ChevronLeft className="w-4 h-4 mr-1" />
               Back to Designs
             </Link>
@@ -321,6 +334,7 @@ export default function DesignDetail() {
               <img
                 src={design.images[selectedImage] || '/images/placeholder.jpg'}
                 alt={design.name}
+                onError={handleImageFallback(`design-detail-${design.id}`)}
                 className="w-full h-full object-cover"
               />
               {design.images.length > 1 && (
@@ -358,7 +372,7 @@ export default function DesignDetail() {
                       selectedImage === idx ? 'border-coral-500' : 'border-transparent'
                     }`}
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
+                    <img src={img} alt="" onError={handleImageFallback(`design-thumb-${design.id}-${idx}`, 300, 300)} className="w-full h-full object-cover" />
                   </button>
                 ))}
               </div>
@@ -498,6 +512,7 @@ export default function DesignDetail() {
                           <img
                             src={fabric.images[0]}
                             alt={fabric.name}
+                            onError={handleImageFallback(`design-fabric-${fabric.id}`)}
                             className="w-20 h-20 object-cover rounded-lg"
                           />
                           <div className="flex-1">
@@ -626,7 +641,7 @@ export default function DesignDetail() {
               <p className="text-sm text-gray-500">Suggested from the same category and market.</p>
             </div>
             <Link
-              to={`/designs${design.category?.id ? `?category=${encodeURIComponent(design.category.id)}` : ''}`}
+              to={`/custom-to-wear${design.category?.id ? `?category=${encodeURIComponent(design.category.id)}` : ''}`}
               className="text-sm font-medium text-coral-600 hover:text-coral-700"
             >
               View all
@@ -635,11 +650,12 @@ export default function DesignDetail() {
           {relatedDesigns.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-6">
               {relatedDesigns.map((item) => (
-                <Link key={item.id} to={`/designs/${item.id}`} className="group bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
+                <Link key={item.id} to={`/custom-to-wear/${item.id}`} className="group bg-white border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
                   <div className="bg-gray-100 overflow-hidden" style={{ aspectRatio: '3/4' }}>
                     <img
                       src={item.image || '/images/placeholder.jpg'}
                       alt={item.name}
+                      onError={handleImageFallback(`related-design-${item.id}`)}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                     />
                   </div>

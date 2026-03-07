@@ -38,8 +38,8 @@ export default function MainLayout() {
     { label: 'Home', href: '/' },
     { label: 'Shop', href: '/ready-to-wear' },
     { label: 'Ready To Wear', href: '/ready-to-wear' },
-    { label: 'Fabric To Buy', href: '/fabrics' },
-    { label: 'Custom To Wear', href: '/designs' },
+    { label: 'Fabrics To Sell', href: '/fabrics-to-sell' },
+    { label: 'Custom To Wear', href: '/custom-to-wear' },
     { label: 'About Us', href: '/about' },
     { label: 'Contact Us', href: '/contact' },
   ];

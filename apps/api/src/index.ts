@@ -66,8 +66,35 @@ app.use(morgan('dev'));
 // Static files for uploads
 app.use('/uploads', (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
-  next();
-}, express.static(UPLOAD_DIR));
+  const requestedPath = decodeURIComponent(req.path || '/').replace(/^\/+/, '');
+  const safePath = path.normalize(requestedPath).replace(/^(\.\.[/\\])+/, '');
+  const fullPath = path.resolve(UPLOAD_DIR, safePath);
+  const uploadRoot = path.resolve(UPLOAD_DIR);
+
+  // Guard against path traversal and always return an image response.
+  if (!fullPath.startsWith(uploadRoot)) {
+    return res.status(400).type('image/svg+xml').send(
+      `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+        <rect width="1200" height="1600" fill="#F3F4F6"/>
+        <text x="50%" y="48%" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" fill="#6B7280">Image unavailable</text>
+        <text x="50%" y="53%" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#9CA3AF">Invalid path</text>
+      </svg>`
+    );
+  }
+
+  if (fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+    return res.sendFile(fullPath);
+  }
+
+  return res.status(200).type('image/svg+xml').send(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
+      <rect width="1200" height="1600" fill="#F3F4F6"/>
+      <rect x="120" y="180" width="960" height="1240" rx="18" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="6"/>
+      <text x="50%" y="47%" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" fill="#6B7280">Image unavailable</text>
+      <text x="50%" y="52%" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#9CA3AF">Please re-upload this product image</text>
+    </svg>`
+  );
+});
 
 // Health check
 app.get('/health', (req, res) => {
