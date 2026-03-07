@@ -120,6 +120,13 @@ interface ManagedBanner {
   displayImage?: string | null;
 }
 
+const normalizeHeroBadge = (value: unknown) => {
+  const badge = String(value || '').trim();
+  if (!badge) return '';
+  if (badge.toUpperCase() === 'FEATURED') return '';
+  return badge;
+};
+
 const normalizeFeaturedProducts = (
   source: any[] | undefined,
   fallbackType: FeaturedProduct['productType']
@@ -253,7 +260,7 @@ export default function Home() {
       (slide: any, index: number) => ({
         id: String(slide?.id || `hero-${index}`),
         image: resolveAssetUrl(slide?.image),
-        badge: slide?.badge || 'FEATURED',
+        badge: normalizeHeroBadge(slide?.badge),
         title: slide?.title || 'African Fashion',
         subtitle: slide?.subtitle || '',
         ctaText: slide?.ctaText || 'Shop Now',
@@ -274,7 +281,7 @@ export default function Home() {
       {
         id: `banner-hero-${heroBanner.id}`,
         image: heroBannerImage,
-        badge: heroBanner.name || 'HERO',
+        badge: normalizeHeroBadge(heroBanner.name),
         title: heroBanner.title || normalized[0]?.title || 'African Fashion',
         subtitle: heroBanner.subtitle || normalized[0]?.subtitle || '',
         ctaText: heroBanner.ctaText || normalized[0]?.ctaText || 'Shop Now',
@@ -649,9 +656,11 @@ export default function Home() {
             <div className="relative h-full flex items-center">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                 <div className="max-w-xl text-white">
-                  <span className="inline-block px-3 py-1 bg-coral-500 text-white text-xs font-semibold tracking-wider mb-4">
-                    {slide.badge}
-                  </span>
+                  {slide.badge ? (
+                    <span className="inline-block px-3 py-1 bg-coral-500 text-white text-xs font-semibold tracking-wider mb-4">
+                      {slide.badge}
+                    </span>
+                  ) : null}
                   <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4 leading-tight">
                     {slide.title}
                   </h1>
