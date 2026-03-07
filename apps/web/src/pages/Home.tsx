@@ -671,7 +671,7 @@ export default function Home() {
     const ctaLink = banner?.ctaLink || fallbackCtaLink || '#';
 
     return (
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="relative h-[250px] md:h-[300px] overflow-hidden">
           <img src={image} alt={title || 'Promotional banner'} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-navy-600 bg-opacity-70" />
@@ -693,9 +693,9 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F5F5F0]">
+    <div className="min-h-screen bg-[#F7F7F4]">
       {/* Hero Carousel */}
-      <section className="relative h-[600px] md:h-[720px] lg:h-[840px] overflow-hidden">
+      <section className="relative h-[560px] md:h-[700px] lg:h-[820px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={slide.id}
@@ -707,9 +707,15 @@ export default function Home() {
               className="absolute inset-0 bg-cover bg-center"
               style={{ backgroundImage: `url(${slide.image})` }}
             >
-              <div className="absolute inset-0" style={{ background: 'linear-gradient(to right, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.4), transparent)' }} />
+              <div
+                className="absolute inset-0"
+                style={{
+                  background:
+                    'linear-gradient(100deg, rgba(0,0,0,0.78) 10%, rgba(0,0,0,0.52) 45%, rgba(0,0,0,0.2) 70%, rgba(0,0,0,0.62) 100%)',
+                }}
+              />
             </div>
-            <div className="relative h-full flex items-center">
+            <div className="relative h-full flex items-end pb-24 md:pb-28">
               <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
                 <div className="max-w-xl text-white">
                   {slide.badge ? (
@@ -717,15 +723,15 @@ export default function Home() {
                       {slide.badge}
                     </span>
                   ) : null}
-                  <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold font-display mb-4 leading-tight">
+                  <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-display mb-3 leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="text-lg md:text-xl text-white text-opacity-90 mb-8">
+                  <p className="text-base md:text-xl text-white text-opacity-90 mb-7 max-w-lg">
                     {slide.subtitle}
                   </p>
                   <Link
                     to={slide.ctaLink}
-                    className="inline-flex items-center gap-2 bg-white text-navy-600 px-8 py-4 rounded font-semibold transition-all hover:bg-gray-100"
+                    className="inline-flex items-center gap-2 bg-white text-navy-600 px-7 py-3.5 rounded-full text-sm md:text-base font-semibold shadow-lg transition-all hover:bg-gray-100"
                   >
                     {slide.ctaText}
                     <ArrowRight className="w-5 h-5" />
@@ -739,19 +745,19 @@ export default function Home() {
         {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded text-white transition-all"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded text-white transition-all"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-white bg-opacity-20 hover:bg-white bg-opacity-30 backdrop-blur-sm rounded text-white transition-all"
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded text-white transition-all"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
 
         {/* Dots */}
-        <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2">
+        <div className="absolute bottom-24 md:bottom-28 left-1/2 -translate-x-1/2 flex gap-2">
           {heroSlides.map((_, index) => (
             <button
               key={index}
@@ -794,7 +800,7 @@ export default function Home() {
                   fallbackTo: `/custom-to-wear?country=${country.name}`,
                 });
                 const cardClassName =
-                  'group relative flex-shrink-0 w-[11.5rem] h-[6.4rem] overflow-hidden rounded-xl shadow-lg';
+                  'group relative flex-shrink-0 w-[11.5rem] h-[6.4rem] overflow-hidden rounded-xl border border-white/25 shadow-lg';
                 const onCardClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
                   if (countryStripMovedRef.current) {
                     event.preventDefault();
@@ -847,18 +853,18 @@ export default function Home() {
       )}
 
       {/* Shop by Category */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="text-center mb-8">
+          <div className="text-center mb-7 md:mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Shop by Category</h2>
-            <p className="text-gray-500">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
+            <p className="text-gray-600 text-sm md:text-base">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {shopCategories.map((category, index) => (
               <Link
                 key={category.id || index}
                 to={category.link}
-                className="group relative h-[480px] md:h-[600px] overflow-hidden"
+                className="group relative h-[320px] md:h-[520px] overflow-hidden rounded-2xl shadow-sm border border-gray-100"
               >
                 <img
                   src={category.image}
@@ -880,7 +886,7 @@ export default function Home() {
       </section>
 
       {/* How It Works */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
@@ -890,7 +896,7 @@ export default function Home() {
           </div>
           <div className="flex items-start lg:items-stretch justify-between gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-2">
             {howItWorksSteps.map((step, index) => (
-              <div key={index} className="min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center">
+              <div key={index} className="min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
                 <div className="w-12 h-12 md:w-14 md:h-14 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-3">
                   <step.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                 </div>
@@ -903,7 +909,7 @@ export default function Home() {
       </section>
 
       {/* Featured Custom To Wear */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -959,7 +965,7 @@ export default function Home() {
       })}
 
       {/* Featured Ready To Wear */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1005,7 +1011,7 @@ export default function Home() {
       })}
 
       {/* Featured Fabrics */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1056,7 +1062,7 @@ export default function Home() {
       })}
 
       {/* Designer Spotlight */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -1106,7 +1112,7 @@ export default function Home() {
                     href={destination.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                    className="group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                   >
                     {cardContent}
                   </a>
@@ -1114,7 +1120,7 @@ export default function Home() {
                   <Link
                     key={designer.id}
                     to={destination.href}
-                    className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                    className="group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
                   >
                     {cardContent}
                   </Link>
@@ -1130,9 +1136,9 @@ export default function Home() {
       </section>
 
       {/* Heritage Story */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-          <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden">
+          <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden rounded-2xl">
             <div className="h-[260px] md:h-full overflow-hidden">
               <img
                 src={fallbackImage('heritage-story', 1400, 900)}
@@ -1161,7 +1167,7 @@ export default function Home() {
       </section>
 
       {/* Testimonials */}
-      <section className="py-12 bg-navy-600">
+      <section className="py-10 md:py-12 bg-navy-600">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-8">
             <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">What Our Customers Say</h2>
@@ -1169,7 +1175,7 @@ export default function Home() {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {testimonials.map((testimonial) => (
-              <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm p-6">
+              <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm p-6 rounded-xl border border-white/10">
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-coral-500 text-coral-500" />
@@ -1192,11 +1198,11 @@ export default function Home() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-12 bg-[#F5F5F0]">
+      <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Shop CTA */}
-            <div className="bg-coral-500 rounded-lg p-7 md:p-10 text-center text-white">
+            <div className="bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm">
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Ready to Wear African Fashion?</h2>
               <p className="text-white text-opacity-90 mb-6">
                 Join our community of fashion lovers and discover unique pieces from talented African designers.
@@ -1218,7 +1224,7 @@ export default function Home() {
             </div>
 
             {/* Newsletter CTA */}
-            <div className="bg-coral-500 rounded-lg p-7 md:p-10 text-center text-white">
+            <div className="bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm">
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Join the Movement</h2>
               <p className="text-white text-opacity-90 mb-6">
                 Subscribe to our newsletter for exclusive offers, new arrivals, and stories from the continent.
