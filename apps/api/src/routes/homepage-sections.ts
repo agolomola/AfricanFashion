@@ -71,6 +71,13 @@ const sanitizeKeywords = (value: unknown): string => {
     .join(', ');
 };
 
+const COUNTRY_IMAGE_PROVIDER = String(process.env.COUNTRY_IMAGE_PROVIDER || '')
+  .trim()
+  .toUpperCase();
+const OPENAI_API_KEY = String(process.env.OPENAI_API_KEY || '').trim();
+const OPENAI_COUNTRY_IMAGE_MODEL = String(process.env.OPENAI_COUNTRY_IMAGE_MODEL || 'gpt-image-1').trim();
+const OPENAI_COUNTRY_IMAGE_SIZE = String(process.env.OPENAI_COUNTRY_IMAGE_SIZE || '1536x1024').trim();
+
 const hashString = (value: string): number => {
   let hash = 0;
   for (let i = 0; i < value.length; i += 1) {
@@ -80,7 +87,7 @@ const hashString = (value: string): number => {
   return Math.abs(hash);
 };
 
-const buildGeneratedCountryImageUrl = ({
+const composeCountryImagePrompt = ({
   countryName,
   countryCode,
   keywords,
@@ -93,10 +100,97 @@ const buildGeneratedCountryImageUrl = ({
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
-  const queryParts = ['African fashion', countryName, countryCode, ...keywordList];
-  const query = encodeURIComponent(queryParts.join(', '));
+  const promptParts = [
+    'High-quality editorial image of African fashion',
+    `Country focus: ${countryName} (${countryCode})`,
+    keywordList.length > 0 ? `Style keywords: ${keywordList.join(', ')}` : 'Style keywords: modern, cultural, handcrafted textiles',
+    'Fashion photography, vibrant textiles, no text, no watermark',
+  ];
+  return promptParts.join('. ');
+};
+
+const buildPollinationsCountryImageUrl = ({
+  countryName,
+  countryCode,
+  keywords,
+}: {
+  countryName: string;
+  countryCode: string;
+  keywords?: string;
+}) => {
+  const prompt = composeCountryImagePrompt({ countryName, countryCode, keywords });
+  const keywordList = sanitizeKeywords(keywords)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
   const sig = hashString(`${countryCode}|${countryName}|${keywordList.join('|')}`) % 1000;
-  return `https://source.unsplash.com/1200x675/?${query}&sig=${sig}`;
+  return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=675&seed=${sig}&nologo=true&model=flux`;
+};
+
+const parseOpenAiGeneratedImage = (payload: any): string | null => {
+  const row = Array.isArray(payload?.data) ? payload.data[0] : null;
+  if (!row) return null;
+  if (typeof row.url === 'string' && row.url.trim()) return row.url.trim();
+  if (typeof row.b64_json === 'string' && row.b64_json.trim()) {
+    return `data:image/png;base64,${row.b64_json.trim()}`;
+  }
+  return null;
+};
+
+const generateCountryImage = async ({
+  countryName,
+  countryCode,
+  keywords,
+}: {
+  countryName: string;
+  countryCode: string;
+  keywords?: string;
+}) => {
+  const prompt = composeCountryImagePrompt({ countryName, countryCode, keywords });
+  const wantsOpenAi = COUNTRY_IMAGE_PROVIDER === 'OPENAI' || (!COUNTRY_IMAGE_PROVIDER && Boolean(OPENAI_API_KEY));
+
+  if (wantsOpenAi && OPENAI_API_KEY) {
+    try {
+      const response = await fetch('https://api.openai.com/v1/images/generations', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          model: OPENAI_COUNTRY_IMAGE_MODEL,
+          prompt,
+          size: OPENAI_COUNTRY_IMAGE_SIZE,
+          quality: 'high',
+        }),
+      });
+
+      if (response.ok) {
+        const payload = await response.json();
+        const url = parseOpenAiGeneratedImage(payload);
+        if (url) {
+          return {
+            url,
+            provider: 'OPENAI' as const,
+            prompt,
+            fallbackUsed: false,
+          };
+        }
+      } else {
+        const errorText = await response.text();
+        console.error('OpenAI image generation failed:', response.status, errorText);
+      }
+    } catch (error) {
+      console.error('OpenAI image generation request error:', error);
+    }
+  }
+
+  return {
+    url: buildPollinationsCountryImageUrl({ countryName, countryCode, keywords }),
+    provider: 'POLLINATIONS' as const,
+    prompt,
+    fallbackUsed: wantsOpenAi,
+  };
 };
 
 const resolveAfricanCountryOption = (payload: { countryCode?: unknown; name?: unknown }) => {
@@ -142,6 +236,21 @@ const countryCreateSchema = countryInputSchema
     }
   });
 const countryUpdateSchema = countryInputSchema.partial();
+const countryImageGenerateSchema = z
+  .object({
+    countryCode: z.string().trim().length(2).optional(),
+    name: z.string().min(1).optional(),
+    keywords: z.string().min(1),
+  })
+  .superRefine((data, ctx) => {
+    if (!getNonEmptyString(data.name) && !normalizeCountryCode(data.countryCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['countryCode'],
+        message: 'Select a valid African country.',
+      });
+    }
+  });
 
 const howItWorksCreateSchema = z.object({
   stepNumber: z.coerce.number().int().positive(),
@@ -347,7 +456,7 @@ const getSpotlightsWithDesigners = async (isActiveOnly = true) => {
   }));
 };
 
-const buildNormalizedCountryPayload = (payload: any, fallback?: any) => {
+const buildNormalizedCountryPayload = async (payload: any, fallback?: any) => {
   const option = resolveAfricanCountryOption(payload) || resolveAfricanCountryOption(fallback || {});
   if (!option) {
     throw new Error('INVALID_COUNTRY_OPTION');
@@ -364,21 +473,21 @@ const buildNormalizedCountryPayload = (payload: any, fallback?: any) => {
   const generateImage = payload?.generateImage === true;
   const explicitImage = getNonEmptyString(payload?.image);
 
-  const image =
-    explicitImage ||
-    (generateImage
-      ? buildGeneratedCountryImageUrl({
-          countryName: option.name,
-          countryCode: option.code,
-          keywords,
-        })
-      : undefined) ||
-    getNonEmptyString(fallback?.image) ||
-    buildGeneratedCountryImageUrl({
+  let generatedUrl: string | undefined;
+  if (generateImage && !explicitImage) {
+    const generated = await generateCountryImage({
       countryName: option.name,
       countryCode: option.code,
       keywords,
     });
+    generatedUrl = generated.url;
+  }
+
+  const image = explicitImage || generatedUrl || getNonEmptyString(fallback?.image) || buildPollinationsCountryImageUrl({
+    countryName: option.name,
+    countryCode: option.code,
+    keywords,
+  });
 
   return {
     name: option.name,
@@ -636,6 +745,39 @@ router.get('/admin/country-options', authenticate, authorizePermissions(Permissi
   res.json({ success: true, data: AFRICAN_COUNTRY_OPTIONS });
 });
 
+router.post('/admin/countries/generate-image', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const payload = countryImageGenerateSchema.parse(req.body);
+    const option = resolveAfricanCountryOption(payload);
+    if (!option) {
+      return res.status(400).json({ success: false, message: 'Select a valid African country code.' });
+    }
+
+    const generated = await generateCountryImage({
+      countryName: option.name,
+      countryCode: option.code,
+      keywords: payload.keywords,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        url: generated.url,
+        provider: generated.provider,
+        prompt: generated.prompt,
+        fallbackUsed: generated.fallbackUsed,
+        country: option,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error generating country image:', error);
+    res.status(500).json({ success: false, message: 'Failed to generate country image' });
+  }
+});
+
 // Country Marquee Admin
 router.get('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
@@ -651,7 +793,7 @@ router.get('/admin/countries', authenticate, authorizePermissions(Permissions.HO
 router.post('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const parsed = countryCreateSchema.parse(req.body);
-    const data = buildNormalizedCountryPayload(parsed);
+    const data = await buildNormalizedCountryPayload(parsed);
     const country = await prisma.countryMarquee.create({ data });
     res.status(201).json({ success: true, data: country });
   } catch (error) {
@@ -676,7 +818,7 @@ router.put('/admin/countries/:id', authenticate, authorizePermissions(Permission
       return res.status(404).json({ success: false, message: 'Country not found' });
     }
     const parsed = countryUpdateSchema.parse(req.body);
-    const data = buildNormalizedCountryPayload(parsed, existing);
+    const data = await buildNormalizedCountryPayload(parsed, existing);
     const country = await prisma.countryMarquee.update({
       where: { id: req.params.id },
       data,
@@ -703,7 +845,7 @@ router.patch('/admin/countries/:id', authenticate, authorizePermissions(Permissi
       return res.status(404).json({ success: false, message: 'Country not found' });
     }
     const parsed = countryUpdateSchema.parse(req.body);
-    const data = buildNormalizedCountryPayload(parsed, existing);
+    const data = await buildNormalizedCountryPayload(parsed, existing);
     const country = await prisma.countryMarquee.update({
       where: { id: req.params.id },
       data,

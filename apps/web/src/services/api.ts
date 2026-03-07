@@ -1252,6 +1252,18 @@ const homepageSectionsApi = {
   getAdminCountries: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/admin/countries'),
 
+  generateCountryImage: (data: { countryCode: string; name?: string; keywords: string }) =>
+    apiService.post<{
+      success: boolean;
+      data: {
+        url: string;
+        provider: 'OPENAI' | 'POLLINATIONS';
+        prompt: string;
+        fallbackUsed: boolean;
+        country: { code: string; name: string; flag: string };
+      };
+    }>('/homepage-sections/admin/countries/generate-image', data),
+
   createCountry: (data: any) =>
     apiService.post<{ success: boolean; data: any }>('/homepage-sections/admin/countries', data),
 

@@ -806,6 +806,7 @@ function SectionModal({
   const [formData, setFormData] = useState<any>(() => ({ ...getDefaultFormData(type), ...(item || {}) }));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [generatingCountryImage, setGeneratingCountryImage] = useState(false);
   const [formError, setFormError] = useState('');
   const uploadField = type === 'testimonials' ? 'avatar' : 'image';
 
@@ -843,26 +844,6 @@ function SectionModal({
   const countryOptionByCode = new Map(countryOptions.map((option) => [option.code, option]));
   const countryOptionByName = new Map(countryOptions.map((option) => [option.name.toLowerCase(), option]));
 
-  const hashString = (value: string) => {
-    let hash = 0;
-    for (let i = 0; i < value.length; i += 1) {
-      hash = (hash << 5) - hash + value.charCodeAt(i);
-      hash |= 0;
-    }
-    return Math.abs(hash);
-  };
-
-  const buildGeneratedCountryImage = (countryName: string, countryCode: string, keywords: string) => {
-    const parsedKeywords = String(keywords || '')
-      .split(',')
-      .map((keyword) => keyword.trim())
-      .filter(Boolean)
-      .slice(0, 12);
-    const query = encodeURIComponent(['African fashion', countryName, countryCode, ...parsedKeywords].join(', '));
-    const sig = hashString(`${countryCode}|${countryName}|${parsedKeywords.join('|')}`) % 1000;
-    return `https://source.unsplash.com/1200x675/?${query}&sig=${sig}`;
-  };
-
   useEffect(() => {
     setFormData((prev: any) => {
       if (type !== 'countries') {
@@ -893,11 +874,13 @@ function SectionModal({
       countryCode: option?.code || countryCode,
       name: option?.name || prev.name,
       flag: option?.flag || prev.flag,
+      image: prev.useGeneratedImage ? '' : prev.image,
     }));
   };
 
-  const handleGenerateCountryImagePreview = () => {
+  const handleGenerateCountryImagePreview = async () => {
     if (type !== 'countries') return;
+    setFormError('');
     const countryName = String(formData.name || '').trim();
     const countryCode = String(formData.countryCode || '').trim().toUpperCase();
     if (!countryName || !countryCode) {
@@ -913,11 +896,32 @@ function SectionModal({
       toast.error(message);
       return;
     }
-    setFormData((prev: any) => ({
-      ...prev,
-      image: buildGeneratedCountryImage(countryName, countryCode, keywords),
-      useGeneratedImage: true,
-    }));
+    setGeneratingCountryImage(true);
+    try {
+      const response = await api.homepageSections.generateCountryImage({
+        countryCode,
+        name: countryName,
+        keywords,
+      });
+      if (response.success) {
+        setFormData((prev: any) => ({
+          ...prev,
+          image: response.data.url,
+          useGeneratedImage: true,
+        }));
+        toast.success(
+          response.data.fallbackUsed
+            ? `Generated via fallback provider (${response.data.provider}).`
+            : `Image generated via ${response.data.provider}.`
+        );
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to generate image preview.';
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setGeneratingCountryImage(false);
+    }
   };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
@@ -998,16 +1002,12 @@ function SectionModal({
               const option = countryOptionByCode.get(countryCode);
               const countryName = String(option?.name || rest.name || '').trim();
               const keywords = String(rest.keywords || '').trim();
-              const generatedImage =
-                useGeneratedImage && countryName && countryCode
-                  ? buildGeneratedCountryImage(countryName, countryCode, keywords)
-                  : undefined;
               return {
                 ...rest,
                 countryCode,
                 name: countryName,
                 flag: option?.flag || rest.flag,
-                image: generatedImage || rest.image,
+                image: rest.image,
                 keywords,
                 generateImage: Boolean(useGeneratedImage),
               };
@@ -1144,7 +1144,13 @@ function SectionModal({
                 <input
                   type="text"
                   value={formData.keywords || ''}
-                  onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
+                  onChange={(e) =>
+                    setFormData({
+                      ...formData,
+                      keywords: e.target.value,
+                      image: formData.useGeneratedImage ? '' : formData.image,
+                    })
+                  }
                   className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   placeholder="ankara, street style, heritage textiles"
                   required={Boolean(formData.useGeneratedImage)}
@@ -1153,9 +1159,9 @@ function SectionModal({
                   type="button"
                   variant="secondary"
                   onClick={handleGenerateCountryImagePreview}
-                  disabled={!formData.useGeneratedImage}
+                  disabled={!formData.useGeneratedImage || generatingCountryImage}
                 >
-                  Generate Preview
+                  {generatingCountryImage ? 'Generating...' : 'Generate Preview'}
                 </Button>
               </div>
             </div>
@@ -1473,7 +1479,7 @@ function SectionModal({
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || uploading}>
+            <Button type="submit" disabled={saving || uploading || generatingCountryImage}>
               {saving ? 'Saving...' : item ? 'Update' : 'Create'}
             </Button>
           </div>
