@@ -29,7 +29,7 @@ const howItWorksSteps = [
 ];
 
 // Shop by Category
-const shopCategories = [
+const defaultShopCategories = [
   {
     title: 'Ready To Wear',
     description: 'Stunning dresses, elegant sets, and chic separates — expertly crafted for immediate style.',
@@ -290,6 +290,14 @@ export default function Home() {
     },
   });
 
+  const { data: categoriesData } = useQuery({
+    queryKey: ['homepageShopCategories'],
+    queryFn: async () => {
+      const response = await api.homepageSections.getCategories();
+      return response.success ? response.data : null;
+    },
+  });
+
   // Fetch all featured sections
   const { data: featuredData, isLoading: featuredLoading } = useQuery({
     queryKey: ['featuredProducts'],
@@ -546,6 +554,24 @@ export default function Home() {
       externalUrl: null,
     }));
   }, [designerSpotlightsData, spotlightDesigners]);
+
+  const shopCategories = useMemo(() => {
+    if (Array.isArray(categoriesData) && categoriesData.length > 0) {
+      return categoriesData.map((category: any, index: number) => ({
+        id: String(category?.id || `category-${index}`),
+        title: category?.title || 'Category',
+        description: category?.subtitle || category?.description || 'Explore this collection',
+        image:
+          resolveAssetUrl(category?.image) ||
+          fallbackImage(`shop-category-${String(category?.title || index).toLowerCase()}`),
+        link: category?.link || category?.ctaLink || '/custom-to-wear',
+      }));
+    }
+    return defaultShopCategories.map((category, index) => ({
+      ...category,
+      id: `default-category-${index}`,
+    }));
+  }, [categoriesData]);
 
   useEffect(() => {
     const strip = countryStripRef.current;
@@ -881,7 +907,7 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {shopCategories.map((category, index) => (
               <Link
-                key={index}
+                key={category.id || index}
                 to={category.link}
                 className="group relative h-[480px] md:h-[600px] overflow-hidden"
               >
