@@ -95,6 +95,10 @@ const DEFAULT_HOMEPAGE_VISIBILITY: Record<string, boolean> = {
   cta: true,
 };
 
+const PAGE_CONTAINER_CLASS = 'w-full px-4 sm:px-6 lg:px-12 xl:px-20';
+const SECTION_HEADING_CLASS = "font-['Oswald'] text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight";
+const SECTION_SUBHEADING_CLASS = 'text-gray-600 text-sm sm:text-base';
+
 interface SpotlightDesigner {
   id: string;
   name: string;
@@ -709,7 +713,7 @@ export default function Home() {
           <img src={image} alt={title || 'Promotional banner'} className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-navy-600 bg-opacity-70" />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
-            {title && <h2 className="text-3xl md:text-4xl font-bold mb-2">{title}</h2>}
+            {title && <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold mb-2">{title}</h2>}
             {subtitle && <p className="text-white text-opacity-80 mb-6">{subtitle}</p>}
             {ctaText && (
               <Link
@@ -729,7 +733,7 @@ export default function Home() {
     <div className="min-h-screen bg-[#F7F7F4]">
       {/* Hero Carousel */}
       {sectionVisibility.hero ? (
-      <section className="relative h-[560px] md:h-[700px] lg:h-[820px] overflow-hidden">
+      <section className="relative h-[86vh] min-h-[620px] md:min-h-[760px] lg:min-h-[840px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
             key={slide.id}
@@ -750,22 +754,22 @@ export default function Home() {
               />
             </div>
             <div className="relative h-full flex items-end pb-24 md:pb-28">
-              <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
+              <div className={PAGE_CONTAINER_CLASS}>
                 <div className="max-w-xl text-white">
                   {slide.badge ? (
                     <span className="inline-block px-3 py-1 bg-coral-500 text-white text-xs font-semibold tracking-wider mb-4">
                       {slide.badge}
                     </span>
                   ) : null}
-                  <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold font-display mb-3 leading-tight">
+                  <h1 className="font-['Oswald'] text-5xl sm:text-6xl lg:text-7xl xl:text-8xl font-bold mb-3 leading-tight">
                     {slide.title}
                   </h1>
-                  <p className="text-base md:text-xl text-white text-opacity-90 mb-7 max-w-lg">
+                  <p className="text-base sm:text-lg md:text-xl text-white text-opacity-90 mb-7 max-w-lg">
                     {slide.subtitle}
                   </p>
                   <Link
                     to={slide.ctaLink}
-                    className="inline-flex items-center gap-2 bg-white text-navy-600 px-7 py-3.5 rounded-full text-sm md:text-base font-semibold shadow-lg transition-all hover:bg-gray-100"
+                    className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 rounded-none text-xs sm:text-sm font-semibold tracking-wider shadow-lg transition-all hover:bg-white/90"
                   >
                     {slide.ctaText}
                     <ArrowRight className="w-5 h-5" />
@@ -812,7 +816,7 @@ export default function Home() {
             sectionVisibility.hero ? '-mt-24 md:-mt-28 lg:-mt-32 z-20' : 'mt-0'
           } pb-8 bg-transparent overflow-hidden`}
         >
-          <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+          <div className={PAGE_CONTAINER_CLASS}>
             <div
               ref={countryStripRef}
               onMouseEnter={() => setIsCountryStripHovered(true)}
@@ -894,10 +898,10 @@ export default function Home() {
       {/* Shop by Category */}
       {sectionVisibility.categories ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-7 md:mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">Shop by Category</h2>
-            <p className="text-gray-600 text-sm md:text-base">Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
+            <h2 className={`${SECTION_HEADING_CLASS} text-gray-900 mb-3`}>Shop by Category</h2>
+            <p className={SECTION_SUBHEADING_CLASS}>Choose what fits your moment—ready pieces, custom fits, or raw fabrics.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
             {shopCategories.map((category, index) => (
@@ -929,10 +933,10 @@ export default function Home() {
       {/* How It Works */}
       {sectionVisibility.howItWorks ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-3">How It Works</h2>
-            <p className="text-gray-500 max-w-2xl mx-auto">
+            <h2 className={`${SECTION_HEADING_CLASS} text-gray-900 mb-3`}>How It Works</h2>
+            <p className={`${SECTION_SUBHEADING_CLASS} max-w-2xl mx-auto`}>
               Your journey to authentic African fashion in six simple steps.
             </p>
           </div>
@@ -954,11 +958,11 @@ export default function Home() {
       {/* Featured Custom To Wear */}
       {sectionVisibility.featuredCustomToWear ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Custom To Wear</h2>
+              <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold text-gray-900">Custom To Wear</h2>
               <p className="text-gray-500 mt-1">Made To Fit by an African with Love</p>
             </div>
             <div className="flex items-center gap-2">
@@ -1012,11 +1016,11 @@ export default function Home() {
       {/* Featured Ready To Wear */}
       {sectionVisibility.featuredReadyToWear ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Ready To Wear</h2>
+              <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold text-gray-900">Ready To Wear</h2>
               <p className="text-gray-500 mt-1">Made To Standard sizes for all</p>
             </div>
             <div className="flex items-center gap-2">
@@ -1060,11 +1064,11 @@ export default function Home() {
       {/* Featured Fabrics */}
       {sectionVisibility.featuredFabrics ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Fabrics To Buy</h2>
+              <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold text-gray-900">Fabrics To Buy</h2>
               <p className="text-gray-500 mt-1">Fabrics from all across the edges of Africa</p>
             </div>
             <div className="flex items-center gap-2">
@@ -1113,11 +1117,11 @@ export default function Home() {
       {/* Designer Spotlight */}
       {sectionVisibility.designerSpotlight ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-end justify-between mb-6">
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">DESIGNER SPOTLIGHT</p>
-              <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Meet Designers Across Africa</h2>
+              <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">Meet Designers Across Africa</h2>
               <p className="text-gray-500 mt-1">Showcasing featured talent from different countries.</p>
             </div>
             <Link
@@ -1189,7 +1193,7 @@ export default function Home() {
       {/* Heritage Story */}
       {sectionVisibility.heritage ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden rounded-2xl">
             <div className="h-[260px] md:h-full overflow-hidden">
               <img
@@ -1200,7 +1204,7 @@ export default function Home() {
             </div>
             <div className="p-6 md:p-8 text-white flex flex-col justify-center">
               <p className="text-coral-500 text-sm font-semibold mb-2">HERITAGE STORY</p>
-              <h2 className="text-2xl md:text-3xl font-bold mb-3">Rooted in Culture</h2>
+              <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold mb-3">Rooted in Culture</h2>
               <p className="text-white text-opacity-85 mb-5">
                 Every pattern carries meaning. From Kente&apos;s bold geometry to Ankara&apos;s vibrant motifs,
                 African textiles tell stories of identity, celebration, and legacy passed through generations.
@@ -1222,9 +1226,9 @@ export default function Home() {
       {/* Testimonials */}
       {sectionVisibility.testimonials ? (
       <section className="py-10 md:py-12 bg-navy-600">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-8">
-            <h2 className="text-3xl md:text-4xl font-bold text-white mb-2">What Our Customers Say</h2>
+            <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2">What Our Customers Say</h2>
             <p className="text-white text-opacity-70">Join thousands of happy customers worldwide.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -1255,7 +1259,7 @@ export default function Home() {
       {/* CTA Section */}
       {sectionVisibility.cta ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+        <div className={PAGE_CONTAINER_CLASS}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Shop CTA */}
             <div className="bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm">
