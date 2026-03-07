@@ -2552,26 +2552,34 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
       const section = payload.section || getDefaultFeaturedSectionForType(productType);
       let featured: any = null;
       try {
-        featured = await prisma.featuredProduct.upsert({
+        const existingRow = await prisma.featuredProduct.findFirst({
           where: {
-            productId_productType_section: {
-              productId: id,
-              productType,
-              section,
-            },
-          },
-          update: {
-            isActive: true,
-            displayOrder: payload.displayOrder ?? 0,
-          },
-          create: {
             productId: id,
             productType,
             section,
-            displayOrder: payload.displayOrder ?? 0,
-            isActive: true,
           },
+          select: { id: true },
         });
+
+        if (existingRow?.id) {
+          featured = await prisma.featuredProduct.update({
+            where: { id: existingRow.id },
+            data: {
+              isActive: true,
+              displayOrder: payload.displayOrder ?? 0,
+            },
+          });
+        } else {
+          featured = await prisma.featuredProduct.create({
+            data: {
+              productId: id,
+              productType,
+              section,
+              displayOrder: payload.displayOrder ?? 0,
+              isActive: true,
+            },
+          });
+        }
       } catch (error) {
         if (isFeaturedUnavailableError(error)) {
           return res.json({
