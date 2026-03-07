@@ -511,12 +511,6 @@ export default function Home() {
     setCustomFeaturedStart((prev) => (prev + 1) % featuredDesigns.length);
   };
 
-  const scrollCountryStripBy = (direction: -1 | 1) => {
-    const strip = countryStripRef.current;
-    if (!strip) return;
-    strip.scrollBy({ left: direction * 360, behavior: 'smooth' });
-  };
-
   const handleCountryStripMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
     const strip = countryStripRef.current;
     if (!strip) return;
@@ -550,10 +544,10 @@ export default function Home() {
   const handleCountryStripWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     const strip = countryStripRef.current;
     if (!strip) return;
-    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
-      event.preventDefault();
-      strip.scrollLeft += event.deltaY;
-    }
+    const primaryDelta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+    if (primaryDelta === 0) return;
+    event.preventDefault();
+    strip.scrollLeft += primaryDelta;
   };
 
   // Product card component
@@ -722,23 +716,6 @@ export default function Home() {
       {countries.length > 0 && (
         <section className="py-6 bg-[#F5F5F0] overflow-hidden">
           <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-            <div className="flex justify-end gap-2 mb-3">
-              <button
-                onClick={() => scrollCountryStripBy(-1)}
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50"
-                aria-label="Scroll countries left"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => scrollCountryStripBy(1)}
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50"
-                aria-label="Scroll countries right"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-
             <div
               ref={countryStripRef}
               onMouseEnter={() => setIsCountryStripHovered(true)}
