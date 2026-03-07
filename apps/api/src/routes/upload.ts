@@ -3,7 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { HeadBucketCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
 
@@ -90,6 +90,7 @@ const runMultiUpload = (req: any, res: any): Promise<void> =>
 
 function mapUploadError(error: any) {
   const message = String(error?.message || '').toLowerCase();
+  const awsCode = String(error?.Code || error?.code || error?.name || '').trim();
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return {
@@ -119,17 +120,38 @@ function mapUploadError(error: any) {
     message.includes('access denied') ||
     message.includes('s3')
   ) {
+    const hints: Record<string, string> = {
+      InvalidAccessKeyId: 'AWS_ACCESS_KEY_ID is invalid.',
+      SignatureDoesNotMatch:
+        'AWS_SECRET_ACCESS_KEY is invalid OR AWS_REGION does not match bucket region.',
+      CredentialsProviderError:
+        'Missing AWS credentials in environment. Set AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY.',
+      AccessDenied:
+        'IAM user/role lacks s3:PutObject permission on the configured bucket or bucket policy denies write.',
+      NoSuchBucket: 'AWS_S3_BUCKET does not exist or bucket name is incorrect.',
+      PermanentRedirect: 'Bucket region mismatch. Set AWS_REGION to the bucket region.',
+      AuthorizationHeaderMalformed:
+        'Region mismatch in request signature. Verify AWS_REGION equals the bucket region.',
+    };
+    const hint = hints[awsCode] || 'Check AWS credentials, bucket name, IAM policy, and region.';
     return {
       status: 500,
       code: 'UPLOAD_STORAGE_UNAVAILABLE',
-      message:
-        'S3 upload failed. Check AWS credentials, bucket policy, and region configuration in server environment.',
+      message: `S3 upload failed. ${hint}`,
+      details: {
+        provider: 'S3',
+        awsCode: awsCode || null,
+      },
     };
   }
   return {
     status: 400,
     code: 'UPLOAD_INVALID',
     message: error?.message || 'Invalid upload payload.',
+    details: {
+      provider: SHOULD_USE_S3 ? 'S3' : 'LOCAL',
+      awsCode: awsCode || null,
+    },
   };
 }
 
@@ -208,6 +230,74 @@ async function persistUploadedFile(file: Express.Multer.File) {
   };
 }
 
+async function checkS3Health() {
+  if (!SHOULD_USE_S3) {
+    return {
+      provider: 'LOCAL' as const,
+      enabled: false,
+      healthy: true,
+      message: 'S3 is disabled; local storage is active.',
+    };
+  }
+
+  if (!s3Client || !S3_BUCKET || !S3_REGION) {
+    return {
+      provider: 'S3' as const,
+      enabled: true,
+      healthy: false,
+      message: 'S3 client is not fully configured.',
+      config: {
+        bucketSet: Boolean(S3_BUCKET),
+        regionSet: Boolean(S3_REGION),
+        keyPrefix: S3_KEY_PREFIX || null,
+        publicBaseUrlSet: Boolean(S3_PUBLIC_BASE_URL),
+      },
+    };
+  }
+
+  try {
+    await s3Client.send(new HeadBucketCommand({ Bucket: S3_BUCKET }));
+    return {
+      provider: 'S3' as const,
+      enabled: true,
+      healthy: true,
+      message: 'S3 connectivity check passed.',
+      config: {
+        bucket: S3_BUCKET,
+        region: S3_REGION,
+        keyPrefix: S3_KEY_PREFIX || null,
+        publicBaseUrlSet: Boolean(S3_PUBLIC_BASE_URL),
+      },
+    };
+  } catch (error: any) {
+    const awsCode = String(error?.Code || error?.code || error?.name || '').trim();
+    return {
+      provider: 'S3' as const,
+      enabled: true,
+      healthy: false,
+      message: 'S3 connectivity check failed.',
+      error: {
+        awsCode: awsCode || null,
+        statusCode: error?.$metadata?.httpStatusCode || null,
+      },
+      config: {
+        bucket: S3_BUCKET,
+        region: S3_REGION,
+        keyPrefix: S3_KEY_PREFIX || null,
+        publicBaseUrlSet: Boolean(S3_PUBLIC_BASE_URL),
+      },
+    };
+  }
+}
+
+router.get('/storage-status', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (_req, res) => {
+  const status = await checkS3Health();
+  res.json({
+    success: true,
+    data: status,
+  });
+});
+
 // Upload single image
 router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
@@ -242,6 +332,7 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
       success: false,
       code: mapped.code,
       message: mapped.message,
+      ...(mapped.details ? { details: mapped.details } : {}),
       constraints: {
         maxFileSizeMb: MAX_IMAGE_SIZE_MB,
         allowedMimeTypes: Object.keys(allowedMimeTypes),
@@ -280,6 +371,7 @@ router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CR
       success: false,
       code: mapped.code,
       message: mapped.message,
+      ...(mapped.details ? { details: mapped.details } : {}),
       constraints: {
         maxFileSizeMb: MAX_IMAGE_SIZE_MB,
         allowedMimeTypes: Object.keys(allowedMimeTypes),
