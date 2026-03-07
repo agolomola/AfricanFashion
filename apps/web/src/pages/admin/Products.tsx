@@ -120,6 +120,11 @@ export default function AdminProducts() {
     return { min: 4, max: 6 };
   };
 
+  const isFeaturedFallbackSuccess = (warning?: string, message?: string) => {
+    if (warning === 'FEATURED_PRISMA_BYPASS') return true;
+    return /fallback write path was used/i.test(String(message || ''));
+  };
+
   useEffect(() => {
     void fetchProducts();
   }, [activeTab, statusFilter, typeFilter, page, limit, search]);
@@ -355,15 +360,23 @@ export default function AdminProducts() {
           if (featuredResponse?.warning) {
             if (featuredResponse.warning === 'FEATURED_SCHEMA_UNAVAILABLE') {
               featuredWarning = featuredResponse?.message || 'Featured toggle update failed.';
-            } else if (featuredResponse.warning === 'FEATURED_PRISMA_BYPASS') {
+            } else if (isFeaturedFallbackSuccess(featuredResponse.warning, featuredResponse?.message)) {
               // Fallback write path succeeded; this is informational, not a failure.
               featuredWarning = '';
             } else {
               featuredWarning = featuredResponse?.message || 'Featured toggle update failed.';
             }
+          } else if (isFeaturedFallbackSuccess(undefined, featuredResponse?.message)) {
+            featuredWarning = '';
           }
         } catch (error: any) {
-          featuredWarning = error?.response?.data?.message || 'Featured toggle update failed.';
+          const responseWarning = error?.response?.data?.warning;
+          const responseMessage = error?.response?.data?.message;
+          if (isFeaturedFallbackSuccess(responseWarning, responseMessage)) {
+            featuredWarning = '';
+          } else {
+            featuredWarning = responseMessage || 'Featured toggle update failed.';
+          }
         }
       }
 
