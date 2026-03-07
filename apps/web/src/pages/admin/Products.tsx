@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { CheckCircle, Edit2, Filter, Package, Scissors, Search, Star, Upload, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
@@ -74,6 +74,20 @@ const ALLOWED_IMAGE_TYPES = new Set([
   'image/heic',
   'image/heif',
 ]);
+
+const fallbackImage = (seed: string, width = 800, height = 600) =>
+  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+
+const handleImageFallback =
+  (seed: string, width = 800, height = 600) =>
+  (event: SyntheticEvent<HTMLImageElement>) => {
+    const target = event.currentTarget;
+    const fallback = fallbackImage(seed, width, height);
+    if (target.src === fallback) return;
+    target.src = fallback;
+  };
+
+const isBlobPreviewUrl = (value: string) => String(value || '').startsWith('blob:');
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
@@ -201,9 +215,15 @@ export default function AdminProducts() {
   };
 
   const uploadProductImage = async (file: File) => {
+    let localPreviewUrl = '';
     try {
       setUploadingImage(true);
       setFormError('');
+      const imageRule = getImageRule(productForm.type);
+      if (productForm.images.length >= imageRule.max) {
+        setFormError(`You can upload up to ${imageRule.max} images for this product type.`);
+        return;
+      }
       if (!ALLOWED_IMAGE_TYPES.has(file.type)) {
         setFormError(`Unsupported image type (${file.type || 'unknown'}).`);
         return;
@@ -212,23 +232,41 @@ export default function AdminProducts() {
         setFormError(`Image is too large. Max allowed size is ${MAX_UPLOAD_MB}MB.`);
         return;
       }
+      localPreviewUrl = URL.createObjectURL(file);
+      setProductForm((prev) => ({ ...prev, images: [...prev.images, localPreviewUrl] }));
       const data = new FormData();
       data.append('image', file);
       const response = await api.upload.image(data);
       if (response.success) {
         setProductForm((prev) => {
-          const rule = getImageRule(prev.type);
-          if (prev.images.length >= rule.max) return prev;
-          return { ...prev, images: [...prev.images, response.data.url] };
+          const nextImages = prev.images.map((url) =>
+            url === localPreviewUrl ? response.data.url : url
+          );
+          return { ...prev, images: nextImages };
         });
         return;
+      }
+      if (localPreviewUrl) {
+        setProductForm((prev) => ({
+          ...prev,
+          images: prev.images.filter((url) => url !== localPreviewUrl),
+        }));
       }
       setFormError('Image upload failed. Please try another image.');
     } catch (error) {
       console.error('Failed to upload image:', error);
+      if (localPreviewUrl) {
+        setProductForm((prev) => ({
+          ...prev,
+          images: prev.images.filter((url) => url !== localPreviewUrl),
+        }));
+      }
       const message = (error as any)?.response?.data?.message || 'Image upload failed.';
       setFormError(message);
     } finally {
+      if (localPreviewUrl) {
+        URL.revokeObjectURL(localPreviewUrl);
+      }
       setUploadingImage(false);
     }
   };
@@ -276,6 +314,10 @@ export default function AdminProducts() {
             productForm.type === 'FABRIC' ? 'fabric' : 'design/ready-to-wear'
           } products.`
         );
+        return;
+      }
+      if (productForm.images.some((url) => isBlobPreviewUrl(url))) {
+        setFormError('Please wait for image upload to complete before saving.');
         return;
       }
 
@@ -752,9 +794,11 @@ export default function AdminProducts() {
                   type="file"
                   className="hidden"
                   accept="image/*"
+                  disabled={uploadingImage}
                   onChange={(e) => {
                     const file = e.target.files?.[0];
                     if (file) void uploadProductImage(file);
+                    e.currentTarget.value = '';
                   }}
                 />
               </label>
@@ -766,15 +810,23 @@ export default function AdminProducts() {
               <div className="grid grid-cols-4 gap-2">
                 {productForm.images.map((url, index) => (
                   <div key={`${url}-${index}`} className="relative group">
-                    <img src={url} alt={`Product ${index + 1}`} className="h-16 w-full object-cover rounded-md border" />
+                    <img
+                      src={url}
+                      alt={`Product ${index + 1}`}
+                      onError={handleImageFallback(`admin-product-${productForm.name || index}`, 640, 480)}
+                      className="h-16 w-full object-cover rounded-md border"
+                    />
                     <button
                       type="button"
-                      onClick={() =>
+                      onClick={() => {
+                        if (isBlobPreviewUrl(url)) {
+                          URL.revokeObjectURL(url);
+                        }
                         setProductForm((prev) => ({
                           ...prev,
                           images: prev.images.filter((_, idx) => idx !== index),
-                        }))
-                      }
+                        }));
+                      }}
                       className="absolute -top-2 -right-2 bg-white rounded-full shadow p-0.5 text-red-600"
                     >
                       <XCircle className="w-4 h-4" />
@@ -919,7 +971,7 @@ export default function AdminProducts() {
               <Button variant="outline" className="flex-1" onClick={() => setShowProductModal(false)}>
                 Cancel
               </Button>
-              <Button className="flex-1" onClick={saveProduct} disabled={savingProduct}>
+              <Button className="flex-1" onClick={saveProduct} disabled={savingProduct || uploadingImage}>
                 {savingProduct ? 'Saving...' : editingProduct ? 'Save Changes' : 'Create Product'}
               </Button>
             </div>
