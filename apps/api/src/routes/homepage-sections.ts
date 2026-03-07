@@ -84,10 +84,11 @@ const OPENAI_COUNTRY_IMAGE_MODEL = String(process.env.OPENAI_COUNTRY_IMAGE_MODEL
 const OPENAI_COUNTRY_IMAGE_SIZE = String(process.env.OPENAI_COUNTRY_IMAGE_SIZE || '1536x1024').trim();
 const COUNTRY_IMAGE_SETTINGS_KEY = 'COUNTRY_IMAGE_API';
 
-type CountryImageProvider = 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+type CountryImageProvider = 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS' | 'PICSUM';
+type CountryImageConfigProvider = Exclude<CountryImageProvider, 'PICSUM'>;
 
 interface CountryImageApiConfig {
-  provider: CountryImageProvider;
+  provider: CountryImageConfigProvider;
   endpoint?: string;
   model?: string;
   imageSize?: string;
@@ -101,12 +102,15 @@ interface CountryImageGenerationResult {
   fallbackUsed: boolean;
 }
 
-const normalizeCountryImageProvider = (value: unknown, fallback: CountryImageProvider = 'POLLINATIONS'): CountryImageProvider => {
+const normalizeCountryImageProvider = (
+  value: unknown,
+  fallback: CountryImageConfigProvider = 'POLLINATIONS'
+): CountryImageConfigProvider => {
   const normalized = String(value || '')
     .trim()
     .toUpperCase();
   if (normalized === 'OPENAI' || normalized === 'OPENAI_COMPATIBLE' || normalized === 'POLLINATIONS') {
-    return normalized;
+    return normalized as CountryImageConfigProvider;
   }
   return fallback;
 };
@@ -262,6 +266,42 @@ const buildPollinationsCountryImageUrl = ({
   return `https://image.pollinations.ai/prompt/${encodeURIComponent(prompt)}?width=1200&height=675&seed=${sig}&nologo=true&model=flux`;
 };
 
+const buildPicsumCountryImageUrl = ({
+  countryName,
+  countryCode,
+  keywords,
+}: {
+  countryName: string;
+  countryCode: string;
+  keywords?: string;
+}) => {
+  const keywordList = sanitizeKeywords(keywords)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const sig = hashString(`${countryCode}|${countryName}|${keywordList.join('|')}`) % 1_000_000;
+  return `https://picsum.photos/seed/${encodeURIComponent(`${countryCode}-${sig}`)}/1200/675`;
+};
+
+const isImageUrlReachable = async (url: string) => {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 2500);
+  try {
+    const response = await fetch(url, {
+      method: 'HEAD',
+      redirect: 'follow',
+      signal: controller.signal,
+    });
+    if (!response.ok) return false;
+    const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+    return !contentType || contentType.startsWith('image/');
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timeout);
+  }
+};
+
 const parseOpenAiGeneratedImage = (payload: any): string | null => {
   const row = Array.isArray(payload?.data) ? payload.data[0] : null;
   if (!row) return null;
@@ -343,11 +383,25 @@ const generateCountryImage = async ({
     throw new Error(providerFailureReason || 'Provider connection test failed.');
   }
 
+  const pollinationsUrl = buildPollinationsCountryImageUrl({ countryName, countryCode, keywords });
+  if (await isImageUrlReachable(pollinationsUrl)) {
+    return {
+      url: pollinationsUrl,
+      provider: 'POLLINATIONS',
+      prompt,
+      fallbackUsed: prefersApiProvider,
+    };
+  }
+
+  if (!allowFallback) {
+    throw new Error('Pollinations fallback provider is currently unavailable.');
+  }
+
   return {
-    url: buildPollinationsCountryImageUrl({ countryName, countryCode, keywords }),
-    provider: 'POLLINATIONS' as const,
+    url: buildPicsumCountryImageUrl({ countryName, countryCode, keywords }),
+    provider: 'PICSUM',
     prompt,
-    fallbackUsed: prefersApiProvider,
+    fallbackUsed: true,
   };
 };
 

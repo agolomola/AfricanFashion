@@ -1334,7 +1334,7 @@ const homepageSectionsApi = {
       message?: string;
       data: {
         url: string;
-        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS' | 'PICSUM';
         prompt: string;
         fallbackUsed: boolean;
         country: { code: string; name: string; flag: string };
@@ -1346,7 +1346,7 @@ const homepageSectionsApi = {
       success: boolean;
       data: {
         url: string;
-        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS' | 'PICSUM';
         prompt: string;
         fallbackUsed: boolean;
         country: { code: string; name: string; flag: string };
