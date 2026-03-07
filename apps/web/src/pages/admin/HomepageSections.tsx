@@ -1475,6 +1475,31 @@ function SectionModal({
                 </Button>
               </div>
             </div>
+            <div className="rounded-lg border border-gray-200 p-3">
+              <p className="text-xs font-medium text-gray-600 mb-2">Live Card Preview (before save)</p>
+              <div className="relative h-36 overflow-hidden rounded-md bg-gray-100">
+                {formData.image ? (
+                  <img
+                    src={formData.image}
+                    alt={`${formData.name || 'Country'} preview`}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-500">
+                    {generatingCountryImage ? 'Generating preview image...' : 'No image yet. Generate or upload one.'}
+                  </div>
+                )}
+                <div
+                  className="absolute inset-0"
+                  style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.72), rgba(0, 0, 0, 0.1))' }}
+                />
+                <div className="absolute bottom-2 left-2 text-white">
+                  <div className="text-lg leading-none">{formData.flag || '🌍'}</div>
+                  <p className="text-sm font-semibold">{formData.name || 'Select a country'}</p>
+                  <p className="text-xs text-white/80">{formData.fabrics || 'Add fabrics description'}</p>
+                </div>
+              </div>
+            </div>
           </>
         );
       case 'howItWorks':
