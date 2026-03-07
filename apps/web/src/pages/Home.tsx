@@ -199,38 +199,6 @@ const defaultHeroSlides: HeroSlide[] = [
 ];
 
 
-const shuffle = <T,>(items: T[]): T[] => {
-  const copy = [...items];
-  for (let i = copy.length - 1; i > 0; i -= 1) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-};
-
-const pickRandomDesigners = (designers: SpotlightDesigner[], count: number): SpotlightDesigner[] => {
-  if (designers.length <= count) return designers.slice(0, count);
-  const shuffled = shuffle(designers);
-  const selected: SpotlightDesigner[] = [];
-  const usedCountries = new Set<string>();
-
-  // Try to prioritize country diversity first.
-  for (const designer of shuffled) {
-    if (usedCountries.has(designer.country)) continue;
-    selected.push(designer);
-    usedCountries.add(designer.country);
-    if (selected.length === count) return selected;
-  }
-
-  for (const designer of shuffled) {
-    if (selected.some((entry) => entry.id === designer.id)) continue;
-    selected.push(designer);
-    if (selected.length === count) break;
-  }
-
-  return selected;
-};
-
 // Country flag mapping
 const countryFlags: Record<string, string> = {
   'Ghana': '🇬🇭',
@@ -445,7 +413,6 @@ export default function Home() {
   // Hero carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
   const [customFeaturedStart, setCustomFeaturedStart] = useState(0);
-  const [spotlightDesigners, setSpotlightDesigners] = useState<SpotlightDesigner[]>([]);
   const [isCountryStripHovered, setIsCountryStripHovered] = useState(false);
   const [isCountryStripDragging, setIsCountryStripDragging] = useState(false);
   const customFeaturedPageSize = 3;
@@ -484,7 +451,7 @@ export default function Home() {
     });
   }, [featuredDesigns.length]);
 
-  const spotlightDesignerPool = useMemo(() => {
+  const fallbackSpotlightDesigners = useMemo(() => {
     const mappedDesigners = [...featuredDesigns, ...featuredRTW]
       .map((item) => {
         const cleanedName = (item.designer || '').split('•')[0].trim();
@@ -506,33 +473,12 @@ export default function Home() {
       designerMap.set(item.id, item);
     }
 
-    return Array.from(designerMap.values());
+    return Array.from(designerMap.values()).slice(0, 3);
   }, [featuredDesigns, featuredRTW]);
-
-  const spotlightPoolKey = useMemo(
-    () => spotlightDesignerPool.map((designer) => designer.id).join('|'),
-    [spotlightDesignerPool]
-  );
-
-  useEffect(() => {
-    if (spotlightDesignerPool.length === 0) {
-      setSpotlightDesigners([]);
-      return;
-    }
-    setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
-  }, [spotlightPoolKey]);
-
-  useEffect(() => {
-    if (spotlightDesignerPool.length === 0) return undefined;
-    const timer = setInterval(() => {
-      setSpotlightDesigners(pickRandomDesigners(spotlightDesignerPool, 3));
-    }, 7000);
-    return () => clearInterval(timer);
-  }, [spotlightPoolKey]);
 
   const designerSpotlightCards: DesignerSpotlightCard[] = useMemo(() => {
     if (Array.isArray(designerSpotlightsData) && designerSpotlightsData.length > 0) {
-      return designerSpotlightsData.map((item: any, index: number) => ({
+      return designerSpotlightsData.slice(0, 3).map((item: any, index: number) => ({
         id: String(item?.id || `spotlight-${index}`),
         name: item?.designer?.businessName || 'Featured Designer',
         country: item?.designer?.country || 'Africa',
@@ -543,7 +489,7 @@ export default function Home() {
         externalUrl: item?.externalUrl || null,
       }));
     }
-    return spotlightDesigners.map((designer) => ({
+    return fallbackSpotlightDesigners.map((designer) => ({
       id: designer.id,
       name: designer.name,
       country: designer.country,
@@ -553,7 +499,7 @@ export default function Home() {
       story: null,
       externalUrl: null,
     }));
-  }, [designerSpotlightsData, spotlightDesigners]);
+  }, [designerSpotlightsData, fallbackSpotlightDesigners]);
 
   const shopCategories = useMemo(() => {
     if (Array.isArray(categoriesData) && categoriesData.length > 0) {
@@ -1113,7 +1059,7 @@ export default function Home() {
             <div>
               <p className="text-coral-500 text-sm font-semibold mb-1">DESIGNER SPOTLIGHT</p>
               <h2 className="text-2xl md:text-3xl font-bold text-gray-900">Meet Designers Across Africa</h2>
-              <p className="text-gray-500 mt-1">Showcasing rotating talent from different countries.</p>
+              <p className="text-gray-500 mt-1">Showcasing featured talent from different countries.</p>
             </div>
             <Link
               to="/designers"
