@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import bcrypt from 'bcryptjs';
 import { z } from 'zod';
+import { v4 as uuidv4 } from 'uuid';
 import { AdjustmentType, FeaturedSection, PricingRuleType, ProductTypeForPricing } from '@prisma/client';
 import { prisma, UserRole, UserStatus, ProductStatus, OrderStatus, ProductType, VendorProfileStatus } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
@@ -332,6 +333,112 @@ async function getFeaturedRowsForRefs(refs: FeaturedRef[]): Promise<FeaturedRow[
     });
   }
   return normalizedRows;
+}
+
+async function getFeaturedColumnKinds() {
+  const rows = await prisma.$queryRawUnsafe<Array<{ column_name: string; udt_name: string }>>(
+    `SELECT lower(column_name) AS column_name, lower(udt_name) AS udt_name
+     FROM information_schema.columns
+     WHERE table_schema = 'public'
+       AND lower(table_name) = lower('FeaturedProduct')
+       AND lower(column_name) IN ('producttype', 'section')`
+  );
+
+  const lookup = new Map(rows.map((row) => [row.column_name, row.udt_name]));
+  return {
+    productTypeIsEnum: lookup.get('producttype') === 'producttype',
+    sectionIsEnum: lookup.get('section') === 'featuredsection',
+  };
+}
+
+async function setFeaturedRowRaw(params: {
+  productId: string;
+  productType: ProductType;
+  section: FeaturedSection;
+  displayOrder: number;
+}) {
+  const { productTypeIsEnum, sectionIsEnum } = await getFeaturedColumnKinds();
+  const existingRows = await prisma.$queryRawUnsafe<Array<{ id: string }>>(
+    `SELECT "id"
+     FROM "FeaturedProduct"
+     WHERE "productId" = $1
+       AND UPPER("productType"::text) = UPPER($2::text)
+       AND UPPER("section"::text) = UPPER($3::text)
+     LIMIT 1`,
+    params.productId,
+    params.productType,
+    params.section
+  );
+  const existingId = existingRows[0]?.id;
+
+  if (existingId) {
+    const updatedRows = await prisma.$queryRawUnsafe<any[]>(
+      `UPDATE "FeaturedProduct"
+       SET "isActive" = true,
+           "displayOrder" = $2,
+           "updatedAt" = NOW()
+       WHERE "id" = $1
+       RETURNING "id", "productId", "productType", "section", "displayOrder", "isActive"`,
+      existingId,
+      params.displayOrder
+    );
+    return updatedRows[0] || null;
+  }
+
+  const insertRows = await prisma.$queryRawUnsafe<any[]>(
+    `INSERT INTO "FeaturedProduct" (
+       "id",
+       "productId",
+       "productType",
+       "section",
+       "displayOrder",
+       "isActive",
+       "createdAt",
+       "updatedAt"
+     ) VALUES (
+       $1,
+       $2,
+       ${productTypeIsEnum ? '$3::"ProductType"' : '$3::text'},
+       ${sectionIsEnum ? '$4::"FeaturedSection"' : '$4::text'},
+       $5,
+       true,
+       NOW(),
+       NOW()
+     )
+     RETURNING "id", "productId", "productType", "section", "displayOrder", "isActive"`,
+    uuidv4(),
+    params.productId,
+    params.productType,
+    params.section,
+    params.displayOrder
+  );
+  return insertRows[0] || null;
+}
+
+async function removeFeaturedRowsRaw(params: {
+  productId: string;
+  productType: ProductType;
+  section?: FeaturedSection;
+}) {
+  if (params.section) {
+    return prisma.$executeRawUnsafe(
+      `DELETE FROM "FeaturedProduct"
+       WHERE "productId" = $1
+         AND UPPER("productType"::text) = UPPER($2::text)
+         AND UPPER("section"::text) = UPPER($3::text)`,
+      params.productId,
+      params.productType,
+      params.section
+    );
+  }
+
+  return prisma.$executeRawUnsafe(
+    `DELETE FROM "FeaturedProduct"
+     WHERE "productId" = $1
+       AND UPPER("productType"::text) = UPPER($2::text)`,
+    params.productId,
+    params.productType
+  );
 }
 
 function getPrismaValidationErrorMessage(error: any) {
@@ -2619,13 +2726,32 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
         }
       } catch (error) {
         if (isFeaturedUnavailableError(error)) {
-          return res.json({
-            success: true,
-            warning: 'FEATURED_SCHEMA_UNAVAILABLE',
-            message:
-              'Product saved. Featured tagging is temporarily unavailable due to database schema mismatch. Please run latest schema patch.',
-            data: null,
-          });
+          try {
+            featured = await setFeaturedRowRaw({
+              productId: id,
+              productType,
+              section,
+              displayOrder: payload.displayOrder ?? 0,
+            });
+            return res.json({
+              success: true,
+              warning: 'FEATURED_PRISMA_BYPASS',
+              message:
+                'Product marked as featured. Fallback write path was used because featured schema differs from Prisma model.',
+              data: featured,
+            });
+          } catch (rawError) {
+            if (isFeaturedUnavailableError(rawError)) {
+              return res.json({
+                success: true,
+                warning: 'FEATURED_SCHEMA_UNAVAILABLE',
+                message:
+                  'Product saved. Featured tagging is temporarily unavailable due to database schema mismatch. Please run latest schema patch.',
+                data: null,
+              });
+            }
+            throw rawError;
+          }
         }
         throw error;
       }
@@ -2647,12 +2773,29 @@ router.patch('/products/:productType/:id/featured', async (req, res, next) => {
       });
     } catch (error) {
       if (isFeaturedUnavailableError(error)) {
-        return res.json({
-          success: true,
-          warning: 'FEATURED_SCHEMA_UNAVAILABLE',
-          message:
-            'Product updated. Featured tagging is temporarily unavailable due to database schema mismatch. Please run latest schema patch.',
-        });
+        try {
+          await removeFeaturedRowsRaw({
+            productId: id,
+            productType,
+            section: payload.section,
+          });
+          return res.json({
+            success: true,
+            warning: 'FEATURED_PRISMA_BYPASS',
+            message:
+              'Product removed from featured list. Fallback write path was used because featured schema differs from Prisma model.',
+          });
+        } catch (rawError) {
+          if (isFeaturedUnavailableError(rawError)) {
+            return res.json({
+              success: true,
+              warning: 'FEATURED_SCHEMA_UNAVAILABLE',
+              message:
+                'Product updated. Featured tagging is temporarily unavailable due to database schema mismatch. Please run latest schema patch.',
+            });
+          }
+          throw rawError;
+        }
       }
       throw error;
     }
