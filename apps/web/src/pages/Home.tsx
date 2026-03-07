@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent, type SyntheticEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, Search, Eye, CreditCard, CheckCircle, Truck } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
@@ -367,7 +367,12 @@ export default function Home() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [customFeaturedStart, setCustomFeaturedStart] = useState(0);
   const [spotlightDesigners, setSpotlightDesigners] = useState<SpotlightDesigner[]>([]);
+  const [isCountryStripHovered, setIsCountryStripHovered] = useState(false);
+  const [isCountryStripDragging, setIsCountryStripDragging] = useState(false);
   const customFeaturedPageSize = 3;
+  const countryStripRef = useRef<HTMLDivElement | null>(null);
+  const countryStripDragRef = useRef({ isDragging: false, startX: 0, startScrollLeft: 0 });
+  const countryStripMovedRef = useRef(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -446,6 +451,38 @@ export default function Home() {
     return () => clearInterval(timer);
   }, [spotlightPoolKey]);
 
+  useEffect(() => {
+    const strip = countryStripRef.current;
+    if (!strip || countries.length === 0) {
+      return undefined;
+    }
+
+    let frameId = 0;
+    const animate = () => {
+      const dragging = countryStripDragRef.current.isDragging;
+      if (!isCountryStripHovered && !dragging) {
+        strip.scrollLeft += 0.45;
+        const loopPoint = strip.scrollWidth / 2;
+        if (loopPoint > 0 && strip.scrollLeft >= loopPoint) {
+          strip.scrollLeft -= loopPoint;
+        }
+      }
+      frameId = window.requestAnimationFrame(animate);
+    };
+    frameId = window.requestAnimationFrame(animate);
+
+    return () => window.cancelAnimationFrame(frameId);
+  }, [countries.length, isCountryStripHovered]);
+
+  useEffect(() => {
+    const handleMouseUp = () => {
+      countryStripDragRef.current.isDragging = false;
+      setIsCountryStripDragging(false);
+    };
+    window.addEventListener('mouseup', handleMouseUp);
+    return () => window.removeEventListener('mouseup', handleMouseUp);
+  }, []);
+
   const goToPrevCustomFeatured = () => {
     if (featuredDesigns.length <= customFeaturedPageSize) return;
     setCustomFeaturedStart((prev) => (prev - 1 + featuredDesigns.length) % featuredDesigns.length);
@@ -454,6 +491,51 @@ export default function Home() {
   const goToNextCustomFeatured = () => {
     if (featuredDesigns.length <= customFeaturedPageSize) return;
     setCustomFeaturedStart((prev) => (prev + 1) % featuredDesigns.length);
+  };
+
+  const scrollCountryStripBy = (direction: -1 | 1) => {
+    const strip = countryStripRef.current;
+    if (!strip) return;
+    strip.scrollBy({ left: direction * 360, behavior: 'smooth' });
+  };
+
+  const handleCountryStripMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const strip = countryStripRef.current;
+    if (!strip) return;
+    countryStripDragRef.current = {
+      isDragging: true,
+      startX: event.clientX,
+      startScrollLeft: strip.scrollLeft,
+    };
+    countryStripMovedRef.current = false;
+    setIsCountryStripDragging(true);
+    setIsCountryStripHovered(true);
+  };
+
+  const handleCountryStripMouseMove = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const strip = countryStripRef.current;
+    const drag = countryStripDragRef.current;
+    if (!strip || !drag.isDragging) return;
+    const delta = event.clientX - drag.startX;
+    if (Math.abs(delta) > 4) {
+      countryStripMovedRef.current = true;
+    }
+    strip.scrollLeft = drag.startScrollLeft - delta;
+  };
+
+  const handleCountryStripMouseUp = () => {
+    countryStripDragRef.current.isDragging = false;
+    setIsCountryStripDragging(false);
+    setIsCountryStripHovered(false);
+  };
+
+  const handleCountryStripWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    const strip = countryStripRef.current;
+    if (!strip) return;
+    if (Math.abs(event.deltaY) > Math.abs(event.deltaX)) {
+      event.preventDefault();
+      strip.scrollLeft += event.deltaY;
+    }
   };
 
   // Product card component
@@ -619,27 +701,68 @@ export default function Home() {
       {/* Countries Marquee */}
       {countries.length > 0 && (
         <section className="py-6 bg-[#F5F5F0] overflow-hidden">
-          <div className="flex animate-marquee">
-            {[...countries, ...countries].map((country, index) => (
-              <Link
-                key={`${country.name}-${index}`}
-                to={`/custom-to-wear?country=${country.name}`}
-                className="group relative flex-shrink-0 w-[14.4rem] h-32 mx-2 overflow-hidden"
+          <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
+            <div className="flex justify-end gap-2 mb-3">
+              <button
+                onClick={() => scrollCountryStripBy(-1)}
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50"
+                aria-label="Scroll countries left"
               >
-                <img
-                  src={country.image}
-                  alt={country.name}
-                  onError={handleImageFallback(`country-${country.name}`, 640, 360)}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
-                <div className="absolute bottom-3 left-3 text-white">
-                  <span className="text-xl">{country.flag}</span>
-                  <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
-                  <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
-                </div>
-              </Link>
-            ))}
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => scrollCountryStripBy(1)}
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50"
+                aria-label="Scroll countries right"
+              >
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </div>
+
+            <div
+              ref={countryStripRef}
+              onMouseEnter={() => setIsCountryStripHovered(true)}
+              onMouseLeave={() => {
+                countryStripDragRef.current.isDragging = false;
+                setIsCountryStripDragging(false);
+                setIsCountryStripHovered(false);
+              }}
+              onMouseDown={handleCountryStripMouseDown}
+              onMouseMove={handleCountryStripMouseMove}
+              onMouseUp={handleCountryStripMouseUp}
+              onWheel={handleCountryStripWheel}
+              className={`flex overflow-x-auto gap-4 select-none [&::-webkit-scrollbar]:hidden ${
+                isCountryStripDragging ? 'cursor-grabbing' : 'cursor-grab'
+              }`}
+              style={{ scrollbarWidth: 'none' }}
+            >
+              {[...countries, ...countries].map((country, index) => (
+                <Link
+                  key={`${country.name}-${index}`}
+                  to={`/custom-to-wear?country=${country.name}`}
+                  onClick={(event) => {
+                    if (countryStripMovedRef.current) {
+                      event.preventDefault();
+                      countryStripMovedRef.current = false;
+                    }
+                  }}
+                  className="group relative flex-shrink-0 w-[14.4rem] h-32 overflow-hidden"
+                >
+                  <img
+                    src={country.image}
+                    alt={country.name}
+                    onError={handleImageFallback(`country-${country.name}`, 640, 360)}
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                  />
+                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
+                  <div className="absolute bottom-3 left-3 text-white">
+                    <span className="text-xl">{country.flag}</span>
+                    <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
+                    <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
+                  </div>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
       )}
