@@ -766,7 +766,7 @@ export default function Home() {
 
       {/* Countries Marquee */}
       {countries.length > 0 && (
-        <section className="py-6 bg-[#F5F5F0] overflow-hidden">
+        <section className="relative -mt-8 md:-mt-10 lg:-mt-12 z-20 pb-6 bg-transparent overflow-hidden">
           <div
             ref={countryStripRef}
             onMouseEnter={() => setIsCountryStripHovered(true)}
@@ -792,7 +792,8 @@ export default function Home() {
                   externalUrl: country.externalUrl,
                   fallbackTo: `/custom-to-wear?country=${country.name}`,
                 });
-                const cardClassName = 'group relative flex-shrink-0 w-[14.4rem] h-32 overflow-hidden';
+                const cardClassName =
+                  'group relative flex-shrink-0 w-[11.5rem] h-[6.4rem] overflow-hidden rounded-xl shadow-lg';
                 const onCardClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
                   if (countryStripMovedRef.current) {
                     event.preventDefault();
