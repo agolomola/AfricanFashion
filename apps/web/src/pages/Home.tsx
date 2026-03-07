@@ -97,7 +97,7 @@ const DEFAULT_HOMEPAGE_VISIBILITY: Record<string, boolean> = {
 
 const PAGE_CONTAINER_CLASS = 'w-full px-4 sm:px-6 lg:px-12 xl:px-20';
 const SECTION_HEADING_CLASS = "font-['Oswald'] text-3xl sm:text-4xl lg:text-5xl font-bold leading-tight";
-const SECTION_SUBHEADING_CLASS = 'text-gray-600 text-sm sm:text-base';
+const SECTION_SUBHEADING_CLASS = 'text-gray-500 text-sm sm:text-base';
 
 interface SpotlightDesigner {
   id: string;
@@ -699,7 +699,7 @@ export default function Home() {
   const ProductCard = ({ product }: { product: FeaturedProduct }) => (
     <Link
       to={`/${product.productType === 'DESIGN' ? 'custom-to-wear' : product.productType === 'FABRIC' ? 'fabrics-to-sell' : 'ready-to-wear'}/${product.id}`}
-      className="group block bg-white overflow-hidden rounded-xl shadow-sm hover:shadow-xl transition-all duration-500 border border-gray-100 hover:-translate-y-2"
+      className="group block bg-white overflow-hidden rounded-lg transition-all duration-500 border border-black/10 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)]"
     >
       <div className="relative overflow-hidden bg-gray-100" style={{ aspectRatio: '3/4' }}>
         <img
@@ -713,12 +713,12 @@ export default function Home() {
             product.badge === 'SALE' ? 'bg-red-500' : 
             product.badge === 'NEW' ? 'bg-green-500' : 
             product.badge === 'PROMO' ? 'bg-purple-500' : 
-            product.badge === 'BEST SELLER' ? 'bg-amber-500' : 'bg-coral-500'
+            product.badge === 'BEST SELLER' ? 'bg-amber-500' : 'bg-black'
           }`}>
             {product.badge}
           </div>
         )}
-        <button className="absolute top-3 right-3 p-2 bg-white rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-coral-50">
+        <button className="absolute top-3 right-3 p-2 bg-white/90 rounded-full shadow-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-white">
           <Heart className="w-4 h-4 text-gray-600" />
         </button>
         <div className="absolute bottom-3 right-3 text-2xl">
@@ -726,11 +726,11 @@ export default function Home() {
         </div>
       </div>
       <div className="p-4">
-        <h3 className="font-semibold text-gray-900 group-hover:text-coral-600 transition-colors line-clamp-1">
+        <h3 className="font-semibold text-gray-900 group-hover:text-black transition-colors line-clamp-1">
           {product.name}
         </h3>
         <p className="text-sm text-gray-500 mt-1">{product.designer}</p>
-        <p className="font-bold text-coral-600 mt-2">
+        <p className="font-bold text-black mt-2">
           {formatFromUsd(product.price)}
           {product.productType === 'FABRIC' && <span className="text-sm font-normal text-gray-500">/yard</span>}
         </p>
@@ -764,17 +764,17 @@ export default function Home() {
     const ctaLink = banner?.ctaLink || fallbackCtaLink || '#';
 
     return (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
-        <div className="relative h-[250px] md:h-[300px] overflow-hidden">
+      <section className="py-10 md:py-12 bg-[#F5F5F2]">
+        <div className="relative h-[250px] md:h-[320px] overflow-hidden">
           <img src={image} alt={title || 'Promotional banner'} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-navy-600 bg-opacity-70" />
+          <div className="absolute inset-0 bg-black/55" />
           <div className="absolute inset-0 flex flex-col items-center justify-center text-center text-white px-4">
             {title && <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold mb-2">{title}</h2>}
-            {subtitle && <p className="text-white text-opacity-80 mb-6">{subtitle}</p>}
+            {subtitle && <p className="text-white/85 mb-6">{subtitle}</p>}
             {ctaText && (
               <Link
                 to={ctaLink}
-                className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+                className="inline-flex items-center gap-2 border border-white text-white px-6 py-3 rounded-none text-xs sm:text-sm font-semibold tracking-[0.16em] hover:bg-white hover:text-black transition-colors"
               >
                 {ctaText}
               </Link>
@@ -788,7 +788,7 @@ export default function Home() {
   const activeTestimonial = testimonials[activeTestimonialIndex] ?? testimonials[0];
 
   return (
-    <div className="min-h-screen bg-[#F7F7F4]">
+    <div className="min-h-screen bg-white">
       {/* Hero Carousel */}
       {sectionVisibility.hero ? (
       <section className="relative h-[86vh] min-h-[620px] md:min-h-[760px] lg:min-h-[840px] overflow-hidden">
@@ -815,7 +815,7 @@ export default function Home() {
               <div className={PAGE_CONTAINER_CLASS}>
                 <div className="max-w-xl text-white">
                   {slide.badge ? (
-                    <span className="inline-block px-3 py-1 bg-coral-500 text-white text-xs font-semibold tracking-wider mb-4">
+                    <span className="inline-block px-3 py-1 border border-white/80 text-white text-[11px] font-semibold tracking-[0.18em] mb-4">
                       {slide.badge}
                     </span>
                   ) : null}
@@ -827,7 +827,7 @@ export default function Home() {
                   </p>
                   <Link
                     to={slide.ctaLink}
-                    className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 rounded-none text-xs sm:text-sm font-semibold tracking-wider shadow-lg transition-all hover:bg-white/90"
+                  className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 rounded-none text-xs sm:text-sm font-semibold tracking-[0.16em] shadow-lg transition-all hover:bg-white/90"
                   >
                     {slide.ctaText}
                     <ArrowRight className="w-5 h-5" />
@@ -841,13 +841,13 @@ export default function Home() {
         {/* Navigation Arrows */}
         <button
           onClick={prevSlide}
-          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded text-white transition-all"
+          className="absolute left-4 top-1/2 -translate-y-1/2 p-3 bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded-full border border-white/20 text-white transition-all"
         >
           <ChevronLeft className="w-6 h-6" />
         </button>
         <button
           onClick={nextSlide}
-          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded text-white transition-all"
+          className="absolute right-4 top-1/2 -translate-y-1/2 p-3 bg-black/25 hover:bg-black/40 backdrop-blur-sm rounded-full border border-white/20 text-white transition-all"
         >
           <ChevronRight className="w-6 h-6" />
         </button>
@@ -901,7 +901,7 @@ export default function Home() {
                   fallbackTo: `/custom-to-wear?country=${country.name}`,
                 });
                 const cardClassName =
-                  'group relative flex-shrink-0 w-[11.5rem] h-[6.4rem] overflow-hidden rounded-xl border border-white/25 shadow-lg';
+                  'group relative flex-shrink-0 w-[11.5rem] h-[6.4rem] overflow-hidden rounded-lg border border-black/10 shadow-[0_14px_28px_rgba(0,0,0,0.16)]';
                 const onCardClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
                   if (countryStripMovedRef.current) {
                     event.preventDefault();
@@ -957,7 +957,7 @@ export default function Home() {
       {sectionVisibility.categories ? (
       <section
         ref={categoriesReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-white transition-all duration-700 ${
           categoriesReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -971,7 +971,7 @@ export default function Home() {
               <Link
                 key={category.id || index}
                 to={category.link}
-                className={`group relative h-[320px] md:h-[520px] overflow-hidden rounded-2xl shadow-sm border border-gray-100 transition-all duration-700 hover:-translate-y-2 hover:shadow-xl ${
+                className={`group relative h-[320px] md:h-[520px] overflow-hidden rounded-xl shadow-sm border border-black/10 transition-all duration-700 hover:-translate-y-2 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] ${
                   categoriesReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                 }`}
                 style={{ transitionDelay: `${120 + index * 90}ms` }}
@@ -1000,7 +1000,7 @@ export default function Home() {
       {sectionVisibility.howItWorks ? (
       <section
         ref={howItWorksReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-10 md:py-12 bg-[#F5F5F2] transition-all duration-700 ${
           howItWorksReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -1015,12 +1015,12 @@ export default function Home() {
             {howItWorksSteps.map((step, index) => (
               <div
                 key={index}
-                className={`min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center bg-white rounded-xl border border-gray-100 p-4 shadow-sm transition-all duration-700 hover:-translate-y-1 hover:shadow-md ${
+                className={`min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center bg-white rounded-xl border border-black/10 p-4 shadow-sm transition-all duration-700 hover:-translate-y-1 hover:shadow-md ${
                   howItWorksReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
                 }`}
                 style={{ transitionDelay: `${80 + index * 70}ms` }}
               >
-                <div className="w-12 h-12 md:w-14 md:h-14 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-3">
+                <div className="w-12 h-12 md:w-14 md:h-14 bg-black rounded-full flex items-center justify-center mx-auto mb-3">
                   <step.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                 </div>
                 <h3 className="text-base md:text-lg font-semibold text-gray-900 mb-1">{step.title}</h3>
@@ -1036,20 +1036,20 @@ export default function Home() {
       {sectionVisibility.featuredCustomToWear ? (
       <section
         ref={featuredCustomReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-white transition-all duration-700 ${
           featuredCustomReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
+              <p className="inline-flex border border-black px-2 py-1 text-[11px] tracking-[0.18em] font-semibold mb-2">FEATURED</p>
               <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold text-gray-900">Custom To Wear</h2>
               <p className="text-gray-500 mt-1">Made To Fit by an African with Love</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 border border-black/20 rounded-full hover:bg-black hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={goToPrevCustomFeatured}
                 disabled={featuredDesigns.length <= customFeaturedPageSize}
                 aria-label="Previous custom products"
@@ -1057,7 +1057,7 @@ export default function Home() {
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="p-2 border border-black/20 rounded-full hover:bg-black hover:text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 onClick={goToNextCustomFeatured}
                 disabled={featuredDesigns.length <= customFeaturedPageSize}
                 aria-label="Next custom products"
@@ -1066,7 +1066,7 @@ export default function Home() {
               </button>
               <Link
                 to="/custom-to-wear"
-                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
+                className="hidden sm:inline-flex items-center gap-2 text-gray-700 hover:text-black font-medium ml-4"
               >
                 View All <ArrowRight className="w-4 h-4" />
               </Link>
@@ -1074,7 +1074,7 @@ export default function Home() {
           </div>
           {featuredLoading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-black" />
             </div>
           ) : customFeaturedItems.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-5">
@@ -1107,27 +1107,27 @@ export default function Home() {
       {sectionVisibility.featuredReadyToWear ? (
       <section
         ref={featuredRtwReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-[#F5F5F2] transition-all duration-700 ${
           featuredRtwReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
+              <p className="inline-flex border border-black px-2 py-1 text-[11px] tracking-[0.18em] font-semibold mb-2">FEATURED</p>
               <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold text-gray-900">Ready To Wear</h2>
               <p className="text-gray-500 mt-1">Made To Standard sizes for all</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="p-2 border border-black/20 rounded-full hover:bg-black hover:text-white transition-colors disabled:opacity-50"
                 onClick={() => scrollStripBy(rtwStripRef, 'left')}
                 disabled={featuredRTW.length <= 2}
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="p-2 border border-black/20 rounded-full hover:bg-black hover:text-white transition-colors disabled:opacity-50"
                 onClick={() => scrollStripBy(rtwStripRef, 'right')}
                 disabled={featuredRTW.length <= 2}
               >
@@ -1135,7 +1135,7 @@ export default function Home() {
               </button>
               <Link
                 to="/ready-to-wear"
-                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
+                className="hidden sm:inline-flex items-center gap-2 text-gray-700 hover:text-black font-medium ml-4"
               >
                 View All <ArrowRight className="w-4 h-4" />
               </Link>
@@ -1143,7 +1143,7 @@ export default function Home() {
           </div>
           {featuredLoading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-black" />
             </div>
           ) : featuredRTW.length > 0 ? (
             <div
@@ -1179,27 +1179,27 @@ export default function Home() {
       {sectionVisibility.featuredFabrics ? (
       <section
         ref={featuredFabricReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-white transition-all duration-700 ${
           featuredFabricReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
-              <p className="text-coral-500 text-sm font-semibold mb-1">FEATURED</p>
+              <p className="inline-flex border border-black px-2 py-1 text-[11px] tracking-[0.18em] font-semibold mb-2">FEATURED</p>
               <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold text-gray-900">Fabrics To Buy</h2>
               <p className="text-gray-500 mt-1">Fabrics from all across the edges of Africa</p>
             </div>
             <div className="flex items-center gap-2">
               <button
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="p-2 border border-black/20 rounded-full hover:bg-black hover:text-white transition-colors disabled:opacity-50"
                 onClick={() => scrollStripBy(fabricStripRef, 'left')}
                 disabled={featuredFabrics.length <= 2}
               >
                 <ChevronLeft className="w-5 h-5" />
               </button>
               <button
-                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                className="p-2 border border-black/20 rounded-full hover:bg-black hover:text-white transition-colors disabled:opacity-50"
                 onClick={() => scrollStripBy(fabricStripRef, 'right')}
                 disabled={featuredFabrics.length <= 2}
               >
@@ -1207,7 +1207,7 @@ export default function Home() {
               </button>
               <Link
                 to="/fabrics-to-sell"
-                className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium ml-4"
+                className="hidden sm:inline-flex items-center gap-2 text-gray-700 hover:text-black font-medium ml-4"
               >
                 View All <ArrowRight className="w-4 h-4" />
               </Link>
@@ -1215,7 +1215,7 @@ export default function Home() {
           </div>
           {featuredLoading ? (
             <div className="flex items-center justify-center h-64">
-              <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
+              <Loader2 className="w-8 h-8 animate-spin text-black" />
             </div>
           ) : featuredFabrics.length > 0 ? (
             <div
@@ -1256,20 +1256,20 @@ export default function Home() {
       {sectionVisibility.designerSpotlight ? (
       <section
         ref={designerReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-white transition-all duration-700 ${
           designerReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-end justify-between mb-6">
             <div>
-              <p className="text-coral-500 text-sm font-semibold mb-1">DESIGNER SPOTLIGHT</p>
+              <p className="inline-flex border border-black px-2 py-1 text-[11px] tracking-[0.18em] font-semibold mb-2">DESIGNER SPOTLIGHT</p>
               <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900">Meet Designers Across Africa</h2>
               <p className="text-gray-500 mt-1">Showcasing featured talent from different countries.</p>
             </div>
             <Link
               to="/designers"
-              className="hidden sm:inline-flex items-center gap-2 text-gray-600 hover:text-coral-600 font-medium"
+              className="hidden sm:inline-flex items-center gap-2 text-gray-700 hover:text-black font-medium"
             >
               Meet All Designers <ArrowRight className="w-4 h-4" />
             </Link>
@@ -1311,7 +1311,7 @@ export default function Home() {
                     href={destination.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className={`group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-700 hover:-translate-y-2 ${
+                    className={`group bg-white overflow-hidden rounded-xl shadow-sm border border-black/10 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] transition-all duration-700 hover:-translate-y-2 ${
                       designerReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
                     }`}
                     style={{
@@ -1324,7 +1324,7 @@ export default function Home() {
                   <Link
                     key={designer.id}
                     to={destination.href}
-                    className={`group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-700 hover:-translate-y-2 ${
+                    className={`group bg-white overflow-hidden rounded-xl shadow-sm border border-black/10 hover:shadow-[0_20px_40px_rgba(0,0,0,0.12)] transition-all duration-700 hover:-translate-y-2 ${
                       designerReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
                     }`}
                     style={{
@@ -1349,7 +1349,7 @@ export default function Home() {
       {sectionVisibility.heritage ? (
       <section
         ref={heritageReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-[#F5F5F2] transition-all duration-700 ${
           heritageReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -1365,7 +1365,7 @@ export default function Home() {
             <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/20" />
             <div className="relative z-10 flex min-h-[380px] md:min-h-[520px] items-center justify-center px-6 py-10 md:px-16 text-center">
               <div className="max-w-3xl text-white">
-                <p className="text-coral-400 text-xs md:text-sm tracking-[0.24em] font-semibold mb-3">HERITAGE STORY</p>
+                <p className="text-white text-xs md:text-sm tracking-[0.24em] font-semibold mb-3 border border-white/70 px-3 py-1 inline-flex">HERITAGE STORY</p>
                 <h2 className="font-['Oswald'] text-4xl md:text-6xl font-bold mb-4">Rooted in Culture</h2>
                 <p className="text-white/85 text-base md:text-lg mb-7">
                   Every pattern carries meaning. From Kente&apos;s bold geometry to Ankara&apos;s vibrant motifs,
@@ -1373,7 +1373,7 @@ export default function Home() {
                 </p>
                 <Link
                   to="/about"
-                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-7 py-3 rounded-full font-semibold transition-colors"
+                  className="inline-flex items-center gap-2 border border-white text-white px-7 py-3 rounded-none text-xs sm:text-sm tracking-[0.16em] font-semibold hover:bg-white hover:text-black transition-colors"
                 >
                   Read Our Story <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -1388,38 +1388,38 @@ export default function Home() {
       {sectionVisibility.testimonials ? (
       <section
         ref={testimonialsReveal.ref}
-        className={`py-10 md:py-12 bg-navy-600 transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-white transition-all duration-700 ${
           testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-8">
-            <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2">What Our Customers Say</h2>
-            <p className="text-white text-opacity-70">Join thousands of happy customers worldwide.</p>
+            <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-2">What Our Customers Say</h2>
+            <p className="text-gray-600">Join thousands of happy customers worldwide.</p>
           </div>
           <div
-            className={`mx-auto max-w-3xl bg-white/10 backdrop-blur-sm p-7 md:p-10 rounded-2xl border border-white/15 transition-all duration-700 ${
+            className={`mx-auto max-w-3xl bg-[#F5F5F2] p-7 md:p-10 rounded-xl border border-black/10 transition-all duration-700 ${
               testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
             }`}
           >
             <div className="flex items-center justify-center gap-1 mb-4">
               {[...Array(activeTestimonial?.rating ?? 5)].map((_, i) => (
-                <Star key={i} className="w-5 h-5 fill-coral-500 text-coral-500" />
+                <Star key={i} className="w-5 h-5 fill-yellow-400 text-yellow-400" />
               ))}
             </div>
-            <p className="text-white/95 text-lg md:text-2xl text-center leading-relaxed mb-8">
+            <p className="text-gray-900 text-lg md:text-2xl text-center leading-relaxed mb-8">
               "{activeTestimonial?.text}"
             </p>
             <div className="flex items-center justify-center gap-3">
-              <div className="w-11 h-11 bg-coral-500 rounded-full flex items-center justify-center text-white font-semibold">
+              <div className="w-11 h-11 bg-black rounded-full flex items-center justify-center text-white font-semibold">
                 {String(activeTestimonial?.name || 'A')
                   .split(' ')
                   .map((n) => n[0])
                   .join('')}
               </div>
               <div className="text-center">
-                <p className="font-semibold text-white">{activeTestimonial?.name}</p>
-                <p className="text-sm text-white/70">{activeTestimonial?.location}</p>
+                <p className="font-semibold text-gray-900">{activeTestimonial?.name}</p>
+                <p className="text-sm text-gray-600">{activeTestimonial?.location}</p>
               </div>
             </div>
             {testimonials.length > 1 ? (
@@ -1430,7 +1430,7 @@ export default function Home() {
                     type="button"
                     onClick={() => setActiveTestimonialIndex(index)}
                     className={`h-2.5 rounded-full transition-all ${
-                      index === activeTestimonialIndex ? 'w-7 bg-coral-500' : 'w-2.5 bg-white/35 hover:bg-white/55'
+                      index === activeTestimonialIndex ? 'w-7 bg-black' : 'w-2.5 bg-black/25 hover:bg-black/45'
                     }`}
                     aria-label={`Show testimonial ${index + 1}`}
                   />
@@ -1446,7 +1446,7 @@ export default function Home() {
       {sectionVisibility.cta ? (
       <section
         ref={ctaReveal.ref}
-        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+        className={`py-12 md:py-14 bg-[#F5F5F2] transition-all duration-700 ${
           ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
         }`}
       >
@@ -1454,25 +1454,25 @@ export default function Home() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Shop CTA */}
             <div
-              className={`bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm transition-all duration-700 ${
+              className={`bg-black rounded-xl p-7 md:p-10 text-center text-white shadow-sm transition-all duration-700 ${
                 ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
               }`}
               style={{ transitionDelay: '120ms' }}
             >
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Ready to Wear African Fashion?</h2>
-              <p className="text-white text-opacity-90 mb-6">
+              <p className="text-white/85 mb-6">
                 Join our community of fashion lovers and discover unique pieces from talented African designers.
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
                 <Link
                   to="/custom-to-wear"
-                  className="inline-flex items-center justify-center gap-2 bg-white text-coral-600 px-6 py-3 rounded font-semibold hover:bg-gray-100 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-white text-black px-6 py-3 rounded-none text-xs tracking-[0.16em] font-semibold hover:bg-white/90 transition-colors"
                 >
                   Shop Now
                 </Link>
                 <Link
                   to="/register"
-                  className="inline-flex items-center justify-center gap-2 bg-transparent border-2 border-white text-white px-6 py-3 rounded font-semibold hover:bg-white bg-opacity-10 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 bg-transparent border border-white text-white px-6 py-3 rounded-none text-xs tracking-[0.16em] font-semibold hover:bg-white hover:text-black transition-colors"
                 >
                   Create Account
                 </Link>
@@ -1481,22 +1481,22 @@ export default function Home() {
 
             {/* Newsletter CTA */}
             <div
-              className={`bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm transition-all duration-700 ${
+              className={`bg-white rounded-xl p-7 md:p-10 text-center text-gray-900 shadow-sm border border-black/10 transition-all duration-700 ${
                 ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
               }`}
               style={{ transitionDelay: '220ms' }}
             >
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Join the Movement</h2>
-              <p className="text-white text-opacity-90 mb-6">
+              <p className="text-gray-600 mb-6">
                 Subscribe to our newsletter for exclusive offers, new arrivals, and stories from the continent.
               </p>
               <div className="flex flex-col sm:flex-row gap-3 max-w-md mx-auto">
                 <input
                   type="email"
                   placeholder="Enter your email"
-                  className="flex-1 px-4 py-3 rounded text-gray-900"
+                  className="flex-1 px-4 py-3 rounded-none border border-black/20 text-gray-900 focus:border-black focus:outline-none"
                 />
-                <button className="px-6 py-3 bg-navy-600 text-white rounded font-semibold hover:bg-navy-700 transition-colors">
+                <button className="px-6 py-3 bg-black text-white rounded-none text-xs tracking-[0.16em] font-semibold hover:bg-black/85 transition-colors">
                   Subscribe
                 </button>
               </div>
