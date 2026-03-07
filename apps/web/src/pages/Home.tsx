@@ -715,51 +715,49 @@ export default function Home() {
       {/* Countries Marquee */}
       {countries.length > 0 && (
         <section className="py-6 bg-[#F5F5F0] overflow-hidden">
-          <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
-            <div
-              ref={countryStripRef}
-              onMouseEnter={() => setIsCountryStripHovered(true)}
-              onMouseLeave={() => {
-                countryStripDragRef.current.isDragging = false;
-                setIsCountryStripDragging(false);
-                setIsCountryStripHovered(false);
-              }}
-              onMouseDown={handleCountryStripMouseDown}
-              onMouseMove={handleCountryStripMouseMove}
-              onMouseUp={handleCountryStripMouseUp}
-              onWheel={handleCountryStripWheel}
-              className={`flex overflow-x-auto gap-4 select-none [&::-webkit-scrollbar]:hidden ${
-                isCountryStripDragging ? 'cursor-grabbing' : 'cursor-grab'
-              }`}
-              style={{ scrollbarWidth: 'none' }}
-            >
-              {countries.map((country, index) => (
-                <Link
-                  key={country.id || `${country.name}-${index}`}
-                  to={`/custom-to-wear?country=${country.name}`}
-                  onClick={(event) => {
-                    if (countryStripMovedRef.current) {
-                      event.preventDefault();
-                      countryStripMovedRef.current = false;
-                    }
-                  }}
-                  className="group relative flex-shrink-0 w-[14.4rem] h-32 overflow-hidden"
-                >
-                  <img
-                    src={country.image}
-                    alt={country.name}
-                    onError={handleImageFallback(`country-${country.name}`, 640, 360)}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                  />
-                  <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
-                  <div className="absolute bottom-3 left-3 text-white">
-                    <span className="text-xl">{country.flag}</span>
-                    <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
-                    <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
-                  </div>
-                </Link>
-              ))}
-            </div>
+          <div
+            ref={countryStripRef}
+            onMouseEnter={() => setIsCountryStripHovered(true)}
+            onMouseLeave={() => {
+              countryStripDragRef.current.isDragging = false;
+              setIsCountryStripDragging(false);
+              setIsCountryStripHovered(false);
+            }}
+            onMouseDown={handleCountryStripMouseDown}
+            onMouseMove={handleCountryStripMouseMove}
+            onMouseUp={handleCountryStripMouseUp}
+            onWheel={handleCountryStripWheel}
+            className={`flex overflow-x-auto gap-4 select-none [&::-webkit-scrollbar]:hidden ${
+              isCountryStripDragging ? 'cursor-grabbing' : 'cursor-grab'
+            }`}
+            style={{ scrollbarWidth: 'none' }}
+          >
+            {countries.map((country, index) => (
+              <Link
+                key={country.id || `${country.name}-${index}`}
+                to={`/custom-to-wear?country=${country.name}`}
+                onClick={(event) => {
+                  if (countryStripMovedRef.current) {
+                    event.preventDefault();
+                    countryStripMovedRef.current = false;
+                  }
+                }}
+                className="group relative flex-shrink-0 w-[14.4rem] h-32 overflow-hidden"
+              >
+                <img
+                  src={country.image}
+                  alt={country.name}
+                  onError={handleImageFallback(`country-${country.name}`, 640, 360)}
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                />
+                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
+                <div className="absolute bottom-3 left-3 text-white">
+                  <span className="text-xl">{country.flag}</span>
+                  <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
+                  <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
+                </div>
+              </Link>
+            ))}
           </div>
         </section>
       )}
