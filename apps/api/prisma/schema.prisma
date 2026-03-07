@@ -1043,9 +1043,11 @@ model CountryMarquee {
   id          String @id @default(uuid())
 
   name        String // Country name (e.g., "Ghana")
+  countryCode String? // ISO alpha-2 code (e.g., "GH")
   flag        String // Flag emoji (e.g., "🇬🇭")
   fabrics     String // Fabric types (e.g., "Kente • Adinkra • Batik")
   image       String // Background image URL
+  keywords    String? // Optional keyword prompt used for generated image URL
 
   displayOrder Int @default(0)
   isActive    Boolean @default(true)

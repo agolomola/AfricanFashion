@@ -4,6 +4,12 @@ import { prisma } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
 import { ensureHomepageSectionsSchema } from '../utils/frontpage-schema';
+import {
+  AFRICAN_COUNTRY_BY_CODE,
+  AFRICAN_COUNTRY_BY_NAME,
+  AFRICAN_COUNTRY_OPTIONS,
+  countryCodeToFlag,
+} from '../constants/africanCountries';
 
 const router = Router();
 
@@ -49,6 +55,63 @@ const getNonEmptyString = (value: unknown): string | undefined => {
   return trimmed.length > 0 ? trimmed : undefined;
 };
 
+const normalizeCountryCode = (value: unknown): string | undefined => {
+  if (typeof value !== 'string') return undefined;
+  const code = value.trim().toUpperCase();
+  return /^[A-Z]{2}$/.test(code) ? code : undefined;
+};
+
+const sanitizeKeywords = (value: unknown): string => {
+  if (typeof value !== 'string') return '';
+  return value
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+    .slice(0, 12)
+    .join(', ');
+};
+
+const hashString = (value: string): number => {
+  let hash = 0;
+  for (let i = 0; i < value.length; i += 1) {
+    hash = (hash << 5) - hash + value.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash);
+};
+
+const buildGeneratedCountryImageUrl = ({
+  countryName,
+  countryCode,
+  keywords,
+}: {
+  countryName: string;
+  countryCode: string;
+  keywords?: string;
+}) => {
+  const keywordList = sanitizeKeywords(keywords)
+    .split(',')
+    .map((item) => item.trim())
+    .filter(Boolean);
+  const queryParts = ['African fashion', countryName, countryCode, ...keywordList];
+  const query = encodeURIComponent(queryParts.join(', '));
+  const sig = hashString(`${countryCode}|${countryName}|${keywordList.join('|')}`) % 1000;
+  return `https://source.unsplash.com/1200x675/?${query}&sig=${sig}`;
+};
+
+const resolveAfricanCountryOption = (payload: { countryCode?: unknown; name?: unknown }) => {
+  const code = normalizeCountryCode(payload.countryCode);
+  if (code) {
+    return AFRICAN_COUNTRY_BY_CODE.get(code);
+  }
+
+  const name = getNonEmptyString(payload.name)?.toLowerCase();
+  if (name) {
+    return AFRICAN_COUNTRY_BY_NAME.get(name);
+  }
+  return undefined;
+};
+
 const validationError = (res: any, error: z.ZodError) =>
   res.status(400).json({
     success: false,
@@ -56,15 +119,29 @@ const validationError = (res: any, error: z.ZodError) =>
     errors: error.issues,
   });
 
-const countryCreateSchema = z.object({
-  name: z.string().min(1),
-  flag: z.string().min(1),
+const countryInputSchema = z.object({
+  countryCode: z.string().trim().length(2).optional(),
+  name: z.string().min(1).optional(),
+  flag: z.string().min(1).optional(),
   fabrics: z.string().min(1),
-  image: z.string().min(1),
+  image: z.string().min(1).optional(),
+  keywords: z.string().optional(),
+  generateImage: z.boolean().optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
-const countryUpdateSchema = countryCreateSchema.partial();
+
+const countryCreateSchema = countryInputSchema
+  .superRefine((data, ctx) => {
+    if (!getNonEmptyString(data.name) && !normalizeCountryCode(data.countryCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['countryCode'],
+        message: 'Select a valid African country.',
+      });
+    }
+  });
+const countryUpdateSchema = countryInputSchema.partial();
 
 const howItWorksCreateSchema = z.object({
   stepNumber: z.coerce.number().int().positive(),
@@ -268,6 +345,55 @@ const getSpotlightsWithDesigners = async (isActiveOnly = true) => {
     ...serializeDesignerSpotlight(spotlight),
     designer: designersById.get(spotlight.designerId) || null,
   }));
+};
+
+const buildNormalizedCountryPayload = (payload: any, fallback?: any) => {
+  const option = resolveAfricanCountryOption(payload) || resolveAfricanCountryOption(fallback || {});
+  if (!option) {
+    throw new Error('INVALID_COUNTRY_OPTION');
+  }
+
+  const fabrics = getNonEmptyString(payload?.fabrics) ?? getNonEmptyString(fallback?.fabrics);
+  if (!fabrics) {
+    throw new Error('MISSING_FABRICS');
+  }
+
+  const keywords = sanitizeKeywords(
+    payload?.keywords !== undefined ? payload?.keywords : (fallback?.keywords ?? '')
+  );
+  const generateImage = payload?.generateImage === true;
+  const explicitImage = getNonEmptyString(payload?.image);
+
+  const image =
+    explicitImage ||
+    (generateImage
+      ? buildGeneratedCountryImageUrl({
+          countryName: option.name,
+          countryCode: option.code,
+          keywords,
+        })
+      : undefined) ||
+    getNonEmptyString(fallback?.image) ||
+    buildGeneratedCountryImageUrl({
+      countryName: option.name,
+      countryCode: option.code,
+      keywords,
+    });
+
+  return {
+    name: option.name,
+    countryCode: option.code,
+    flag: countryCodeToFlag(option.code),
+    fabrics,
+    image,
+    keywords,
+    displayOrder:
+      payload?.displayOrder !== undefined
+        ? Number(payload.displayOrder)
+        : Number(fallback?.displayOrder ?? 0),
+    isActive:
+      payload?.isActive !== undefined ? Boolean(payload.isActive) : Boolean(fallback?.isActive ?? true),
+  };
 };
 
 // ==================== PUBLIC ENDPOINTS ====================
@@ -506,6 +632,10 @@ router.get('/admin/designers', authenticate, authorizePermissions(Permissions.HO
   }
 });
 
+router.get('/admin/country-options', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
+  res.json({ success: true, data: AFRICAN_COUNTRY_OPTIONS });
+});
+
 // Country Marquee Admin
 router.get('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
@@ -520,12 +650,19 @@ router.get('/admin/countries', authenticate, authorizePermissions(Permissions.HO
 
 router.post('/admin/countries', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = countryCreateSchema.parse(req.body);
+    const parsed = countryCreateSchema.parse(req.body);
+    const data = buildNormalizedCountryPayload(parsed);
     const country = await prisma.countryMarquee.create({ data });
     res.status(201).json({ success: true, data: country });
   } catch (error) {
     if (error instanceof z.ZodError) {
       return validationError(res, error);
+    }
+    if (String((error as any)?.message) === 'INVALID_COUNTRY_OPTION') {
+      return res.status(400).json({ success: false, message: 'Select a valid African country code.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_FABRICS') {
+      return res.status(400).json({ success: false, message: 'Fabrics field is required.' });
     }
     console.error('Error creating country:', error);
     res.status(500).json({ success: false, message: 'Failed to create country' });
@@ -534,7 +671,12 @@ router.post('/admin/countries', authenticate, authorizePermissions(Permissions.H
 
 router.put('/admin/countries/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = countryUpdateSchema.parse(req.body);
+    const existing = await prisma.countryMarquee.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Country not found' });
+    }
+    const parsed = countryUpdateSchema.parse(req.body);
+    const data = buildNormalizedCountryPayload(parsed, existing);
     const country = await prisma.countryMarquee.update({
       where: { id: req.params.id },
       data,
@@ -544,13 +686,24 @@ router.put('/admin/countries/:id', authenticate, authorizePermissions(Permission
     if (error instanceof z.ZodError) {
       return validationError(res, error);
     }
+    if (String((error as any)?.message) === 'INVALID_COUNTRY_OPTION') {
+      return res.status(400).json({ success: false, message: 'Select a valid African country code.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_FABRICS') {
+      return res.status(400).json({ success: false, message: 'Fabrics field is required.' });
+    }
     console.error('Error updating country:', error);
     res.status(500).json({ success: false, message: 'Failed to update country' });
   }
 });
 router.patch('/admin/countries/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
-    const data = countryUpdateSchema.parse(req.body);
+    const existing = await prisma.countryMarquee.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Country not found' });
+    }
+    const parsed = countryUpdateSchema.parse(req.body);
+    const data = buildNormalizedCountryPayload(parsed, existing);
     const country = await prisma.countryMarquee.update({
       where: { id: req.params.id },
       data,
@@ -559,6 +712,12 @@ router.patch('/admin/countries/:id', authenticate, authorizePermissions(Permissi
   } catch (error) {
     if (error instanceof z.ZodError) {
       return validationError(res, error);
+    }
+    if (String((error as any)?.message) === 'INVALID_COUNTRY_OPTION') {
+      return res.status(400).json({ success: false, message: 'Select a valid African country code.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_FABRICS') {
+      return res.status(400).json({ success: false, message: 'Fabrics field is required.' });
     }
     console.error('Error patching country:', error);
     res.status(500).json({ success: false, message: 'Failed to update country' });

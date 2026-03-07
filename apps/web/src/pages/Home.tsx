@@ -222,6 +222,13 @@ const countryFlags: Record<string, string> = {
   'Tanzania': '🇹🇿',
 };
 
+const flagFromCountryCode = (countryCode?: string) => {
+  const normalized = String(countryCode || '').trim().toUpperCase();
+  if (!/^[A-Z]{2}$/.test(normalized)) return '';
+  const [first, second] = normalized;
+  return String.fromCodePoint(127397 + first.charCodeAt(0), 127397 + second.charCodeAt(0));
+};
+
 export default function Home() {
   const { formatFromUsd } = useCurrency();
   // Fetch hero slides
@@ -350,15 +357,16 @@ export default function Home() {
   // Use dynamic data or fallback to featured-derived countries
   const countries = countriesData?.length > 0
     ? countriesData.map((c: any) => ({
+        id: c.id || c.name,
         name: c.name,
-        flag: c.flag || countryFlags[c.name] || '🌍',
+        flag: c.flag || flagFromCountryCode(c.countryCode) || countryFlags[c.name] || '🌍',
         image:
-          fashionCountryImageMap.get(c.name) ||
           resolveAssetUrl(c.image) ||
+          fashionCountryImageMap.get(c.name) ||
           fallbackImage(`country-${c.name}`, 640, 360),
         fabrics: c.fabrics || 'Featured styles and fabrics',
       }))
-    : countriesFromFeatured;
+    : countriesFromFeatured.map((country) => ({ ...country, id: country.name }));
     
   const testimonials = testimonialsData?.length > 0 
     ? testimonialsData.map((t: any) => ({ 
@@ -469,10 +477,12 @@ export default function Home() {
     const animate = () => {
       const dragging = countryStripDragRef.current.isDragging;
       if (!isCountryStripHovered && !dragging) {
-        strip.scrollLeft += 0.45;
-        const loopPoint = strip.scrollWidth / 2;
-        if (loopPoint > 0 && strip.scrollLeft >= loopPoint) {
-          strip.scrollLeft -= loopPoint;
+        const maxScrollLeft = Math.max(0, strip.scrollWidth - strip.clientWidth);
+        if (maxScrollLeft > 0) {
+          strip.scrollLeft += 0.45;
+          if (strip.scrollLeft >= maxScrollLeft) {
+            strip.scrollLeft = 0;
+          }
         }
       }
       frameId = window.requestAnimationFrame(animate);
@@ -746,9 +756,9 @@ export default function Home() {
               }`}
               style={{ scrollbarWidth: 'none' }}
             >
-              {[...countries, ...countries].map((country, index) => (
+              {countries.map((country, index) => (
                 <Link
-                  key={`${country.name}-${index}`}
+                  key={country.id || `${country.name}-${index}`}
                   to={`/custom-to-wear?country=${country.name}`}
                   onClick={(event) => {
                     if (countryStripMovedRef.current) {

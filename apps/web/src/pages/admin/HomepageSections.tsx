@@ -10,11 +10,19 @@ type SectionType = 'countries' | 'howItWorks' | 'categories' | 'designerSpotligh
 interface Country {
   id: string;
   name: string;
+  countryCode?: string;
   flag: string;
   image: string;
+  keywords?: string;
   fabrics: string;
   displayOrder: number;
   isActive: boolean;
+}
+
+interface CountryOption {
+  code: string;
+  name: string;
+  flag: string;
 }
 
 interface HowItWorksStep {
@@ -127,25 +135,32 @@ export default function HomepageSections() {
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [footerContents, setFooterContents] = useState<FooterContent[]>([]);
   const [designers, setDesigners] = useState<DesignerOption[]>([]);
+  const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
 
   useEffect(() => {
     fetchData();
   }, [activeTab]);
 
   useEffect(() => {
-    const loadDesigners = async () => {
+    const loadAdminDependencies = async () => {
       try {
-        const response = await api.homepageSections.getAdminDesigners();
-        if (response.success) {
-          setDesigners(response.data || []);
+        const [designerResponse, countryOptionsResponse] = await Promise.all([
+          api.homepageSections.getAdminDesigners(),
+          api.homepageSections.getAdminCountryOptions(),
+        ]);
+        if (designerResponse.success) {
+          setDesigners(designerResponse.data || []);
+        }
+        if (countryOptionsResponse.success) {
+          setCountryOptions(countryOptionsResponse.data || []);
         }
       } catch (error) {
-        console.error('Error fetching designers:', error);
-        toast.error('Failed to load designers.');
+        console.error('Error fetching homepage section dependencies:', error);
+        toast.error('Failed to load homepage section options.');
       }
     };
 
-    loadDesigners();
+    loadAdminDependencies();
   }, [toast]);
 
   const fetchData = async () => {
@@ -420,6 +435,7 @@ export default function HomepageSections() {
           type={activeTab}
           item={editingItem}
           designers={designers}
+          countryOptions={countryOptions}
           onClose={closeModal}
           onSave={handleSave}
         />
@@ -436,6 +452,7 @@ function CountriesTable({ data, onEdit, onToggle, onDelete }: any) {
         <tr>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Country</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Code</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Flag</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Fabrics</th>
           <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
@@ -454,6 +471,7 @@ function CountriesTable({ data, onEdit, onToggle, onDelete }: any) {
                 <span className="text-sm font-medium text-gray-900">{item.name}</span>
               </div>
             </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.countryCode || '-'}</td>
             <td className="px-6 py-4 whitespace-nowrap text-2xl">{item.flag}</td>
             <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.fabrics}</td>
             <td className="px-6 py-4 whitespace-nowrap">
@@ -773,17 +791,19 @@ function SectionModal({
   type,
   item,
   designers,
+  countryOptions,
   onClose,
   onSave,
 }: {
   type: SectionType;
   item: any;
   designers: DesignerOption[];
+  countryOptions: CountryOption[];
   onClose: () => void;
   onSave: () => void;
 }) {
   const toast = useToast();
-  const [formData, setFormData] = useState<any>(item || getDefaultFormData(type));
+  const [formData, setFormData] = useState<any>(() => ({ ...getDefaultFormData(type), ...(item || {}) }));
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [formError, setFormError] = useState('');
@@ -792,7 +812,17 @@ function SectionModal({
   function getDefaultFormData(sectionType: SectionType) {
     switch (sectionType) {
       case 'countries':
-        return { name: '', flag: '', image: '', fabrics: '', displayOrder: 0, isActive: true };
+        return {
+          name: '',
+          countryCode: '',
+          flag: '',
+          image: '',
+          keywords: '',
+          fabrics: '',
+          useGeneratedImage: true,
+          displayOrder: 0,
+          isActive: true,
+        };
       case 'howItWorks':
         return { stepNumber: 1, title: '', description: '', icon: 'Sparkles', isActive: true };
       case 'categories':
@@ -809,6 +839,86 @@ function SectionModal({
         return {};
     }
   }
+
+  const countryOptionByCode = new Map(countryOptions.map((option) => [option.code, option]));
+  const countryOptionByName = new Map(countryOptions.map((option) => [option.name.toLowerCase(), option]));
+
+  const hashString = (value: string) => {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash << 5) - hash + value.charCodeAt(i);
+      hash |= 0;
+    }
+    return Math.abs(hash);
+  };
+
+  const buildGeneratedCountryImage = (countryName: string, countryCode: string, keywords: string) => {
+    const parsedKeywords = String(keywords || '')
+      .split(',')
+      .map((keyword) => keyword.trim())
+      .filter(Boolean)
+      .slice(0, 12);
+    const query = encodeURIComponent(['African fashion', countryName, countryCode, ...parsedKeywords].join(', '));
+    const sig = hashString(`${countryCode}|${countryName}|${parsedKeywords.join('|')}`) % 1000;
+    return `https://source.unsplash.com/1200x675/?${query}&sig=${sig}`;
+  };
+
+  useEffect(() => {
+    setFormData((prev: any) => {
+      if (type !== 'countries') {
+        return prev;
+      }
+      const optionFromCode = prev?.countryCode ? countryOptionByCode.get(String(prev.countryCode).toUpperCase()) : undefined;
+      const optionFromName = prev?.name ? countryOptionByName.get(String(prev.name).toLowerCase()) : undefined;
+      const option = optionFromCode || optionFromName;
+
+      return {
+        ...prev,
+        name: option?.name || prev?.name || '',
+        countryCode: option?.code || prev?.countryCode || '',
+        flag: option?.flag || prev?.flag || '',
+        keywords: prev?.keywords || '',
+        useGeneratedImage:
+          typeof prev?.useGeneratedImage === 'boolean'
+            ? prev.useGeneratedImage
+            : Boolean(prev?.keywords || /source\.unsplash\.com/i.test(String(prev?.image || ''))),
+      };
+    });
+  }, [type, countryOptions]);
+
+  const handleCountryCodeChange = (countryCode: string) => {
+    const option = countryOptionByCode.get(countryCode);
+    setFormData((prev: any) => ({
+      ...prev,
+      countryCode: option?.code || countryCode,
+      name: option?.name || prev.name,
+      flag: option?.flag || prev.flag,
+    }));
+  };
+
+  const handleGenerateCountryImagePreview = () => {
+    if (type !== 'countries') return;
+    const countryName = String(formData.name || '').trim();
+    const countryCode = String(formData.countryCode || '').trim().toUpperCase();
+    if (!countryName || !countryCode) {
+      const message = 'Select a country code before generating image.';
+      setFormError(message);
+      toast.error(message);
+      return;
+    }
+    const keywords = String(formData.keywords || '').trim();
+    if (!keywords) {
+      const message = 'Enter at least one keyword to generate a country image.';
+      setFormError(message);
+      toast.error(message);
+      return;
+    }
+    setFormData((prev: any) => ({
+      ...prev,
+      image: buildGeneratedCountryImage(countryName, countryCode, keywords),
+      useGeneratedImage: true,
+    }));
+  };
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: string) => {
     const file = e.target.files?.[0];
@@ -850,10 +960,29 @@ function SectionModal({
     e.preventDefault();
     setSaving(true);
     setFormError('');
-    if (
-      ['countries', 'categories', 'designerSpotlight', 'heritage'].includes(type) &&
-      !formData.image
-    ) {
+
+    if (type === 'countries') {
+      if (!String(formData.countryCode || '').trim()) {
+        setSaving(false);
+        setFormError('Please select an African country code.');
+        toast.error('Please select an African country code.');
+        return;
+      }
+      if (formData.useGeneratedImage && !String(formData.keywords || '').trim()) {
+        setSaving(false);
+        setFormError('Add keywords to generate a country image.');
+        toast.error('Add keywords to generate a country image.');
+        return;
+      }
+      if (!formData.useGeneratedImage && !String(formData.image || '').trim()) {
+        setSaving(false);
+        setFormError('Please upload an image or enable generated image mode.');
+        toast.error('Please upload an image or enable generated image mode.');
+        return;
+      }
+    }
+
+    if (['categories', 'designerSpotlight', 'heritage'].includes(type) && !formData.image) {
       setSaving(false);
       setFormError('Please upload an image before submitting.');
       toast.error('Please upload an image before submitting.');
@@ -861,54 +990,77 @@ function SectionModal({
     }
     try {
       let response;
+      const payload =
+        type === 'countries'
+          ? (() => {
+              const { useGeneratedImage, ...rest } = formData;
+              const countryCode = String(rest.countryCode || '').trim().toUpperCase();
+              const option = countryOptionByCode.get(countryCode);
+              const countryName = String(option?.name || rest.name || '').trim();
+              const keywords = String(rest.keywords || '').trim();
+              const generatedImage =
+                useGeneratedImage && countryName && countryCode
+                  ? buildGeneratedCountryImage(countryName, countryCode, keywords)
+                  : undefined;
+              return {
+                ...rest,
+                countryCode,
+                name: countryName,
+                flag: option?.flag || rest.flag,
+                image: generatedImage || rest.image,
+                keywords,
+                generateImage: Boolean(useGeneratedImage),
+              };
+            })()
+          : formData;
       if (item?.id) {
         // Update existing
         switch (type) {
           case 'countries':
-            response = await api.homepageSections.updateCountry(item.id, formData);
+            response = await api.homepageSections.updateCountry(item.id, payload);
             break;
           case 'howItWorks':
-            response = await api.homepageSections.updateHowItWorksStep(item.id, formData);
+            response = await api.homepageSections.updateHowItWorksStep(item.id, payload);
             break;
           case 'categories':
-            response = await api.homepageSections.updateCategory(item.id, formData);
+            response = await api.homepageSections.updateCategory(item.id, payload);
             break;
           case 'designerSpotlight':
-            response = await api.homepageSections.updateDesignerSpotlight(item.id, formData);
+            response = await api.homepageSections.updateDesignerSpotlight(item.id, payload);
             break;
           case 'heritage':
-            response = await api.homepageSections.updateHeritage(item.id, formData);
+            response = await api.homepageSections.updateHeritage(item.id, payload);
             break;
           case 'testimonials':
-            response = await api.homepageSections.updateTestimonial(item.id, formData);
+            response = await api.homepageSections.updateTestimonial(item.id, payload);
             break;
           case 'footer':
-            response = await api.homepageSections.updateFooter(item.id, formData);
+            response = await api.homepageSections.updateFooter(item.id, payload);
             break;
         }
       } else {
         // Create new
         switch (type) {
           case 'countries':
-            response = await api.homepageSections.createCountry(formData);
+            response = await api.homepageSections.createCountry(payload);
             break;
           case 'howItWorks':
-            response = await api.homepageSections.createHowItWorksStep(formData);
+            response = await api.homepageSections.createHowItWorksStep(payload);
             break;
           case 'categories':
-            response = await api.homepageSections.createCategory(formData);
+            response = await api.homepageSections.createCategory(payload);
             break;
           case 'designerSpotlight':
-            response = await api.homepageSections.createDesignerSpotlight(formData);
+            response = await api.homepageSections.createDesignerSpotlight(payload);
             break;
           case 'heritage':
-            response = await api.homepageSections.createHeritage(formData);
+            response = await api.homepageSections.createHeritage(payload);
             break;
           case 'testimonials':
-            response = await api.homepageSections.createTestimonial(formData);
+            response = await api.homepageSections.createTestimonial(payload);
             break;
           case 'footer':
-            response = await api.homepageSections.createFooter(formData);
+            response = await api.homepageSections.createFooter(payload);
             break;
         }
       }
@@ -932,25 +1084,37 @@ function SectionModal({
         return (
           <>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Country Name</label>
-              <input
-                type="text"
-                value={formData.name || ''}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              <label className="block text-sm font-medium text-gray-700 mb-1">Country Code</label>
+              <select
+                value={formData.countryCode || ''}
+                onChange={(e) => handleCountryCodeChange(e.target.value)}
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 required
-              />
+              >
+                <option value="">Select African country code</option>
+                {countryOptions.map((option) => (
+                  <option key={option.code} value={option.code}>
+                    {option.flag} {option.name} ({option.code})
+                  </option>
+                ))}
+              </select>
             </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Flag Emoji</label>
-              <input
-                type="text"
-                value={formData.flag || ''}
-                onChange={(e) => setFormData({ ...formData, flag: e.target.value })}
-                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
-                placeholder="🇬🇭"
-                required
-              />
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country Name</label>
+                <input
+                  type="text"
+                  value={formData.name || ''}
+                  readOnly
+                  className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-gray-700"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Flag</label>
+                <div className="w-full px-3 py-2 border border-gray-200 bg-gray-50 rounded-lg text-2xl leading-none">
+                  {formData.flag || '🌍'}
+                </div>
+              </div>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Fabrics</label>
@@ -962,6 +1126,38 @@ function SectionModal({
                 placeholder="Kente, Adinkra"
                 required
               />
+            </div>
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
+                <input
+                  type="checkbox"
+                  checked={Boolean(formData.useGeneratedImage)}
+                  onChange={(e) => setFormData({ ...formData, useGeneratedImage: e.target.checked })}
+                  className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                />
+                Generate image from keywords
+              </label>
+              <p className="text-xs text-gray-500">
+                Add comma-separated keywords (e.g. wax print, runway, handcrafted). The generated image URL will be saved with this country post.
+              </p>
+              <div className="flex flex-col md:flex-row gap-2">
+                <input
+                  type="text"
+                  value={formData.keywords || ''}
+                  onChange={(e) => setFormData({ ...formData, keywords: e.target.value })}
+                  className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="ankara, street style, heritage textiles"
+                  required={Boolean(formData.useGeneratedImage)}
+                />
+                <Button
+                  type="button"
+                  variant="secondary"
+                  onClick={handleGenerateCountryImagePreview}
+                  disabled={!formData.useGeneratedImage}
+                >
+                  Generate Preview
+                </Button>
+              </div>
             </div>
           </>
         );
@@ -1225,18 +1421,25 @@ function SectionModal({
                 {formData[uploadField] && (
                   <img src={formData[uploadField]} alt="Preview" className="h-20 w-20 object-cover" />
                 )}
-                <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
-                  <Upload className="w-4 h-4" />
-                  <span className="text-sm">{uploading ? 'Uploading...' : 'Upload Image'}</span>
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={(e) => handleImageUpload(e, uploadField)}
-                    className="hidden"
-                    disabled={uploading}
-                  />
-                </label>
+                {(type !== 'countries' || !formData.useGeneratedImage) && (
+                  <label className="flex items-center gap-2 px-4 py-2 border border-gray-300 rounded-lg cursor-pointer hover:bg-gray-50">
+                    <Upload className="w-4 h-4" />
+                    <span className="text-sm">{uploading ? 'Uploading...' : 'Upload Image'}</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={(e) => handleImageUpload(e, uploadField)}
+                      className="hidden"
+                      disabled={uploading}
+                    />
+                  </label>
+                )}
               </div>
+              {type === 'countries' && formData.useGeneratedImage && (
+                <p className="mt-2 text-xs text-gray-500">
+                  Image is generated from country + keywords. Manual upload is disabled while generated mode is on.
+                </p>
+              )}
             </div>
           )}
 

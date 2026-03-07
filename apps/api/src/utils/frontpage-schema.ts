@@ -166,15 +166,39 @@ export async function ensureHomepageSectionsSchema() {
     `CREATE TABLE IF NOT EXISTS "CountryMarquee" (
       "id" TEXT NOT NULL,
       "name" TEXT NOT NULL,
+      "countryCode" TEXT,
       "flag" TEXT NOT NULL,
       "fabrics" TEXT NOT NULL,
       "image" TEXT NOT NULL,
+      "keywords" TEXT,
       "displayOrder" INTEGER NOT NULL DEFAULT 0,
       "isActive" BOOLEAN NOT NULL DEFAULT true,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL,
       CONSTRAINT "CountryMarquee_pkey" PRIMARY KEY ("id")
     )`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'CountryMarquee'
+          AND column_name = 'countryCode'
+      ) THEN
+        ALTER TABLE "CountryMarquee" ADD COLUMN "countryCode" TEXT;
+      END IF;
+    END $$;`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1
+        FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'CountryMarquee'
+          AND column_name = 'keywords'
+      ) THEN
+        ALTER TABLE "CountryMarquee" ADD COLUMN "keywords" TEXT;
+      END IF;
+    END $$;`,
     `CREATE TABLE IF NOT EXISTS "HowItWorksStep" (
       "id" TEXT NOT NULL,
       "stepNumber" INTEGER NOT NULL,

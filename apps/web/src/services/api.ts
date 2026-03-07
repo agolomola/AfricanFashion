@@ -1244,6 +1244,11 @@ const homepageSectionsApi = {
       '/homepage-sections/admin/designers'
     ),
 
+  getAdminCountryOptions: () =>
+    apiService.get<{ success: boolean; data: Array<{ code: string; name: string; flag: string }> }>(
+      '/homepage-sections/admin/country-options'
+    ),
+
   getAdminCountries: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/admin/countries'),
 
