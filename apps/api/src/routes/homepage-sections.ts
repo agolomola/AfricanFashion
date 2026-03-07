@@ -373,6 +373,14 @@ const validationError = (res: any, error: z.ZodError) =>
 
 const storyTypeSchema = z.enum(['COUNTRY', 'DESIGNER_SPOTLIGHT']);
 const cardLinkTypeSchema = z.enum(['DEFAULT', 'INTERNAL_BLOG', 'EXTERNAL_URL']);
+const optionalUuidInputSchema = z.preprocess(
+  (value) => getNonEmptyString(value),
+  z.string().uuid().optional()
+);
+const optionalUrlInputSchema = z.preprocess(
+  (value) => getNonEmptyString(value),
+  z.string().url().optional()
+);
 
 const storyBaseSchema = z.object({
   type: storyTypeSchema,
@@ -423,8 +431,8 @@ const countryInputSchema = z.object({
   keywords: z.string().optional(),
   generateImage: z.boolean().optional(),
   linkType: cardLinkTypeSchema.optional(),
-  storyId: z.string().uuid().optional(),
-  externalUrl: z.string().url().optional(),
+  storyId: optionalUuidInputSchema,
+  externalUrl: optionalUrlInputSchema,
   displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
@@ -512,8 +520,8 @@ const designerSpotlightInputSchema = z.object({
   bio: z.string().min(1),
   image: z.string().min(1),
   linkType: cardLinkTypeSchema.optional(),
-  storyId: z.string().uuid().optional(),
-  externalUrl: z.string().url().optional(),
+  storyId: optionalUuidInputSchema,
+  externalUrl: optionalUrlInputSchema,
   displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });

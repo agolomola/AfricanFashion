@@ -1673,6 +1673,9 @@ function SectionModal({
               const option = countryOptionByCode.get(countryCode);
               const countryName = String(option?.name || rest.name || '').trim();
               const keywords = String(rest.keywords || '').trim();
+              const linkType = (rest.linkType || 'DEFAULT') as 'DEFAULT' | 'INTERNAL_BLOG' | 'EXTERNAL_URL';
+              const storyId = linkType === 'INTERNAL_BLOG' ? String(rest.storyId || '').trim() : undefined;
+              const externalUrl = linkType === 'EXTERNAL_URL' ? String(rest.externalUrl || '').trim() : undefined;
               return {
                 ...rest,
                 countryCode,
@@ -1680,6 +1683,9 @@ function SectionModal({
                 flag: option?.flag || rest.flag,
                 image: rest.image,
                 keywords,
+                linkType,
+                storyId,
+                externalUrl,
                 generateImage: Boolean(useGeneratedImage),
               };
             })()
