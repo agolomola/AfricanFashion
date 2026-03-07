@@ -97,6 +97,101 @@ const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 });
 
+const isSchemaDriftError = (error: any) => {
+  const code = String(error?.code || '');
+  return code === 'P2021' || code === 'P2022';
+};
+
+const loginUserSelectWithAdminRbac = {
+  adminProfile: {
+    select: {
+      permissions: true,
+      adminRoleId: true,
+      adminRole: {
+        select: {
+          permissions: true,
+        },
+      },
+    },
+  },
+};
+
+const loginUserSelectLegacy = {
+  adminProfile: {
+    select: {
+      permissions: true,
+    },
+  },
+};
+
+const loadUserForLogin = async (email: string) => {
+  try {
+    return await prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+      },
+      include: loginUserSelectWithAdminRbac as any,
+    });
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    return prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: 'insensitive' },
+      },
+      include: loginUserSelectLegacy as any,
+    });
+  }
+};
+
+const meUserIncludeWithAdminRbac = {
+  customerProfile: {
+    include: {
+      addresses: true,
+    },
+  },
+  fabricSellerProfile: true,
+  designerProfile: true,
+  qaProfile: true,
+  adminProfile: {
+    include: {
+      adminRole: {
+        select: {
+          id: true,
+          name: true,
+          permissions: true,
+        },
+      },
+    },
+  },
+};
+
+const meUserIncludeLegacy = {
+  customerProfile: {
+    include: {
+      addresses: true,
+    },
+  },
+  fabricSellerProfile: true,
+  designerProfile: true,
+  qaProfile: true,
+  adminProfile: true,
+};
+
+const loadUserForMe = async (userId: string) => {
+  try {
+    return await prisma.user.findUnique({
+      where: { id: userId },
+      include: meUserIncludeWithAdminRbac as any,
+    });
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    return prisma.user.findUnique({
+      where: { id: userId },
+      include: meUserIncludeLegacy as any,
+    });
+  }
+};
+
 const resolveAccessPermissions = (user: any) => {
   const rolePermissions = getRolePermissions(user.role as UserRole) as string[];
   if (user.role !== UserRole.ADMINISTRATOR) {
@@ -270,24 +365,7 @@ router.post('/login', async (req, res, next) => {
     const data = loginSchema.parse(req.body);
 
     // Find user
-    const user = await prisma.user.findFirst({
-      where: {
-        email: { equals: data.email, mode: 'insensitive' },
-      },
-      include: {
-        adminProfile: {
-          select: {
-            permissions: true,
-            adminRoleId: true,
-            adminRole: {
-              select: {
-                permissions: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const user = await loadUserForLogin(data.email);
 
     if (!user) {
       return res.status(401).json({
@@ -387,30 +465,7 @@ router.post('/login', async (req, res, next) => {
 // Get current user
 router.get('/me', authenticate, async (req, res, next) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.user!.id },
-      include: {
-        customerProfile: {
-          include: {
-            addresses: true,
-          },
-        },
-        fabricSellerProfile: true,
-        designerProfile: true,
-        qaProfile: true,
-        adminProfile: {
-          include: {
-            adminRole: {
-              select: {
-                id: true,
-                name: true,
-                permissions: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const user = await loadUserForMe(req.user!.id);
 
     if (!user) {
       return res.status(404).json({

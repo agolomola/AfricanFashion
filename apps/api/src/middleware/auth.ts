@@ -10,6 +10,62 @@ import {
   sanitizePermissionGrants,
 } from '../rbac';
 
+const isSchemaDriftError = (error: any) => {
+  const code = String(error?.code || '');
+  return code === 'P2021' || code === 'P2022';
+};
+
+const authUserSelectWithAdminRbac = {
+  id: true,
+  email: true,
+  role: true,
+  firstName: true,
+  lastName: true,
+  status: true,
+  lastLogin: true,
+  adminProfile: {
+    select: {
+      permissions: true,
+      adminRoleId: true,
+      adminRole: {
+        select: {
+          permissions: true,
+        },
+      },
+    },
+  },
+};
+
+const authUserSelectLegacy = {
+  id: true,
+  email: true,
+  role: true,
+  firstName: true,
+  lastName: true,
+  status: true,
+  lastLogin: true,
+  adminProfile: {
+    select: {
+      permissions: true,
+    },
+  },
+};
+
+const loadAuthUserById = async (userId: string): Promise<any> => {
+  try {
+    return (await prisma.user.findUnique({
+      where: { id: userId },
+      select: authUserSelectWithAdminRbac as any,
+    })) as any;
+  } catch (error) {
+    if (!isSchemaDriftError(error)) throw error;
+    return (await prisma.user.findUnique({
+      where: { id: userId },
+      select: authUserSelectLegacy as any,
+    })) as any;
+  }
+};
+
 // JWT Secret - must be set in production
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -83,29 +139,7 @@ export async function authenticate(req: Request, res: Response, next: NextFuncti
     const decoded = verifyToken(token);
 
     // Fetch full user from database
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        firstName: true,
-        lastName: true,
-        status: true,
-        lastLogin: true,
-        adminProfile: {
-          select: {
-            permissions: true,
-            adminRoleId: true,
-            adminRole: {
-              select: {
-                permissions: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const user = await loadAuthUserById(decoded.id);
 
     if (!user) {
       return res.status(401).json({
@@ -238,28 +272,7 @@ export async function optionalAuth(req: Request, res: Response, next: NextFuncti
     const token = authHeader.substring(7);
     const decoded = verifyToken(token);
 
-    const user = await prisma.user.findUnique({
-      where: { id: decoded.id },
-      select: {
-        id: true,
-        email: true,
-        role: true,
-        firstName: true,
-        lastName: true,
-        status: true,
-        lastLogin: true,
-        adminProfile: {
-          select: {
-            permissions: true,
-            adminRole: {
-              select: {
-                permissions: true,
-              },
-            },
-          },
-        },
-      },
-    });
+    const user = await loadAuthUserById(decoded.id);
 
     const isPendingVendor =
       user?.status === 'PENDING' &&

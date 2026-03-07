@@ -33,6 +33,11 @@ function percentageChange(currentValue: number, previousValue: number) {
   return Math.round(((currentValue - previousValue) / previousValue) * 100);
 }
 
+const isSchemaDriftError = (error: any) => {
+  const code = String(error?.code || '');
+  return code === 'P2021' || code === 'P2022';
+};
+
 const adminProductTypeSchema = z.nativeEnum(ProductType);
 const featuredSectionSchema = z.nativeEnum(FeaturedSection);
 const measurementTemplateSchema = z.object({
@@ -1326,47 +1331,69 @@ router.get('/users', async (req, res, next) => {
 
     const pagination = parsePagination(page, limit, 20);
 
-    const [users, total] = await Promise.all([
-      prisma.user.findMany({
-        where,
-        skip: pagination.skip,
-        take: pagination.limit,
-        orderBy: { createdAt: 'desc' },
+    const baseSelect = {
+      id: true,
+      email: true,
+      firstName: true,
+      lastName: true,
+      role: true,
+      status: true,
+      createdAt: true,
+      lastLogin: true,
+      fabricSellerProfile: {
+        select: { country: true },
+      },
+      designerProfile: {
+        select: { country: true },
+      },
+      _count: {
+        select: { ordersAsCustomer: true },
+      },
+    };
+    const adminRbacSelect = {
+      ...baseSelect,
+      adminProfile: {
         select: {
           id: true,
-          email: true,
-          firstName: true,
-          lastName: true,
-          role: true,
-          status: true,
-          createdAt: true,
-          lastLogin: true,
-          fabricSellerProfile: {
-            select: { country: true },
-          },
-          designerProfile: {
-            select: { country: true },
-          },
-          adminProfile: {
+          adminRoleId: true,
+          permissions: true,
+          adminRole: {
             select: {
               id: true,
-              adminRoleId: true,
-              permissions: true,
-              adminRole: {
-                select: {
-                  id: true,
-                  name: true,
-                  isActive: true,
-                },
-              },
+              name: true,
+              isActive: true,
             },
           },
-          _count: {
-            select: { ordersAsCustomer: true },
-          },
         },
-      }),
+      },
+    } as any;
+
+    const [total, users] = await Promise.all([
       prisma.user.count({ where }),
+      (async () => {
+        try {
+          return await prisma.user.findMany({
+            where,
+            skip: pagination.skip,
+            take: pagination.limit,
+            orderBy: { createdAt: 'desc' },
+            select: adminRbacSelect,
+          });
+        } catch (error) {
+          if (!isSchemaDriftError(error)) throw error;
+          const legacyRows = await prisma.user.findMany({
+            where,
+            skip: pagination.skip,
+            take: pagination.limit,
+            orderBy: { createdAt: 'desc' },
+            select: baseSelect as any,
+          });
+          return legacyRows.map((row: any) => ({
+            ...row,
+            adminProfile: null,
+          }));
+        }
+      })(),
     ]);
 
     res.json({
@@ -1502,13 +1529,6 @@ router.post('/users', async (req, res, next) => {
         role: true,
         status: true,
         createdAt: true,
-        adminProfile: {
-          select: {
-            id: true,
-            adminRoleId: true,
-            permissions: true,
-          },
-        },
       },
     });
 
@@ -1562,33 +1582,52 @@ router.patch('/users/:id', async (req, res, next) => {
       });
     }
 
-    const hydrated = await prisma.user.findUnique({
-      where: { id: updated.id },
-      select: {
-        id: true,
-        email: true,
-        firstName: true,
-        lastName: true,
-        role: true,
-        status: true,
-        createdAt: true,
-        lastLogin: true,
-        adminProfile: {
+    const hydrated = await (async () => {
+      try {
+        return await prisma.user.findUnique({
+          where: { id: updated.id },
           select: {
             id: true,
-            adminRoleId: true,
-            permissions: true,
-            adminRole: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            status: true,
+            createdAt: true,
+            lastLogin: true,
+            adminProfile: {
               select: {
                 id: true,
-                name: true,
-                isActive: true,
+                adminRoleId: true,
+                permissions: true,
+                adminRole: {
+                  select: {
+                    id: true,
+                    name: true,
+                    isActive: true,
+                  },
+                },
               },
             },
           },
-        },
-      },
-    });
+        });
+      } catch (error) {
+        if (!isSchemaDriftError(error)) throw error;
+        return prisma.user.findUnique({
+          where: { id: updated.id },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            role: true,
+            status: true,
+            createdAt: true,
+            lastLogin: true,
+          },
+        });
+      }
+    })();
 
     res.json({
       success: true,
