@@ -151,6 +151,29 @@ interface FeaturedProduct {
   badge?: string;
 }
 
+const useRevealOnScroll = (threshold = 0.2) => {
+  const ref = useRef<HTMLElement | null>(null);
+  const [isVisible, setIsVisible] = useState(false);
+
+  useEffect(() => {
+    const node = ref.current;
+    if (!node || isVisible) return undefined;
+    const observer = new IntersectionObserver(
+      ([entry]) => {
+        if (entry.isIntersecting) {
+          setIsVisible(true);
+          observer.disconnect();
+        }
+      },
+      { threshold }
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [isVisible, threshold]);
+
+  return { ref, isVisible };
+};
+
 interface ManagedBanner {
   id: string;
   name: string;
@@ -454,8 +477,19 @@ export default function Home() {
   const [isCountryStripDragging, setIsCountryStripDragging] = useState(false);
   const customFeaturedPageSize = 3;
   const countryStripRef = useRef<HTMLDivElement | null>(null);
+  const rtwStripRef = useRef<HTMLDivElement | null>(null);
+  const fabricStripRef = useRef<HTMLDivElement | null>(null);
   const countryStripDragRef = useRef({ isDragging: false, startX: 0, startScrollLeft: 0 });
   const countryStripMovedRef = useRef(false);
+  const categoriesReveal = useRevealOnScroll(0.15);
+  const howItWorksReveal = useRevealOnScroll(0.15);
+  const featuredCustomReveal = useRevealOnScroll(0.1);
+  const featuredRtwReveal = useRevealOnScroll(0.1);
+  const featuredFabricReveal = useRevealOnScroll(0.1);
+  const designerReveal = useRevealOnScroll(0.15);
+  const heritageReveal = useRevealOnScroll(0.2);
+  const testimonialsReveal = useRevealOnScroll(0.15);
+  const ctaReveal = useRevealOnScroll(0.15);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -600,6 +634,16 @@ export default function Home() {
     setCustomFeaturedStart((prev) => (prev + 1) % featuredDesigns.length);
   };
 
+  const scrollStripBy = (stripRef: { current: HTMLDivElement | null }, direction: 'left' | 'right') => {
+    const strip = stripRef.current;
+    if (!strip) return;
+    const amount = Math.max(260, Math.round(strip.clientWidth * 0.72));
+    strip.scrollBy({
+      left: direction === 'left' ? -amount : amount,
+      behavior: 'smooth',
+    });
+  };
+
   const handleCountryStripMouseDown = (event: ReactMouseEvent<HTMLDivElement>) => {
     const strip = countryStripRef.current;
     if (!strip) return;
@@ -643,14 +687,14 @@ export default function Home() {
   const ProductCard = ({ product }: { product: FeaturedProduct }) => (
     <Link
       to={`/${product.productType === 'DESIGN' ? 'custom-to-wear' : product.productType === 'FABRIC' ? 'fabrics-to-sell' : 'ready-to-wear'}/${product.id}`}
-      className="group block bg-white overflow-hidden shadow-sm hover:shadow-lg transition-all duration-300 border border-gray-100"
+      className="group block bg-white overflow-hidden rounded-xl shadow-sm hover:shadow-xl transition-all duration-500 border border-gray-100 hover:-translate-y-2"
     >
       <div className="relative overflow-hidden bg-gray-100" style={{ aspectRatio: '3/4' }}>
         <img
           src={product.image}
           alt={product.name}
           onError={handleImageFallback(`product-${product.id}`)}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
         />
         {product.badge && (
           <div className={`absolute top-3 left-3 px-2 py-1 text-xs font-semibold text-white rounded ${
@@ -897,7 +941,12 @@ export default function Home() {
 
       {/* Shop by Category */}
       {sectionVisibility.categories ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={categoriesReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          categoriesReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-7 md:mb-8">
             <h2 className={`${SECTION_HEADING_CLASS} text-gray-900 mb-3`}>Shop by Category</h2>
@@ -908,7 +957,10 @@ export default function Home() {
               <Link
                 key={category.id || index}
                 to={category.link}
-                className="group relative h-[320px] md:h-[520px] overflow-hidden rounded-2xl shadow-sm border border-gray-100"
+                className={`group relative h-[320px] md:h-[520px] overflow-hidden rounded-2xl shadow-sm border border-gray-100 transition-all duration-700 hover:-translate-y-2 hover:shadow-xl ${
+                  categoriesReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+                }`}
+                style={{ transitionDelay: `${120 + index * 90}ms` }}
               >
                 <img
                   src={category.image}
@@ -932,7 +984,12 @@ export default function Home() {
 
       {/* How It Works */}
       {sectionVisibility.howItWorks ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={howItWorksReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          howItWorksReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-8">
             <h2 className={`${SECTION_HEADING_CLASS} text-gray-900 mb-3`}>How It Works</h2>
@@ -942,7 +999,13 @@ export default function Home() {
           </div>
           <div className="flex items-start lg:items-stretch justify-between gap-4 md:gap-5 lg:gap-6 overflow-x-auto pb-2">
             {howItWorksSteps.map((step, index) => (
-              <div key={index} className="min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center bg-white rounded-xl border border-gray-100 p-4 shadow-sm">
+              <div
+                key={index}
+                className={`min-w-[160px] sm:min-w-[180px] lg:min-w-0 flex-1 text-center bg-white rounded-xl border border-gray-100 p-4 shadow-sm transition-all duration-700 hover:-translate-y-1 hover:shadow-md ${
+                  howItWorksReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+                }`}
+                style={{ transitionDelay: `${80 + index * 70}ms` }}
+              >
                 <div className="w-12 h-12 md:w-14 md:h-14 bg-coral-500 rounded-full flex items-center justify-center mx-auto mb-3">
                   <step.icon className="w-6 h-6 md:w-7 md:h-7 text-white" />
                 </div>
@@ -957,7 +1020,12 @@ export default function Home() {
 
       {/* Featured Custom To Wear */}
       {sectionVisibility.featuredCustomToWear ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={featuredCustomReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          featuredCustomReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -996,8 +1064,16 @@ export default function Home() {
             </div>
           ) : customFeaturedItems.length > 0 ? (
             <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-4 md:gap-5">
-              {customFeaturedItems.map((product) => (
-                <ProductCard key={product.id} product={product} />
+              {customFeaturedItems.map((product, index) => (
+                <div
+                  key={product.id}
+                  className={`transition-all duration-700 ${
+                    featuredCustomReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+                  }`}
+                  style={{ transitionDelay: `${120 + index * 80}ms` }}
+                >
+                  <ProductCard product={product} />
+                </div>
               ))}
             </div>
           ) : (
@@ -1015,7 +1091,12 @@ export default function Home() {
 
       {/* Featured Ready To Wear */}
       {sectionVisibility.featuredReadyToWear ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={featuredRtwReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          featuredRtwReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1024,10 +1105,18 @@ export default function Home() {
               <p className="text-gray-500 mt-1">Made To Standard sizes for all</p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+              <button
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => scrollStripBy(rtwStripRef, 'left')}
+                disabled={featuredRTW.length <= 2}
+              >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+              <button
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => scrollStripBy(rtwStripRef, 'right')}
+                disabled={featuredRTW.length <= 2}
+              >
                 <ChevronRight className="w-5 h-5" />
               </button>
               <Link
@@ -1043,9 +1132,20 @@ export default function Home() {
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : featuredRTW.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-              {featuredRTW.slice(0, 4).map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div
+              ref={rtwStripRef}
+              className="flex gap-4 md:gap-5 overflow-x-auto pb-2 scrollbar-hide"
+            >
+              {featuredRTW.map((product, index) => (
+                <div
+                  key={product.id}
+                  className={`w-[13.5rem] sm:w-[14.5rem] md:w-[15.5rem] flex-shrink-0 transition-all duration-700 ${
+                    featuredRtwReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+                  }`}
+                  style={{ transitionDelay: `${100 + index * 70}ms` }}
+                >
+                  <ProductCard product={product} />
+                </div>
               ))}
             </div>
           ) : (
@@ -1063,7 +1163,12 @@ export default function Home() {
 
       {/* Featured Fabrics */}
       {sectionVisibility.featuredFabrics ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={featuredFabricReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          featuredFabricReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-center justify-between mb-6">
             <div>
@@ -1072,10 +1177,18 @@ export default function Home() {
               <p className="text-gray-500 mt-1">Fabrics from all across the edges of Africa</p>
             </div>
             <div className="flex items-center gap-2">
-              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+              <button
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => scrollStripBy(fabricStripRef, 'left')}
+                disabled={featuredFabrics.length <= 2}
+              >
                 <ChevronLeft className="w-5 h-5" />
               </button>
-              <button className="p-2 border border-gray-200 rounded hover:bg-gray-50">
+              <button
+                className="p-2 border border-gray-200 rounded hover:bg-gray-50 disabled:opacity-50"
+                onClick={() => scrollStripBy(fabricStripRef, 'right')}
+                disabled={featuredFabrics.length <= 2}
+              >
                 <ChevronRight className="w-5 h-5" />
               </button>
               <Link
@@ -1091,9 +1204,20 @@ export default function Home() {
               <Loader2 className="w-8 h-8 animate-spin text-coral-500" />
             </div>
           ) : featuredFabrics.length > 0 ? (
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 md:gap-5">
-              {featuredFabrics.slice(0, 4).map((product) => (
-                <ProductCard key={product.id} product={product} />
+            <div
+              ref={fabricStripRef}
+              className="flex gap-4 md:gap-5 overflow-x-auto pb-2 scrollbar-hide"
+            >
+              {featuredFabrics.map((product, index) => (
+                <div
+                  key={product.id}
+                  className={`w-[13.5rem] sm:w-[14.5rem] md:w-[15.5rem] flex-shrink-0 transition-all duration-700 ${
+                    featuredFabricReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+                  }`}
+                  style={{ transitionDelay: `${100 + index * 70}ms` }}
+                >
+                  <ProductCard product={product} />
+                </div>
               ))}
             </div>
           ) : (
@@ -1116,7 +1240,12 @@ export default function Home() {
 
       {/* Designer Spotlight */}
       {sectionVisibility.designerSpotlight ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={designerReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          designerReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="flex items-end justify-between mb-6">
             <div>
@@ -1166,7 +1295,12 @@ export default function Home() {
                     href={destination.href}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                    className={`group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-700 hover:-translate-y-2 ${
+                      designerReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+                    }`}
+                    style={{
+                      transitionDelay: `${120 + designerSpotlightCards.findIndex((entry) => entry.id === designer.id) * 90}ms`,
+                    }}
                   >
                     {cardContent}
                   </a>
@@ -1174,7 +1308,12 @@ export default function Home() {
                   <Link
                     key={designer.id}
                     to={destination.href}
-                    className="group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                    className={`group bg-white overflow-hidden rounded-2xl shadow-sm border border-gray-100 hover:shadow-xl transition-all duration-700 hover:-translate-y-2 ${
+                      designerReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+                    }`}
+                    style={{
+                      transitionDelay: `${120 + designerSpotlightCards.findIndex((entry) => entry.id === designer.id) * 90}ms`,
+                    }}
                   >
                     {cardContent}
                   </Link>
@@ -1192,7 +1331,12 @@ export default function Home() {
 
       {/* Heritage Story */}
       {sectionVisibility.heritage ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={heritageReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          heritageReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden rounded-2xl">
             <div className="h-[260px] md:h-full overflow-hidden">
@@ -1225,15 +1369,26 @@ export default function Home() {
 
       {/* Testimonials */}
       {sectionVisibility.testimonials ? (
-      <section className="py-10 md:py-12 bg-navy-600">
+      <section
+        ref={testimonialsReveal.ref}
+        className={`py-10 md:py-12 bg-navy-600 transition-all duration-700 ${
+          testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="text-center mb-8">
             <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2">What Our Customers Say</h2>
             <p className="text-white text-opacity-70">Join thousands of happy customers worldwide.</p>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {testimonials.map((testimonial) => (
-              <div key={testimonial.id} className="bg-white bg-opacity-10 backdrop-blur-sm p-6 rounded-xl border border-white/10">
+            {testimonials.map((testimonial, index) => (
+              <div
+                key={testimonial.id}
+                className={`bg-white bg-opacity-10 backdrop-blur-sm p-6 rounded-xl border border-white/10 transition-all duration-700 ${
+                  testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+                }`}
+                style={{ transitionDelay: `${120 + index * 80}ms` }}
+              >
                 <div className="flex items-center gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
                     <Star key={i} className="w-4 h-4 fill-coral-500 text-coral-500" />
@@ -1258,11 +1413,21 @@ export default function Home() {
 
       {/* CTA Section */}
       {sectionVisibility.cta ? (
-      <section className="py-10 md:py-12 bg-[#F7F7F4]">
+      <section
+        ref={ctaReveal.ref}
+        className={`py-10 md:py-12 bg-[#F7F7F4] transition-all duration-700 ${
+          ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-8'
+        }`}
+      >
         <div className={PAGE_CONTAINER_CLASS}>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             {/* Shop CTA */}
-            <div className="bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm">
+            <div
+              className={`bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm transition-all duration-700 ${
+                ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+              }`}
+              style={{ transitionDelay: '120ms' }}
+            >
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Ready to Wear African Fashion?</h2>
               <p className="text-white text-opacity-90 mb-6">
                 Join our community of fashion lovers and discover unique pieces from talented African designers.
@@ -1284,7 +1449,12 @@ export default function Home() {
             </div>
 
             {/* Newsletter CTA */}
-            <div className="bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm">
+            <div
+              className={`bg-coral-500 rounded-2xl p-7 md:p-10 text-center text-white shadow-sm transition-all duration-700 ${
+                ctaReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'
+              }`}
+              style={{ transitionDelay: '220ms' }}
+            >
               <h2 className="text-2xl md:text-3xl font-bold mb-3">Join the Movement</h2>
               <p className="text-white text-opacity-90 mb-6">
                 Subscribe to our newsletter for exclusive offers, new arrivals, and stories from the continent.
