@@ -472,6 +472,7 @@ export default function Home() {
 
   // Hero carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [activeTestimonialIndex, setActiveTestimonialIndex] = useState(0);
   const [customFeaturedStart, setCustomFeaturedStart] = useState(0);
   const [isCountryStripHovered, setIsCountryStripHovered] = useState(false);
   const [isCountryStripDragging, setIsCountryStripDragging] = useState(false);
@@ -497,6 +498,17 @@ export default function Home() {
     }, 6000);
     return () => clearInterval(timer);
   }, [heroSlides.length]);
+
+  useEffect(() => {
+    if (testimonials.length <= 1) {
+      setActiveTestimonialIndex(0);
+      return undefined;
+    }
+    const timer = setInterval(() => {
+      setActiveTestimonialIndex((prev) => (prev + 1) % testimonials.length);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, [testimonials.length]);
 
   const nextSlide = () => setCurrentSlide((prev) => (prev + 1) % heroSlides.length);
   const prevSlide = () => setCurrentSlide((prev) => (prev - 1 + heroSlides.length) % heroSlides.length);
@@ -772,6 +784,8 @@ export default function Home() {
       </section>
     );
   };
+
+  const activeTestimonial = testimonials[activeTestimonialIndex] ?? testimonials[0];
 
   return (
     <div className="min-h-screen bg-[#F7F7F4]">
@@ -1271,20 +1285,22 @@ export default function Home() {
                 });
                 const cardContent = (
                   <>
-                    <div className="h-[250px] overflow-hidden bg-gray-100">
+                    <div className="relative h-[360px] overflow-hidden bg-gray-100">
                       <img
                         src={designer.image}
                         alt={`${designer.name} from ${designer.country}`}
                         onError={handleImageFallback(`designer-${designer.id}`, 900, 1200)}
-                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                        className="w-full h-full object-cover grayscale group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700"
                       />
-                    </div>
-                    <div className="p-5">
-                      <h3 className="text-xl font-bold text-gray-900">{designer.name}</h3>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {countryFlags[designer.country] || '🌍'} {designer.country}
-                      </p>
-                      <p className="text-sm text-gray-600 mt-3">{designer.bio}</p>
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/35 to-transparent" />
+                      <div className="absolute bottom-0 left-0 right-0 p-5 text-white">
+                        <p className="text-xs tracking-wider text-white/75 mb-1">DESIGNER SPOTLIGHT</p>
+                        <h3 className="font-['Oswald'] text-2xl font-bold leading-tight">{designer.name}</h3>
+                        <p className="text-sm text-white/80 mt-1">
+                          {countryFlags[designer.country] || '🌍'} {designer.country}
+                        </p>
+                        <p className="text-sm text-white/80 mt-3 italic">"{designer.bio}"</p>
+                      </div>
                     </div>
                   </>
                 );
@@ -1338,25 +1354,26 @@ export default function Home() {
         }`}
       >
         <div className={PAGE_CONTAINER_CLASS}>
-          <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden rounded-2xl">
-            <div className="h-[260px] md:h-full overflow-hidden">
+          <div className="relative overflow-hidden rounded-2xl min-h-[380px] md:min-h-[520px]">
+            <div className="absolute inset-0">
               <img
                 src={fallbackImage('heritage-story', 1400, 900)}
                 alt="African textile heritage"
                 className="w-full h-full object-cover"
               />
             </div>
-            <div className="p-6 md:p-8 text-white flex flex-col justify-center">
-              <p className="text-coral-500 text-sm font-semibold mb-2">HERITAGE STORY</p>
-              <h2 className="font-['Oswald'] text-3xl md:text-4xl font-bold mb-3">Rooted in Culture</h2>
-              <p className="text-white text-opacity-85 mb-5">
-                Every pattern carries meaning. From Kente&apos;s bold geometry to Ankara&apos;s vibrant motifs,
-                African textiles tell stories of identity, celebration, and legacy passed through generations.
-              </p>
-              <div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/45 to-black/20" />
+            <div className="relative z-10 flex min-h-[380px] md:min-h-[520px] items-center justify-center px-6 py-10 md:px-16 text-center">
+              <div className="max-w-3xl text-white">
+                <p className="text-coral-400 text-xs md:text-sm tracking-[0.24em] font-semibold mb-3">HERITAGE STORY</p>
+                <h2 className="font-['Oswald'] text-4xl md:text-6xl font-bold mb-4">Rooted in Culture</h2>
+                <p className="text-white/85 text-base md:text-lg mb-7">
+                  Every pattern carries meaning. From Kente&apos;s bold geometry to Ankara&apos;s vibrant motifs,
+                  African textiles tell stories of identity, celebration, and legacy passed through generations.
+                </p>
                 <Link
                   to="/about"
-                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-6 py-3 rounded font-semibold transition-colors"
+                  className="inline-flex items-center gap-2 bg-coral-500 hover:bg-coral-600 text-white px-7 py-3 rounded-full font-semibold transition-colors"
                 >
                   Read Our Story <ArrowRight className="w-4 h-4" />
                 </Link>
@@ -1380,32 +1397,46 @@ export default function Home() {
             <h2 className="font-['Oswald'] text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-2">What Our Customers Say</h2>
             <p className="text-white text-opacity-70">Join thousands of happy customers worldwide.</p>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            {testimonials.map((testimonial, index) => (
-              <div
-                key={testimonial.id}
-                className={`bg-white bg-opacity-10 backdrop-blur-sm p-6 rounded-xl border border-white/10 transition-all duration-700 ${
-                  testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
-                }`}
-                style={{ transitionDelay: `${120 + index * 80}ms` }}
-              >
-                <div className="flex items-center gap-1 mb-4">
-                  {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-4 h-4 fill-coral-500 text-coral-500" />
-                  ))}
-                </div>
-                <p className="text-white text-opacity-90 mb-6">"{testimonial.text}"</p>
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-coral-500 rounded flex items-center justify-center text-white font-semibold">
-                    {testimonial.name.split(' ').map(n => n[0]).join('')}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-white">{testimonial.name}</p>
-                    <p className="text-sm text-white text-opacity-60">{testimonial.location}</p>
-                  </div>
-                </div>
+          <div
+            className={`mx-auto max-w-3xl bg-white/10 backdrop-blur-sm p-7 md:p-10 rounded-2xl border border-white/15 transition-all duration-700 ${
+              testimonialsReveal.isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-12'
+            }`}
+          >
+            <div className="flex items-center justify-center gap-1 mb-4">
+              {[...Array(activeTestimonial?.rating ?? 5)].map((_, i) => (
+                <Star key={i} className="w-5 h-5 fill-coral-500 text-coral-500" />
+              ))}
+            </div>
+            <p className="text-white/95 text-lg md:text-2xl text-center leading-relaxed mb-8">
+              "{activeTestimonial?.text}"
+            </p>
+            <div className="flex items-center justify-center gap-3">
+              <div className="w-11 h-11 bg-coral-500 rounded-full flex items-center justify-center text-white font-semibold">
+                {String(activeTestimonial?.name || 'A')
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')}
               </div>
-            ))}
+              <div className="text-center">
+                <p className="font-semibold text-white">{activeTestimonial?.name}</p>
+                <p className="text-sm text-white/70">{activeTestimonial?.location}</p>
+              </div>
+            </div>
+            {testimonials.length > 1 ? (
+              <div className="mt-7 flex items-center justify-center gap-2">
+                {testimonials.map((item, index) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => setActiveTestimonialIndex(index)}
+                    className={`h-2.5 rounded-full transition-all ${
+                      index === activeTestimonialIndex ? 'w-7 bg-coral-500' : 'w-2.5 bg-white/35 hover:bg-white/55'
+                    }`}
+                    aria-label={`Show testimonial ${index + 1}`}
+                  />
+                ))}
+              </div>
+            ) : null}
           </div>
         </div>
       </section>
