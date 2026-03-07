@@ -1,11 +1,20 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X, Globe, Sparkles, ShoppingBag, User, BookOpen, MessageSquare, Layout, Loader2, Cog, Star } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import { useToast } from '../../components/ui/ToastProvider';
 
-type SectionType = 'countries' | 'howItWorks' | 'categories' | 'designerSpotlight' | 'heritage' | 'testimonials' | 'footer';
+type SectionType =
+  | 'countries'
+  | 'countryBlogs'
+  | 'howItWorks'
+  | 'categories'
+  | 'designerSpotlight'
+  | 'designerBlogs'
+  | 'heritage'
+  | 'testimonials'
+  | 'footer';
 
 interface Country {
   id: string;
@@ -15,6 +24,9 @@ interface Country {
   image: string;
   keywords?: string;
   fabrics: string;
+  linkType?: 'DEFAULT' | 'INTERNAL_BLOG' | 'EXTERNAL_URL';
+  storyId?: string;
+  externalUrl?: string;
   displayOrder: number;
   isActive: boolean;
 }
@@ -61,12 +73,37 @@ interface DesignerSpotlight {
   description: string;
   quote: string;
   image: string;
+  linkType?: 'DEFAULT' | 'INTERNAL_BLOG' | 'EXTERNAL_URL';
+  storyId?: string;
+  externalUrl?: string;
   displayOrder: number;
   isActive: boolean;
   designer?: {
     businessName: string;
     country: string;
   };
+  story?: {
+    id: string;
+    title: string;
+    slug: string;
+  };
+}
+
+interface HomepageStory {
+  id: string;
+  type: 'COUNTRY' | 'DESIGNER_SPOTLIGHT';
+  slug: string;
+  title: string;
+  subtitle?: string;
+  countryCode?: string;
+  designerId?: string;
+  coverImage?: string;
+  contentHtml: string;
+  excerpt?: string;
+  displayOrder: number;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 interface DesignerOption {
@@ -121,9 +158,11 @@ const ALLOWED_UPLOAD_TYPES = new Set([
 
 const TABS = [
   { id: 'countries' as SectionType, label: 'Countries', icon: Globe },
+  { id: 'countryBlogs' as SectionType, label: 'Country Blogs', icon: BookOpen },
   { id: 'howItWorks' as SectionType, label: 'How It Works', icon: Sparkles },
   { id: 'categories' as SectionType, label: 'Categories', icon: ShoppingBag },
   { id: 'designerSpotlight' as SectionType, label: 'Designer Spotlight', icon: User },
+  { id: 'designerBlogs' as SectionType, label: 'Designer Blogs', icon: MessageSquare },
   { id: 'heritage' as SectionType, label: 'Heritage', icon: BookOpen },
   { id: 'testimonials' as SectionType, label: 'Testimonials', icon: MessageSquare },
   { id: 'footer' as SectionType, label: 'Footer', icon: Layout },
@@ -141,6 +180,8 @@ export default function HomepageSections() {
   const [howItWorks, setHowItWorks] = useState<HowItWorksStep[]>([]);
   const [categories, setCategories] = useState<ShopCategory[]>([]);
   const [designerSpotlights, setDesignerSpotlights] = useState<DesignerSpotlight[]>([]);
+  const [countryBlogs, setCountryBlogs] = useState<HomepageStory[]>([]);
+  const [designerBlogs, setDesignerBlogs] = useState<HomepageStory[]>([]);
   const [heritageSections, setHeritageSections] = useState<HeritageSection[]>([]);
   const [testimonials, setTestimonials] = useState<Testimonial[]>([]);
   const [footerContents, setFooterContents] = useState<FooterContent[]>([]);
@@ -166,6 +207,16 @@ export default function HomepageSections() {
         }
         if (countryOptionsResponse.success) {
           setCountryOptions(countryOptionsResponse.data || []);
+        }
+        const [countryStoryResponse, designerStoryResponse] = await Promise.all([
+          api.homepageSections.getAdminStories('COUNTRY'),
+          api.homepageSections.getAdminStories('DESIGNER_SPOTLIGHT'),
+        ]);
+        if (countryStoryResponse.success) {
+          setCountryBlogs(countryStoryResponse.data || []);
+        }
+        if (designerStoryResponse.success) {
+          setDesignerBlogs(designerStoryResponse.data || []);
         }
       } catch (error) {
         console.error('Error fetching homepage section dependencies:', error);
@@ -193,6 +244,10 @@ export default function HomepageSections() {
           const howItWorksRes = await api.homepageSections.getAdminHowItWorks();
           if (howItWorksRes.success) setHowItWorks(howItWorksRes.data);
           break;
+        case 'countryBlogs':
+          const countryBlogsRes = await api.homepageSections.getAdminStories('COUNTRY');
+          if (countryBlogsRes.success) setCountryBlogs(countryBlogsRes.data || []);
+          break;
         case 'categories':
           const categoriesRes = await api.homepageSections.getAdminCategories();
           if (categoriesRes.success) setCategories(categoriesRes.data);
@@ -200,6 +255,10 @@ export default function HomepageSections() {
         case 'designerSpotlight':
           const spotlightRes = await api.homepageSections.getAdminDesignerSpotlights();
           if (spotlightRes.success) setDesignerSpotlights(spotlightRes.data);
+          break;
+        case 'designerBlogs':
+          const designerBlogsRes = await api.homepageSections.getAdminStories('DESIGNER_SPOTLIGHT');
+          if (designerBlogsRes.success) setDesignerBlogs(designerBlogsRes.data || []);
           break;
         case 'heritage':
           const heritageRes = await api.homepageSections.getAdminHeritage();
@@ -236,6 +295,16 @@ export default function HomepageSections() {
             }
           }
           break;
+        case 'countryBlogs':
+          const countryStory = countryBlogs.find((story) => story.id === id);
+          if (countryStory) {
+            response = await api.homepageSections.updateStory(id, { ...countryStory, isActive: !currentStatus });
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Country blog hidden.' : 'Country blog activated.');
+            }
+          }
+          break;
         case 'howItWorks':
           const step = howItWorks.find(s => s.id === id);
           if (step) {
@@ -263,6 +332,16 @@ export default function HomepageSections() {
             if (response.success) {
               fetchData();
               toast.success(currentStatus ? 'Designer spotlight hidden.' : 'Designer spotlight activated.');
+            }
+          }
+          break;
+        case 'designerBlogs':
+          const designerStory = designerBlogs.find((story) => story.id === id);
+          if (designerStory) {
+            response = await api.homepageSections.updateStory(id, { ...designerStory, isActive: !currentStatus });
+            if (response.success) {
+              fetchData();
+              toast.success(currentStatus ? 'Designer blog hidden.' : 'Designer blog activated.');
             }
           }
           break;
@@ -301,6 +380,9 @@ export default function HomepageSections() {
         case 'countries':
           response = await api.homepageSections.deleteCountry(id);
           break;
+        case 'countryBlogs':
+          response = await api.homepageSections.deleteStory(id);
+          break;
         case 'howItWorks':
           response = await api.homepageSections.deleteHowItWorksStep(id);
           break;
@@ -309,6 +391,9 @@ export default function HomepageSections() {
           break;
         case 'designerSpotlight':
           response = await api.homepageSections.deleteDesignerSpotlight(id);
+          break;
+        case 'designerBlogs':
+          response = await api.homepageSections.deleteStory(id);
           break;
         case 'heritage':
           response = await api.homepageSections.deleteHeritage(id);
@@ -423,6 +508,15 @@ export default function HomepageSections() {
                 onDelete={handleDelete}
               />
             )}
+            {activeTab === 'countryBlogs' && (
+              <StoriesTable
+                title="Country Blogs"
+                data={countryBlogs}
+                onEdit={openModal}
+                onToggle={handleToggleActive}
+                onDelete={handleDelete}
+              />
+            )}
             {activeTab === 'howItWorks' && (
               <HowItWorksTable
                 data={howItWorks}
@@ -442,6 +536,15 @@ export default function HomepageSections() {
             {activeTab === 'designerSpotlight' && (
               <DesignerSpotlightTable
                 data={designerSpotlights}
+                onEdit={openModal}
+                onToggle={handleToggleActive}
+                onDelete={handleDelete}
+              />
+            )}
+            {activeTab === 'designerBlogs' && (
+              <StoriesTable
+                title="Designer Blogs"
+                data={designerBlogs}
                 onEdit={openModal}
                 onToggle={handleToggleActive}
                 onDelete={handleDelete}
@@ -482,6 +585,8 @@ export default function HomepageSections() {
           item={editingItem}
           designers={designers}
           countryOptions={countryOptions}
+          countryStories={countryBlogs}
+          designerStories={designerBlogs}
           onClose={closeModal}
           onSave={handleSave}
         />
@@ -809,6 +914,73 @@ function CountriesTable({ data, onEdit, onToggle, onDelete }: any) {
   );
 }
 
+function StoriesTable({
+  title,
+  data,
+  onEdit,
+  onToggle,
+  onDelete,
+}: {
+  title: string;
+  data: HomepageStory[];
+  onEdit: (item: HomepageStory) => void;
+  onToggle: (id: string, currentStatus: boolean) => void;
+  onDelete: (id: string) => void;
+}) {
+  return (
+    <table className="min-w-full divide-y divide-gray-200">
+      <thead className="bg-gray-50">
+        <tr>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Title</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Slug</th>
+          <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+          <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+        </tr>
+      </thead>
+      <tbody className="bg-white divide-y divide-gray-200">
+        {data.map((item) => (
+          <tr key={item.id} className="hover:bg-gray-50">
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.displayOrder}</td>
+            <td className="px-6 py-4 text-sm text-gray-900">
+              <div>
+                <p className="font-medium">{item.title}</p>
+                {item.subtitle ? <p className="text-xs text-gray-500 line-clamp-1">{item.subtitle}</p> : null}
+              </div>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{item.slug}</td>
+            <td className="px-6 py-4 whitespace-nowrap">
+              <Badge variant={item.isActive ? 'success' : 'secondary'}>
+                {item.isActive ? 'Active' : 'Inactive'}
+              </Badge>
+            </td>
+            <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+              <div className="flex items-center justify-end gap-2">
+                <button onClick={() => onToggle(item.id, item.isActive)} className="text-gray-400 hover:text-gray-600">
+                  {item.isActive ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+                <button onClick={() => onEdit(item)} className="text-amber-600 hover:text-amber-900">
+                  <Edit2 className="w-4 h-4" />
+                </button>
+                <button onClick={() => onDelete(item.id)} className="text-red-600 hover:text-red-900">
+                  <Trash2 className="w-4 h-4" />
+                </button>
+              </div>
+            </td>
+          </tr>
+        ))}
+        {data.length === 0 && (
+          <tr>
+            <td colSpan={5} className="px-6 py-8 text-center text-sm text-gray-500">
+              No {title.toLowerCase()} created yet.
+            </td>
+          </tr>
+        )}
+      </tbody>
+    </table>
+  );
+}
+
 function HowItWorksTable({ data, onEdit, onToggle, onDelete }: any) {
   return (
     <table className="min-w-full divide-y divide-gray-200">
@@ -1096,12 +1268,104 @@ function FooterTable({ data, onEdit }: any) {
   );
 }
 
+function RichTextEditor({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (html: string) => void;
+}) {
+  const toast = useToast();
+  const editorRef = useRef<HTMLDivElement | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  useEffect(() => {
+    const editor = editorRef.current;
+    if (!editor) return;
+    if (editor.innerHTML !== value) {
+      editor.innerHTML = value || '';
+    }
+  }, [value]);
+
+  const runCommand = (command: string, valueArg?: string) => {
+    if (!editorRef.current) return;
+    editorRef.current.focus();
+    document.execCommand(command, false, valueArg);
+    onChange(editorRef.current.innerHTML);
+  };
+
+  const insertLink = () => {
+    const url = window.prompt('Enter link URL');
+    if (!url) return;
+    runCommand('createLink', url);
+  };
+
+  const handleImageUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append('image', file);
+      const response = await api.upload.image(form);
+      if (response.success && response.data?.url) {
+        runCommand('insertImage', response.data.url);
+        toast.success('Image inserted into story.');
+      }
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Failed to upload image.');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
+    }
+  };
+
+  return (
+    <div className="border border-gray-300 rounded-lg overflow-hidden">
+      <div className="flex flex-wrap items-center gap-1 border-b border-gray-200 bg-gray-50 p-2">
+        <button type="button" onClick={() => runCommand('bold')} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white">B</button>
+        <button type="button" onClick={() => runCommand('italic')} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white italic">I</button>
+        <button type="button" onClick={() => runCommand('underline')} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white underline">U</button>
+        <button type="button" onClick={() => runCommand('formatBlock', 'H2')} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white">H2</button>
+        <button type="button" onClick={() => runCommand('insertUnorderedList')} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white">• List</button>
+        <button type="button" onClick={() => runCommand('insertOrderedList')} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white">1. List</button>
+        <button type="button" onClick={insertLink} className="px-2 py-1 text-sm border border-gray-300 rounded bg-white">Link</button>
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          className="px-2 py-1 text-sm border border-gray-300 rounded bg-white"
+          disabled={uploading}
+        >
+          {uploading ? 'Uploading...' : 'Image'}
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={handleImageUpload}
+        />
+      </div>
+      <div
+        ref={editorRef}
+        className="min-h-[260px] max-h-[420px] overflow-y-auto p-3 prose prose-sm max-w-none focus:outline-none"
+        contentEditable
+        onInput={(event) => onChange((event.currentTarget as HTMLDivElement).innerHTML)}
+        suppressContentEditableWarning
+      />
+    </div>
+  );
+}
+
 // Modal Component
 function SectionModal({
   type,
   item,
   designers,
   countryOptions,
+  countryStories,
+  designerStories,
   onClose,
   onSave,
 }: {
@@ -1109,6 +1373,8 @@ function SectionModal({
   item: any;
   designers: DesignerOption[];
   countryOptions: CountryOption[];
+  countryStories: HomepageStory[];
+  designerStories: HomepageStory[];
   onClose: () => void;
   onSave: () => void;
 }) {
@@ -1118,7 +1384,12 @@ function SectionModal({
   const [uploading, setUploading] = useState(false);
   const [generatingCountryImage, setGeneratingCountryImage] = useState(false);
   const [formError, setFormError] = useState('');
-  const uploadField = type === 'testimonials' ? 'avatar' : 'image';
+  const uploadField =
+    type === 'testimonials'
+      ? 'avatar'
+      : type === 'countryBlogs' || type === 'designerBlogs'
+        ? 'coverImage'
+        : 'image';
 
   function getDefaultFormData(sectionType: SectionType) {
     switch (sectionType) {
@@ -1130,7 +1401,21 @@ function SectionModal({
           image: '',
           keywords: '',
           fabrics: '',
+          linkType: 'DEFAULT',
+          storyId: '',
+          externalUrl: '',
           useGeneratedImage: true,
+          displayOrder: 0,
+          isActive: true,
+        };
+      case 'countryBlogs':
+        return {
+          type: 'COUNTRY',
+          title: '',
+          subtitle: '',
+          countryCode: '',
+          coverImage: '',
+          contentHtml: '',
           displayOrder: 0,
           isActive: true,
         };
@@ -1139,7 +1424,29 @@ function SectionModal({
       case 'categories':
         return { title: '', subtitle: '', image: '', link: '', displayOrder: 0, isActive: true };
       case 'designerSpotlight':
-        return { designerId: '', headline: '', description: '', quote: '', image: '', displayOrder: 0, isActive: true };
+        return {
+          designerId: '',
+          headline: '',
+          description: '',
+          quote: '',
+          image: '',
+          linkType: 'DEFAULT',
+          storyId: '',
+          externalUrl: '',
+          displayOrder: 0,
+          isActive: true,
+        };
+      case 'designerBlogs':
+        return {
+          type: 'DESIGNER_SPOTLIGHT',
+          title: '',
+          subtitle: '',
+          designerId: '',
+          coverImage: '',
+          contentHtml: '',
+          displayOrder: 0,
+          isActive: true,
+        };
       case 'heritage':
         return { title: '', subtitle: '', description: '', image: '', stats: [], displayOrder: 0, isActive: true };
       case 'testimonials':
@@ -1294,6 +1601,60 @@ function SectionModal({
         toast.error('Please upload an image or enable generated image mode.');
         return;
       }
+      if (formData.linkType === 'INTERNAL_BLOG' && !String(formData.storyId || '').trim()) {
+        setSaving(false);
+        setFormError('Select a country blog to link this card.');
+        toast.error('Select a country blog to link this card.');
+        return;
+      }
+      if (formData.linkType === 'EXTERNAL_URL' && !String(formData.externalUrl || '').trim()) {
+        setSaving(false);
+        setFormError('Enter an external URL to link this card.');
+        toast.error('Enter an external URL to link this card.');
+        return;
+      }
+    }
+
+    if (type === 'designerSpotlight') {
+      if (formData.linkType === 'INTERNAL_BLOG' && !String(formData.storyId || '').trim()) {
+        setSaving(false);
+        setFormError('Select a designer blog to link this spotlight card.');
+        toast.error('Select a designer blog to link this spotlight card.');
+        return;
+      }
+      if (formData.linkType === 'EXTERNAL_URL' && !String(formData.externalUrl || '').trim()) {
+        setSaving(false);
+        setFormError('Enter an external URL to link this spotlight card.');
+        toast.error('Enter an external URL to link this spotlight card.');
+        return;
+      }
+    }
+
+    if (type === 'countryBlogs' || type === 'designerBlogs') {
+      if (!String(formData.title || '').trim()) {
+        setSaving(false);
+        setFormError('Story title is required.');
+        toast.error('Story title is required.');
+        return;
+      }
+      if (!String(formData.contentHtml || '').trim()) {
+        setSaving(false);
+        setFormError('Story content is required.');
+        toast.error('Story content is required.');
+        return;
+      }
+      if (type === 'countryBlogs' && !String(formData.countryCode || '').trim()) {
+        setSaving(false);
+        setFormError('Select a country for this blog.');
+        toast.error('Select a country for this blog.');
+        return;
+      }
+      if (type === 'designerBlogs' && !String(formData.designerId || '').trim()) {
+        setSaving(false);
+        setFormError('Select a designer for this blog.');
+        toast.error('Select a designer for this blog.');
+        return;
+      }
     }
 
     if (['categories', 'designerSpotlight', 'heritage'].includes(type) && !formData.image) {
@@ -1322,12 +1683,51 @@ function SectionModal({
                 generateImage: Boolean(useGeneratedImage),
               };
             })()
+          : type === 'countryBlogs'
+            ? {
+                type: 'COUNTRY',
+                title: String(formData.title || '').trim(),
+                subtitle: String(formData.subtitle || '').trim() || undefined,
+                countryCode: String(formData.countryCode || '').trim().toUpperCase(),
+                coverImage: String(formData.coverImage || '').trim() || undefined,
+                contentHtml: String(formData.contentHtml || ''),
+                displayOrder: Number(formData.displayOrder || 0),
+                isActive: Boolean(formData.isActive),
+              }
+            : type === 'designerBlogs'
+              ? {
+                  type: 'DESIGNER_SPOTLIGHT',
+                  title: String(formData.title || '').trim(),
+                  subtitle: String(formData.subtitle || '').trim() || undefined,
+                  designerId: String(formData.designerId || '').trim(),
+                  coverImage: String(formData.coverImage || '').trim() || undefined,
+                  contentHtml: String(formData.contentHtml || ''),
+                  displayOrder: Number(formData.displayOrder || 0),
+                  isActive: Boolean(formData.isActive),
+                }
+              : type === 'designerSpotlight'
+                ? {
+                    ...formData,
+                    linkType: formData.linkType || 'DEFAULT',
+                    storyId:
+                      formData.linkType === 'INTERNAL_BLOG'
+                        ? String(formData.storyId || '').trim()
+                        : undefined,
+                    externalUrl:
+                      formData.linkType === 'EXTERNAL_URL'
+                        ? String(formData.externalUrl || '').trim()
+                        : undefined,
+                  }
           : formData;
       if (item?.id) {
         // Update existing
         switch (type) {
           case 'countries':
             response = await api.homepageSections.updateCountry(item.id, payload);
+            break;
+          case 'countryBlogs':
+          case 'designerBlogs':
+            response = await api.homepageSections.updateStory(item.id, payload);
             break;
           case 'howItWorks':
             response = await api.homepageSections.updateHowItWorksStep(item.id, payload);
@@ -1353,6 +1753,10 @@ function SectionModal({
         switch (type) {
           case 'countries':
             response = await api.homepageSections.createCountry(payload);
+            break;
+          case 'countryBlogs':
+          case 'designerBlogs':
+            response = await api.homepageSections.createStory(payload);
             break;
           case 'howItWorks':
             response = await api.homepageSections.createHowItWorksStep(payload);
@@ -1500,6 +1904,126 @@ function SectionModal({
                 </div>
               </div>
             </div>
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-medium text-gray-700">Card Link Destination</p>
+              <select
+                value={formData.linkType || 'DEFAULT'}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    linkType: e.target.value,
+                    storyId: e.target.value === 'INTERNAL_BLOG' ? formData.storyId : '',
+                    externalUrl: e.target.value === 'EXTERNAL_URL' ? formData.externalUrl : '',
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              >
+                <option value="DEFAULT">Default country products page</option>
+                <option value="INTERNAL_BLOG">Internal country blog story</option>
+                <option value="EXTERNAL_URL">External URL (opens new window)</option>
+              </select>
+              {formData.linkType === 'INTERNAL_BLOG' && (
+                <select
+                  value={formData.storyId || ''}
+                  onChange={(e) => setFormData({ ...formData, storyId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                  <option value="">Select country story</option>
+                  {countryStories.map((story) => (
+                    <option key={story.id} value={story.id}>
+                      {story.title}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {formData.linkType === 'EXTERNAL_URL' && (
+                <input
+                  type="url"
+                  value={formData.externalUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, externalUrl: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="https://example.com/story"
+                />
+              )}
+            </div>
+          </>
+        );
+      case 'countryBlogs':
+      case 'designerBlogs':
+        return (
+          <>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Story Title</label>
+              <input
+                type="text"
+                value={formData.title || ''}
+                onChange={(e) => setFormData({ ...formData, title: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                required
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Subtitle</label>
+              <input
+                type="text"
+                value={formData.subtitle || ''}
+                onChange={(e) => setFormData({ ...formData, subtitle: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                placeholder="Optional short subtitle"
+              />
+            </div>
+            {type === 'countryBlogs' ? (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Country</label>
+                <select
+                  value={formData.countryCode || ''}
+                  onChange={(e) => setFormData({ ...formData, countryCode: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  required
+                >
+                  <option value="">Select country</option>
+                  {countryOptions.map((option) => (
+                    <option key={option.code} value={option.code}>
+                      {option.flag} {option.name} ({option.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            ) : (
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Designer</label>
+                <select
+                  value={formData.designerId || ''}
+                  onChange={(e) => setFormData({ ...formData, designerId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  required
+                >
+                  <option value="">Select designer</option>
+                  {designers.map((designer) => (
+                    <option key={designer.id} value={designer.id}>
+                      {designer.businessName} ({designer.country})
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Cover Image URL (optional)</label>
+              <input
+                type="url"
+                value={formData.coverImage || ''}
+                onChange={(e) => setFormData({ ...formData, coverImage: e.target.value })}
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                placeholder="https://..."
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Story Content</label>
+              <RichTextEditor
+                value={formData.contentHtml || ''}
+                onChange={(html) => setFormData({ ...formData, contentHtml: html })}
+              />
+            </div>
           </>
         );
       case 'howItWorks':
@@ -1621,6 +2145,48 @@ function SectionModal({
                 className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                 rows={2}
               />
+            </div>
+            <div className="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-3">
+              <p className="text-sm font-medium text-gray-700">Spotlight Link Destination</p>
+              <select
+                value={formData.linkType || 'DEFAULT'}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    linkType: e.target.value,
+                    storyId: e.target.value === 'INTERNAL_BLOG' ? formData.storyId : '',
+                    externalUrl: e.target.value === 'EXTERNAL_URL' ? formData.externalUrl : '',
+                  })
+                }
+                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+              >
+                <option value="DEFAULT">Default designer products page</option>
+                <option value="INTERNAL_BLOG">Internal designer blog story</option>
+                <option value="EXTERNAL_URL">External URL (opens new window)</option>
+              </select>
+              {formData.linkType === 'INTERNAL_BLOG' && (
+                <select
+                  value={formData.storyId || ''}
+                  onChange={(e) => setFormData({ ...formData, storyId: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                  <option value="">Select designer story</option>
+                  {designerStories.map((story) => (
+                    <option key={story.id} value={story.id}>
+                      {story.title}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {formData.linkType === 'EXTERNAL_URL' && (
+                <input
+                  type="url"
+                  value={formData.externalUrl || ''}
+                  onChange={(e) => setFormData({ ...formData, externalUrl: e.target.value })}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="https://example.com/designer-story"
+                />
+              )}
             </div>
           </>
         );
@@ -1755,9 +2321,11 @@ function SectionModal({
           {renderFormFields()}
 
           {/* Image Upload */}
-          {(type === 'countries' || type === 'categories' || type === 'designerSpotlight' || type === 'heritage' || type === 'testimonials') && (
+          {(type === 'countries' || type === 'categories' || type === 'designerSpotlight' || type === 'heritage' || type === 'testimonials' || type === 'countryBlogs' || type === 'designerBlogs') && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">{type === 'testimonials' ? 'Avatar' : 'Image'}</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                {type === 'testimonials' ? 'Avatar' : type === 'countryBlogs' || type === 'designerBlogs' ? 'Cover Image' : 'Image'}
+              </label>
               <div className="flex items-center gap-4">
                 {formData[uploadField] && (
                   <img src={formData[uploadField]} alt="Preview" className="h-20 w-20 object-cover" />

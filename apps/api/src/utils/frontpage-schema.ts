@@ -171,6 +171,9 @@ export async function ensureHomepageSectionsSchema() {
       "fabrics" TEXT NOT NULL,
       "image" TEXT NOT NULL,
       "keywords" TEXT,
+      "linkType" TEXT NOT NULL DEFAULT 'DEFAULT',
+      "storyId" TEXT,
+      "externalUrl" TEXT,
       "displayOrder" INTEGER NOT NULL DEFAULT 0,
       "isActive" BOOLEAN NOT NULL DEFAULT true,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -207,6 +210,36 @@ export async function ensureHomepageSectionsSchema() {
         ALTER TABLE "CountryMarquee" ADD COLUMN "keywords" TEXT;
       END IF;
     END $$;`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'CountryMarquee'
+          AND column_name = 'linkType'
+      ) THEN
+        ALTER TABLE "CountryMarquee" ADD COLUMN "linkType" TEXT NOT NULL DEFAULT 'DEFAULT';
+      END IF;
+    END $$;`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'CountryMarquee'
+          AND column_name = 'storyId'
+      ) THEN
+        ALTER TABLE "CountryMarquee" ADD COLUMN "storyId" TEXT;
+      END IF;
+    END $$;`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'CountryMarquee'
+          AND column_name = 'externalUrl'
+      ) THEN
+        ALTER TABLE "CountryMarquee" ADD COLUMN "externalUrl" TEXT;
+      END IF;
+    END $$;`,
     `CREATE TABLE IF NOT EXISTS "HowItWorksStep" (
       "id" TEXT NOT NULL,
       "stepNumber" INTEGER NOT NULL,
@@ -239,11 +272,60 @@ export async function ensureHomepageSectionsSchema() {
       "quote" TEXT NOT NULL,
       "bio" TEXT NOT NULL,
       "image" TEXT NOT NULL,
+      "linkType" TEXT NOT NULL DEFAULT 'DEFAULT',
+      "storyId" TEXT,
+      "externalUrl" TEXT,
       "displayOrder" INTEGER NOT NULL DEFAULT 0,
       "isActive" BOOLEAN NOT NULL DEFAULT true,
       "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
       "updatedAt" TIMESTAMP(3) NOT NULL,
       CONSTRAINT "DesignerSpotlight_pkey" PRIMARY KEY ("id")
+    )`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'DesignerSpotlight'
+          AND column_name = 'linkType'
+      ) THEN
+        ALTER TABLE "DesignerSpotlight" ADD COLUMN "linkType" TEXT NOT NULL DEFAULT 'DEFAULT';
+      END IF;
+    END $$;`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'DesignerSpotlight'
+          AND column_name = 'storyId'
+      ) THEN
+        ALTER TABLE "DesignerSpotlight" ADD COLUMN "storyId" TEXT;
+      END IF;
+    END $$;`,
+    `DO $$ BEGIN
+      IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns
+        WHERE table_schema = 'public'
+          AND table_name = 'DesignerSpotlight'
+          AND column_name = 'externalUrl'
+      ) THEN
+        ALTER TABLE "DesignerSpotlight" ADD COLUMN "externalUrl" TEXT;
+      END IF;
+    END $$;`,
+    `CREATE TABLE IF NOT EXISTS "HomepageStory" (
+      "id" TEXT NOT NULL,
+      "type" TEXT NOT NULL,
+      "slug" TEXT NOT NULL,
+      "title" TEXT NOT NULL,
+      "subtitle" TEXT,
+      "countryCode" TEXT,
+      "designerId" TEXT,
+      "coverImage" TEXT,
+      "contentHtml" TEXT NOT NULL,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "displayOrder" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "HomepageStory_pkey" PRIMARY KEY ("id")
     )`,
     `CREATE TABLE IF NOT EXISTS "HeritageSection" (
       "id" TEXT NOT NULL,
@@ -285,6 +367,7 @@ export async function ensureHomepageSectionsSchema() {
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "HowItWorksStep_stepNumber_key" ON "HowItWorksStep"("stepNumber")`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "ShopCategory_key_key" ON "ShopCategory"("key")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "HomepageStory_slug_key" ON "HomepageStory"("slug")`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "HomepageSectionSetting_key_key" ON "HomepageSectionSetting"("key")`,
     `CREATE INDEX IF NOT EXISTS "CountryMarquee_isActive_idx" ON "CountryMarquee"("isActive")`,
     `CREATE INDEX IF NOT EXISTS "CountryMarquee_displayOrder_idx" ON "CountryMarquee"("displayOrder")`,
@@ -294,6 +377,8 @@ export async function ensureHomepageSectionsSchema() {
     `CREATE INDEX IF NOT EXISTS "ShopCategory_displayOrder_idx" ON "ShopCategory"("displayOrder")`,
     `CREATE INDEX IF NOT EXISTS "DesignerSpotlight_isActive_idx" ON "DesignerSpotlight"("isActive")`,
     `CREATE INDEX IF NOT EXISTS "DesignerSpotlight_displayOrder_idx" ON "DesignerSpotlight"("displayOrder")`,
+    `CREATE INDEX IF NOT EXISTS "HomepageStory_type_isActive_idx" ON "HomepageStory"("type", "isActive")`,
+    `CREATE INDEX IF NOT EXISTS "HomepageStory_displayOrder_idx" ON "HomepageStory"("displayOrder")`,
     `CREATE INDEX IF NOT EXISTS "HeritageSection_isActive_idx" ON "HeritageSection"("isActive")`,
     `CREATE INDEX IF NOT EXISTS "HeritageSection_displayOrder_idx" ON "HeritageSection"("displayOrder")`,
     `CREATE INDEX IF NOT EXISTS "Testimonial_isActive_idx" ON "Testimonial"("isActive")`,

@@ -23,6 +23,7 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import StaticPage from './pages/StaticPage';
+import StoryDetail from './pages/StoryDetail';
 
 // Customer Pages
 import CustomerDashboard from './pages/customer/Dashboard';
@@ -97,6 +98,7 @@ function App() {
               <Route path="/fabrics/:id" element={<FabricDetail />} />
               <Route path="/ready-to-wear" element={<ReadyToWear />} />
               <Route path="/ready-to-wear/:id" element={<ReadyToWearDetail />} />
+              <Route path="/stories/:slug" element={<StoryDetail />} />
               <Route path="/designers" element={<Navigate to="/custom-to-wear" replace />} />
               <Route
                 path="/about"

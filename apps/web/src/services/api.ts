@@ -1217,6 +1217,9 @@ const homepageSectionsApi = {
   getCountries: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/countries'),
 
+  getStoryBySlug: (slug: string) =>
+    apiService.get<{ success: boolean; data: any }>(`/homepage-sections/stories/${encodeURIComponent(slug)}`),
+
   getHowItWorks: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/how-it-works'),
 
@@ -1251,6 +1254,29 @@ const homepageSectionsApi = {
 
   getAdminCountries: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/admin/countries'),
+
+  getAdminStories: (type?: 'COUNTRY' | 'DESIGNER_SPOTLIGHT') =>
+    apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/admin/stories', {
+      params: type ? { type } : undefined,
+    }),
+
+  createStory: (data: {
+    type: 'COUNTRY' | 'DESIGNER_SPOTLIGHT';
+    title: string;
+    subtitle?: string;
+    countryCode?: string;
+    designerId?: string;
+    coverImage?: string;
+    contentHtml: string;
+    displayOrder?: number;
+    isActive?: boolean;
+  }) => apiService.post<{ success: boolean; data: any }>('/homepage-sections/admin/stories', data),
+
+  updateStory: (id: string, data: any) =>
+    apiService.put<{ success: boolean; data: any }>(`/homepage-sections/admin/stories/${id}`, data),
+
+  deleteStory: (id: string) =>
+    apiService.delete<{ success: boolean }>(`/homepage-sections/admin/stories/${id}`),
 
   getCountryImageApiConfig: () =>
     apiService.get<{

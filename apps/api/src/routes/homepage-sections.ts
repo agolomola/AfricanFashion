@@ -14,6 +14,9 @@ import {
 
 const router = Router();
 
+type StoryType = 'COUNTRY' | 'DESIGNER_SPOTLIGHT';
+type CardLinkType = 'DEFAULT' | 'INTERNAL_BLOG' | 'EXTERNAL_URL';
+
 router.use(async (_req, res, next) => {
   try {
     await ensureHomepageSectionsSchema();
@@ -368,6 +371,49 @@ const validationError = (res: any, error: z.ZodError) =>
     errors: error.issues,
   });
 
+const storyTypeSchema = z.enum(['COUNTRY', 'DESIGNER_SPOTLIGHT']);
+const cardLinkTypeSchema = z.enum(['DEFAULT', 'INTERNAL_BLOG', 'EXTERNAL_URL']);
+
+const storyBaseSchema = z.object({
+  type: storyTypeSchema,
+  title: z.string().min(1),
+  subtitle: z.string().optional(),
+  countryCode: z.string().trim().length(2).optional(),
+  designerId: z.string().uuid().optional(),
+  coverImage: z.string().url().optional(),
+  contentHtml: z.string().min(1),
+  displayOrder: z.coerce.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+});
+
+const storyInputSchema = storyBaseSchema
+  .superRefine((data, ctx) => {
+    if (data.type === 'COUNTRY' && !normalizeCountryCode(data.countryCode)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['countryCode'],
+        message: 'countryCode is required for country stories.',
+      });
+    }
+    if (data.type === 'DESIGNER_SPOTLIGHT' && !getNonEmptyString(data.designerId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['designerId'],
+        message: 'designerId is required for designer spotlight stories.',
+      });
+    }
+  });
+
+const storyUpdateSchema = storyBaseSchema.partial();
+
+const normalizeCardLinkType = (value: unknown): CardLinkType => {
+  const normalized = String(value || '').trim().toUpperCase();
+  if (normalized === 'INTERNAL_BLOG' || normalized === 'EXTERNAL_URL') {
+    return normalized;
+  }
+  return 'DEFAULT';
+};
+
 const countryInputSchema = z.object({
   countryCode: z.string().trim().length(2).optional(),
   name: z.string().min(1).optional(),
@@ -376,6 +422,9 @@ const countryInputSchema = z.object({
   image: z.string().min(1).optional(),
   keywords: z.string().optional(),
   generateImage: z.boolean().optional(),
+  linkType: cardLinkTypeSchema.optional(),
+  storyId: z.string().uuid().optional(),
+  externalUrl: z.string().url().optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
@@ -387,6 +436,20 @@ const countryCreateSchema = countryInputSchema
         code: z.ZodIssueCode.custom,
         path: ['countryCode'],
         message: 'Select a valid African country.',
+      });
+    }
+    if (data.linkType === 'INTERNAL_BLOG' && !getNonEmptyString(data.storyId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['storyId'],
+        message: 'Select a story for internal blog link.',
+      });
+    }
+    if (data.linkType === 'EXTERNAL_URL' && !getNonEmptyString(data.externalUrl)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['externalUrl'],
+        message: 'Provide an external URL for external link type.',
       });
     }
   });
@@ -443,15 +506,36 @@ const shopCategoryCreateSchema = z.object({
 });
 const shopCategoryUpdateSchema = shopCategoryCreateSchema.partial();
 
-const designerSpotlightCreateSchema = z.object({
+const designerSpotlightInputSchema = z.object({
   designerId: z.string().uuid(),
   quote: z.string().min(1),
   bio: z.string().min(1),
   image: z.string().min(1),
+  linkType: cardLinkTypeSchema.optional(),
+  storyId: z.string().uuid().optional(),
+  externalUrl: z.string().url().optional(),
   displayOrder: z.coerce.number().int().min(0).optional(),
   isActive: z.boolean().optional(),
 });
-const designerSpotlightUpdateSchema = designerSpotlightCreateSchema.partial();
+
+const designerSpotlightCreateSchema = designerSpotlightInputSchema
+  .superRefine((data, ctx) => {
+    if (data.linkType === 'INTERNAL_BLOG' && !getNonEmptyString(data.storyId)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['storyId'],
+        message: 'Select a story for internal blog link.',
+      });
+    }
+    if (data.linkType === 'EXTERNAL_URL' && !getNonEmptyString(data.externalUrl)) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['externalUrl'],
+        message: 'Provide an external URL for external link type.',
+      });
+    }
+  });
+const designerSpotlightUpdateSchema = designerSpotlightInputSchema.partial();
 
 const heritageCreateSchema = z.object({
   title: z.string().min(1),
@@ -523,6 +607,9 @@ const normalizeDesignerSpotlightInput = (payload: any) => ({
     getNonEmptyString(payload.quote) ??
     getNonEmptyString(payload.headline) ??
     'Design story coming soon.',
+  linkType: normalizeCardLinkType(payload.linkType),
+  storyId: getNonEmptyString(payload.storyId),
+  externalUrl: getNonEmptyString(payload.externalUrl),
 });
 
 const normalizeHeritageInput = (payload: any) => ({
@@ -597,6 +684,41 @@ const serializeFooter = (footer: any) => ({
   links: parseSocialLinks(footer?.socialLinks),
 });
 
+const stripHtml = (value: string) =>
+  String(value || '')
+    .replace(/<[^>]*>/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+const buildStoryExcerpt = (html: string, max = 180) => {
+  const plain = stripHtml(html);
+  if (plain.length <= max) return plain;
+  return `${plain.slice(0, max).trimEnd()}...`;
+};
+
+const serializeStory = (story: any) => ({
+  ...story,
+  excerpt: buildStoryExcerpt(story?.contentHtml || ''),
+});
+
+const resolveUniqueStorySlug = async (title: string, excludeId?: string) => {
+  const base = slugify(title) || `story-${Date.now()}`;
+  let slug = base;
+  let counter = 2;
+  while (true) {
+    const existing = await prisma.homepageStory.findFirst({
+      where: {
+        slug,
+        ...(excludeId ? { id: { not: excludeId } } : {}),
+      },
+      select: { id: true },
+    });
+    if (!existing) return slug;
+    slug = `${base}-${counter}`;
+    counter += 1;
+  }
+};
+
 const getSpotlightsWithDesigners = async (isActiveOnly = true) => {
   const spotlights = await prisma.designerSpotlight.findMany({
     where: isActiveOnly ? { isActive: true } : undefined,
@@ -618,10 +740,26 @@ const getSpotlightsWithDesigners = async (isActiveOnly = true) => {
     },
   });
   const designersById = new Map(designers.map((designer) => [designer.id, designer]));
+  const storyIds = Array.from(new Set(spotlights.map((spotlight) => spotlight.storyId).filter(Boolean))) as string[];
+  const stories = storyIds.length
+    ? await prisma.homepageStory.findMany({
+        where: {
+          id: { in: storyIds },
+          isActive: true,
+        },
+        select: {
+          id: true,
+          slug: true,
+          title: true,
+        },
+      })
+    : [];
+  const storyById = new Map(stories.map((story) => [story.id, story]));
 
   return spotlights.map((spotlight) => ({
     ...serializeDesignerSpotlight(spotlight),
     designer: designersById.get(spotlight.designerId) || null,
+    story: spotlight.storyId ? storyById.get(spotlight.storyId) || null : null,
   }));
 };
 
@@ -639,6 +777,26 @@ const buildNormalizedCountryPayload = async (payload: any, fallback?: any) => {
   const keywords = sanitizeKeywords(
     payload?.keywords !== undefined ? payload?.keywords : (fallback?.keywords ?? '')
   );
+  const linkType = normalizeCardLinkType(payload?.linkType ?? fallback?.linkType);
+  const storyId = getNonEmptyString(payload?.storyId) ?? getNonEmptyString(fallback?.storyId);
+  const externalUrl = getNonEmptyString(payload?.externalUrl) ?? getNonEmptyString(fallback?.externalUrl);
+
+  if (linkType === 'INTERNAL_BLOG' && !storyId) {
+    throw new Error('MISSING_STORY_LINK');
+  }
+  if (linkType === 'EXTERNAL_URL' && !externalUrl) {
+    throw new Error('MISSING_EXTERNAL_URL');
+  }
+  if (linkType === 'INTERNAL_BLOG' && storyId) {
+    const story = await prisma.homepageStory.findUnique({
+      where: { id: storyId },
+      select: { id: true, type: true },
+    });
+    if (!story || story.type !== 'COUNTRY') {
+      throw new Error('INVALID_STORY_LINK');
+    }
+  }
+
   const generateImage = payload?.generateImage === true;
   const explicitImage = getNonEmptyString(payload?.image);
 
@@ -665,6 +823,9 @@ const buildNormalizedCountryPayload = async (payload: any, fallback?: any) => {
     fabrics,
     image,
     keywords,
+    linkType,
+    storyId: linkType === 'INTERNAL_BLOG' ? storyId : null,
+    externalUrl: linkType === 'EXTERNAL_URL' ? externalUrl : null,
     displayOrder:
       payload?.displayOrder !== undefined
         ? Number(payload.displayOrder)
@@ -683,10 +844,28 @@ router.get('/countries', async (req, res) => {
       where: { isActive: true },
       orderBy: { displayOrder: 'asc' },
     });
+    const storyIds = Array.from(new Set(countries.map((country) => country.storyId).filter(Boolean))) as string[];
+    const stories = storyIds.length
+      ? await prisma.homepageStory.findMany({
+          where: {
+            id: { in: storyIds },
+            isActive: true,
+          },
+          select: {
+            id: true,
+            slug: true,
+            title: true,
+          },
+        })
+      : [];
+    const storyById = new Map(stories.map((story) => [story.id, story]));
 
     res.json({
       success: true,
-      data: countries,
+      data: countries.map((country) => ({
+        ...country,
+        story: country.storyId ? storyById.get(country.storyId) || null : null,
+      })),
     });
   } catch (error) {
     console.error('Error fetching countries:', error);
@@ -842,6 +1021,34 @@ router.get('/footer', async (req, res) => {
   }
 });
 
+router.get('/stories/:slug', async (req, res) => {
+  try {
+    const slug = String(req.params.slug || '').trim().toLowerCase();
+    if (!slug) {
+      return res.status(400).json({ success: false, message: 'Story slug is required.' });
+    }
+    const story = await prisma.homepageStory.findFirst({
+      where: {
+        slug,
+        isActive: true,
+      },
+    });
+    if (!story) {
+      return res.status(404).json({ success: false, message: 'Story not found.' });
+    }
+    res.json({
+      success: true,
+      data: serializeStory(story),
+    });
+  } catch (error) {
+    console.error('Error fetching story by slug:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Failed to fetch story',
+    });
+  }
+});
+
 // ==================== ADMIN ENDPOINTS ====================
 
 // Get all homepage content in one response (admin dashboard orchestration)
@@ -912,6 +1119,179 @@ router.get('/admin/designers', authenticate, authorizePermissions(Permissions.HO
 
 router.get('/admin/country-options', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
   res.json({ success: true, data: AFRICAN_COUNTRY_OPTIONS });
+});
+
+router.get('/admin/stories', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const type = getNonEmptyString(req.query.type)?.toUpperCase() as StoryType | undefined;
+    const stories = await prisma.homepageStory.findMany({
+      where: type ? { type } : undefined,
+      orderBy: [{ displayOrder: 'asc' }, { createdAt: 'desc' }],
+    });
+    res.json({
+      success: true,
+      data: stories.map(serializeStory),
+    });
+  } catch (error) {
+    console.error('Error fetching stories:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch stories' });
+  }
+});
+
+router.post('/admin/stories', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const payload = storyInputSchema.parse(req.body);
+    const slug = await resolveUniqueStorySlug(payload.title);
+    const data = await prisma.homepageStory.create({
+      data: {
+        type: payload.type,
+        slug,
+        title: payload.title.trim(),
+        subtitle: getNonEmptyString(payload.subtitle),
+        countryCode: normalizeCountryCode(payload.countryCode),
+        designerId: getNonEmptyString(payload.designerId),
+        coverImage: getNonEmptyString(payload.coverImage),
+        contentHtml: payload.contentHtml,
+        displayOrder: payload.displayOrder ?? 0,
+        isActive: payload.isActive ?? true,
+      },
+    });
+    res.status(201).json({ success: true, data: serializeStory(data) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error creating story:', error);
+    res.status(500).json({ success: false, message: 'Failed to create story' });
+  }
+});
+
+router.put('/admin/stories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const existing = await prisma.homepageStory.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Story not found' });
+    }
+    const payload = storyUpdateSchema.parse(req.body);
+    const nextType = payload.type || existing.type;
+    const nextTitle = getNonEmptyString(payload.title) || existing.title;
+    const nextCountryCode =
+      payload.countryCode !== undefined
+        ? normalizeCountryCode(payload.countryCode)
+        : existing.countryCode;
+    const nextDesignerId =
+      payload.designerId !== undefined
+        ? getNonEmptyString(payload.designerId)
+        : existing.designerId;
+    if (nextType === 'COUNTRY' && !nextCountryCode) {
+      return res.status(400).json({ success: false, message: 'countryCode is required for country stories.' });
+    }
+    if (nextType === 'DESIGNER_SPOTLIGHT' && !nextDesignerId) {
+      return res.status(400).json({ success: false, message: 'designerId is required for designer spotlight stories.' });
+    }
+    const nextSlug =
+      payload.title && payload.title.trim() !== existing.title
+        ? await resolveUniqueStorySlug(payload.title, existing.id)
+        : existing.slug;
+    const updated = await prisma.homepageStory.update({
+      where: { id: req.params.id },
+      data: {
+        type: nextType,
+        slug: nextSlug,
+        title: nextTitle,
+        subtitle:
+          payload.subtitle !== undefined
+            ? getNonEmptyString(payload.subtitle)
+            : existing.subtitle,
+        countryCode: nextType === 'COUNTRY' ? nextCountryCode : null,
+        designerId: nextType === 'DESIGNER_SPOTLIGHT' ? nextDesignerId : null,
+        coverImage:
+          payload.coverImage !== undefined
+            ? getNonEmptyString(payload.coverImage)
+            : existing.coverImage,
+        contentHtml: payload.contentHtml ?? existing.contentHtml,
+        displayOrder:
+          payload.displayOrder !== undefined ? payload.displayOrder : existing.displayOrder,
+        isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
+      },
+    });
+    res.json({ success: true, data: serializeStory(updated) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating story:', error);
+    res.status(500).json({ success: false, message: 'Failed to update story' });
+  }
+});
+
+router.patch('/admin/stories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const existing = await prisma.homepageStory.findUnique({ where: { id: req.params.id } });
+    if (!existing) {
+      return res.status(404).json({ success: false, message: 'Story not found' });
+    }
+    const payload = storyUpdateSchema.parse(req.body);
+    const nextType = payload.type || existing.type;
+    const nextTitle = getNonEmptyString(payload.title) || existing.title;
+    const nextCountryCode =
+      payload.countryCode !== undefined
+        ? normalizeCountryCode(payload.countryCode)
+        : existing.countryCode;
+    const nextDesignerId =
+      payload.designerId !== undefined
+        ? getNonEmptyString(payload.designerId)
+        : existing.designerId;
+    if (nextType === 'COUNTRY' && !nextCountryCode) {
+      return res.status(400).json({ success: false, message: 'countryCode is required for country stories.' });
+    }
+    if (nextType === 'DESIGNER_SPOTLIGHT' && !nextDesignerId) {
+      return res.status(400).json({ success: false, message: 'designerId is required for designer spotlight stories.' });
+    }
+    const nextSlug =
+      payload.title && payload.title.trim() !== existing.title
+        ? await resolveUniqueStorySlug(payload.title, existing.id)
+        : existing.slug;
+    const updated = await prisma.homepageStory.update({
+      where: { id: req.params.id },
+      data: {
+        type: nextType,
+        slug: nextSlug,
+        title: nextTitle,
+        subtitle:
+          payload.subtitle !== undefined
+            ? getNonEmptyString(payload.subtitle)
+            : existing.subtitle,
+        countryCode: nextType === 'COUNTRY' ? nextCountryCode : null,
+        designerId: nextType === 'DESIGNER_SPOTLIGHT' ? nextDesignerId : null,
+        coverImage:
+          payload.coverImage !== undefined
+            ? getNonEmptyString(payload.coverImage)
+            : existing.coverImage,
+        contentHtml: payload.contentHtml ?? existing.contentHtml,
+        displayOrder:
+          payload.displayOrder !== undefined ? payload.displayOrder : existing.displayOrder,
+        isActive: payload.isActive !== undefined ? payload.isActive : existing.isActive,
+      },
+    });
+    res.json({ success: true, data: serializeStory(updated) });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error patching story:', error);
+    res.status(500).json({ success: false, message: 'Failed to update story' });
+  }
+});
+
+router.delete('/admin/stories/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    await prisma.homepageStory.delete({ where: { id: req.params.id } });
+    res.json({ success: true, message: 'Story deleted' });
+  } catch (error) {
+    console.error('Error deleting story:', error);
+    res.status(500).json({ success: false, message: 'Failed to delete story' });
+  }
 });
 
 router.get('/admin/countries/image-api-config', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
@@ -1096,6 +1476,15 @@ router.post('/admin/countries', authenticate, authorizePermissions(Permissions.H
     if (String((error as any)?.message) === 'MISSING_FABRICS') {
       return res.status(400).json({ success: false, message: 'Fabrics field is required.' });
     }
+    if (String((error as any)?.message) === 'MISSING_STORY_LINK') {
+      return res.status(400).json({ success: false, message: 'Select a blog story for internal link type.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_EXTERNAL_URL') {
+      return res.status(400).json({ success: false, message: 'Provide an external URL for external link type.' });
+    }
+    if (String((error as any)?.message) === 'INVALID_STORY_LINK') {
+      return res.status(400).json({ success: false, message: 'Selected story is invalid for country cards.' });
+    }
     console.error('Error creating country:', error);
     res.status(500).json({ success: false, message: 'Failed to create country' });
   }
@@ -1124,6 +1513,15 @@ router.put('/admin/countries/:id', authenticate, authorizePermissions(Permission
     if (String((error as any)?.message) === 'MISSING_FABRICS') {
       return res.status(400).json({ success: false, message: 'Fabrics field is required.' });
     }
+    if (String((error as any)?.message) === 'MISSING_STORY_LINK') {
+      return res.status(400).json({ success: false, message: 'Select a blog story for internal link type.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_EXTERNAL_URL') {
+      return res.status(400).json({ success: false, message: 'Provide an external URL for external link type.' });
+    }
+    if (String((error as any)?.message) === 'INVALID_STORY_LINK') {
+      return res.status(400).json({ success: false, message: 'Selected story is invalid for country cards.' });
+    }
     console.error('Error updating country:', error);
     res.status(500).json({ success: false, message: 'Failed to update country' });
   }
@@ -1150,6 +1548,15 @@ router.patch('/admin/countries/:id', authenticate, authorizePermissions(Permissi
     }
     if (String((error as any)?.message) === 'MISSING_FABRICS') {
       return res.status(400).json({ success: false, message: 'Fabrics field is required.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_STORY_LINK') {
+      return res.status(400).json({ success: false, message: 'Select a blog story for internal link type.' });
+    }
+    if (String((error as any)?.message) === 'MISSING_EXTERNAL_URL') {
+      return res.status(400).json({ success: false, message: 'Provide an external URL for external link type.' });
+    }
+    if (String((error as any)?.message) === 'INVALID_STORY_LINK') {
+      return res.status(400).json({ success: false, message: 'Selected story is invalid for country cards.' });
     }
     console.error('Error patching country:', error);
     res.status(500).json({ success: false, message: 'Failed to update country' });
@@ -1317,7 +1724,26 @@ router.get('/admin/designer-spotlight', authenticate, authorizePermissions(Permi
 router.post('/admin/designer-spotlight', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const data = designerSpotlightCreateSchema.parse(normalizeDesignerSpotlightInput(req.body));
-    const spotlight = await prisma.designerSpotlight.create({ data });
+    const linkType = normalizeCardLinkType(data.linkType);
+    const storyId = linkType === 'INTERNAL_BLOG' ? getNonEmptyString(data.storyId) : undefined;
+    const externalUrl = linkType === 'EXTERNAL_URL' ? getNonEmptyString(data.externalUrl) : undefined;
+    if (linkType === 'INTERNAL_BLOG' && storyId) {
+      const story = await prisma.homepageStory.findUnique({
+        where: { id: storyId },
+        select: { id: true, type: true },
+      });
+      if (!story || story.type !== 'DESIGNER_SPOTLIGHT') {
+        return res.status(400).json({ success: false, message: 'Selected story is invalid for designer spotlight cards.' });
+      }
+    }
+    const spotlight = await prisma.designerSpotlight.create({
+      data: {
+        ...data,
+        linkType,
+        storyId: linkType === 'INTERNAL_BLOG' ? storyId : null,
+        externalUrl: linkType === 'EXTERNAL_URL' ? externalUrl : null,
+      },
+    });
     const withDesigner = (await getSpotlightsWithDesigners(false)).find((entry) => entry.id === spotlight.id);
     res.status(201).json({ success: true, data: withDesigner || serializeDesignerSpotlight(spotlight) });
   } catch (error) {
@@ -1332,9 +1758,30 @@ router.post('/admin/designer-spotlight', authenticate, authorizePermissions(Perm
 router.put('/admin/designer-spotlight/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const data = designerSpotlightUpdateSchema.parse(normalizeDesignerSpotlightInput(req.body));
+    const linkType = data.linkType ? normalizeCardLinkType(data.linkType) : undefined;
+    const storyId = linkType === 'INTERNAL_BLOG' ? getNonEmptyString(data.storyId) : undefined;
+    const externalUrl = linkType === 'EXTERNAL_URL' ? getNonEmptyString(data.externalUrl) : undefined;
+    if (linkType === 'INTERNAL_BLOG' && storyId) {
+      const story = await prisma.homepageStory.findUnique({
+        where: { id: storyId },
+        select: { id: true, type: true },
+      });
+      if (!story || story.type !== 'DESIGNER_SPOTLIGHT') {
+        return res.status(400).json({ success: false, message: 'Selected story is invalid for designer spotlight cards.' });
+      }
+    }
     const spotlight = await prisma.designerSpotlight.update({
       where: { id: req.params.id },
-      data,
+      data: {
+        ...data,
+        ...(linkType
+          ? {
+              linkType,
+              storyId: linkType === 'INTERNAL_BLOG' ? storyId : null,
+              externalUrl: linkType === 'EXTERNAL_URL' ? externalUrl : null,
+            }
+          : {}),
+      },
     });
     const withDesigner = (await getSpotlightsWithDesigners(false)).find((entry) => entry.id === spotlight.id);
     res.json({ success: true, data: withDesigner || serializeDesignerSpotlight(spotlight) });
@@ -1349,9 +1796,30 @@ router.put('/admin/designer-spotlight/:id', authenticate, authorizePermissions(P
 router.patch('/admin/designer-spotlight/:id', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
   try {
     const data = designerSpotlightUpdateSchema.parse(normalizeDesignerSpotlightInput(req.body));
+    const linkType = data.linkType ? normalizeCardLinkType(data.linkType) : undefined;
+    const storyId = linkType === 'INTERNAL_BLOG' ? getNonEmptyString(data.storyId) : undefined;
+    const externalUrl = linkType === 'EXTERNAL_URL' ? getNonEmptyString(data.externalUrl) : undefined;
+    if (linkType === 'INTERNAL_BLOG' && storyId) {
+      const story = await prisma.homepageStory.findUnique({
+        where: { id: storyId },
+        select: { id: true, type: true },
+      });
+      if (!story || story.type !== 'DESIGNER_SPOTLIGHT') {
+        return res.status(400).json({ success: false, message: 'Selected story is invalid for designer spotlight cards.' });
+      }
+    }
     const spotlight = await prisma.designerSpotlight.update({
       where: { id: req.params.id },
-      data,
+      data: {
+        ...data,
+        ...(linkType
+          ? {
+              linkType,
+              storyId: linkType === 'INTERNAL_BLOG' ? storyId : null,
+              externalUrl: linkType === 'EXTERNAL_URL' ? externalUrl : null,
+            }
+          : {}),
+      },
     });
     const withDesigner = (await getSpotlightsWithDesigners(false)).find((entry) => entry.id === spotlight.id);
     res.json({ success: true, data: withDesigner || serializeDesignerSpotlight(spotlight) });

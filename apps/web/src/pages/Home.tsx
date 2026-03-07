@@ -86,6 +86,28 @@ interface SpotlightDesigner {
   bio: string;
 }
 
+interface CountryStripItem {
+  id?: string;
+  name: string;
+  flag: string;
+  image: string;
+  fabrics: string;
+  linkType?: 'DEFAULT' | 'INTERNAL_BLOG' | 'EXTERNAL_URL';
+  story?: { slug?: string; title?: string } | null;
+  externalUrl?: string | null;
+}
+
+interface DesignerSpotlightCard {
+  id: string;
+  name: string;
+  country: string;
+  image: string;
+  bio: string;
+  linkType?: 'DEFAULT' | 'INTERNAL_BLOG' | 'EXTERNAL_URL';
+  story?: { slug?: string; title?: string } | null;
+  externalUrl?: string | null;
+}
+
 interface HeroSlide {
   id: string;
   title: string;
@@ -229,6 +251,26 @@ const flagFromCountryCode = (countryCode?: string) => {
   return String.fromCodePoint(127397 + first.charCodeAt(0), 127397 + second.charCodeAt(0));
 };
 
+const resolveCardDestination = ({
+  linkType,
+  storySlug,
+  externalUrl,
+  fallbackTo,
+}: {
+  linkType?: string;
+  storySlug?: string | null;
+  externalUrl?: string | null;
+  fallbackTo: string;
+}) => {
+  if (linkType === 'EXTERNAL_URL' && externalUrl) {
+    return { href: externalUrl, external: true };
+  }
+  if (linkType === 'INTERNAL_BLOG' && storySlug) {
+    return { href: `/stories/${storySlug}`, external: false };
+  }
+  return { href: fallbackTo, external: false };
+};
+
 export default function Home() {
   const { formatFromUsd } = useCurrency();
   // Fetch hero slides
@@ -331,6 +373,14 @@ export default function Home() {
     },
   });
 
+  const { data: designerSpotlightsData } = useQuery({
+    queryKey: ['homepageDesignerSpotlights'],
+    queryFn: async () => {
+      const response = await api.homepageSections.getDesignerSpotlights();
+      return response.success ? response.data : null;
+    },
+  });
+
   // Fetch testimonials dynamically
   const { data: testimonialsData } = useQuery({
     queryKey: ['testimonials'],
@@ -341,21 +391,23 @@ export default function Home() {
   });
 
   const countriesFromFeatured = useMemo(() => {
-    const byCountry = new Map<string, { name: string; flag: string; image: string; fabrics: string }>();
+    const byCountry = new Map<string, CountryStripItem>();
     for (const product of [...featuredDesigns, ...featuredRTW, ...featuredFabrics]) {
       if (!product.country || byCountry.has(product.country)) continue;
       byCountry.set(product.country, {
+        id: product.country,
         name: product.country,
         flag: countryFlags[product.country] || '🌍',
         image: resolveAssetUrl(product.image) || fallbackImage(`country-${product.country}`, 640, 360),
         fabrics: 'Featured styles and fabrics',
+        linkType: 'DEFAULT',
       });
     }
     return Array.from(byCountry.values());
   }, [featuredDesigns, featuredFabrics, featuredRTW]);
 
   // Use dynamic data or fallback to featured-derived countries
-  const countries = countriesData?.length > 0
+  const countries: CountryStripItem[] = countriesData?.length > 0
     ? countriesData.map((c: any) => ({
         id: c.id || c.name,
         name: c.name,
@@ -365,6 +417,9 @@ export default function Home() {
           fashionCountryImageMap.get(c.name) ||
           fallbackImage(`country-${c.name}`, 640, 360),
         fabrics: c.fabrics || 'Featured styles and fabrics',
+        linkType: c.linkType || 'DEFAULT',
+        story: c.story || null,
+        externalUrl: c.externalUrl || null,
       }))
     : countriesFromFeatured.map((country) => ({ ...country, id: country.name }));
     
@@ -466,6 +521,31 @@ export default function Home() {
     }, 7000);
     return () => clearInterval(timer);
   }, [spotlightPoolKey]);
+
+  const designerSpotlightCards: DesignerSpotlightCard[] = useMemo(() => {
+    if (Array.isArray(designerSpotlightsData) && designerSpotlightsData.length > 0) {
+      return designerSpotlightsData.map((item: any, index: number) => ({
+        id: String(item?.id || `spotlight-${index}`),
+        name: item?.designer?.businessName || 'Featured Designer',
+        country: item?.designer?.country || 'Africa',
+        image: resolveAssetUrl(item?.image) || fallbackImage(`spotlight-${index}`, 900, 1200),
+        bio: item?.description || item?.bio || 'Discover this designer story.',
+        linkType: item?.linkType || 'DEFAULT',
+        story: item?.story || null,
+        externalUrl: item?.externalUrl || null,
+      }));
+    }
+    return spotlightDesigners.map((designer) => ({
+      id: designer.id,
+      name: designer.name,
+      country: designer.country,
+      image: designer.image,
+      bio: designer.bio,
+      linkType: 'DEFAULT',
+      story: null,
+      externalUrl: null,
+    }));
+  }, [designerSpotlightsData, spotlightDesigners]);
 
   useEffect(() => {
     const strip = countryStripRef.current;
@@ -733,30 +813,59 @@ export default function Home() {
             style={{ scrollbarWidth: 'none' }}
           >
             {countries.map((country, index) => (
-              <Link
-                key={country.id || `${country.name}-${index}`}
-                to={`/custom-to-wear?country=${country.name}`}
-                onClick={(event) => {
+              (() => {
+                const destination = resolveCardDestination({
+                  linkType: country.linkType,
+                  storySlug: country.story?.slug,
+                  externalUrl: country.externalUrl,
+                  fallbackTo: `/custom-to-wear?country=${country.name}`,
+                });
+                const cardClassName = 'group relative flex-shrink-0 w-[14.4rem] h-32 overflow-hidden';
+                const onCardClick = (event: ReactMouseEvent<HTMLAnchorElement>) => {
                   if (countryStripMovedRef.current) {
                     event.preventDefault();
                     countryStripMovedRef.current = false;
                   }
-                }}
-                className="group relative flex-shrink-0 w-[14.4rem] h-32 overflow-hidden"
-              >
-                <img
-                  src={country.image}
-                  alt={country.name}
-                  onError={handleImageFallback(`country-${country.name}`, 640, 360)}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-                <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
-                <div className="absolute bottom-3 left-3 text-white">
-                  <span className="text-xl">{country.flag}</span>
-                  <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
-                  <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
-                </div>
-              </Link>
+                };
+                const cardContent = (
+                  <>
+                    <img
+                      src={country.image}
+                      alt={country.name}
+                      onError={handleImageFallback(`country-${country.name}`, 640, 360)}
+                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                    />
+                    <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent)' }} />
+                    <div className="absolute bottom-3 left-3 text-white">
+                      <span className="text-xl">{country.flag}</span>
+                      <h3 className="font-semibold text-sm mt-1">{country.name}</h3>
+                      <p className="text-xs text-white text-opacity-70">{country.fabrics}</p>
+                    </div>
+                  </>
+                );
+
+                return destination.external ? (
+                  <a
+                    key={country.id || `${country.name}-${index}`}
+                    href={destination.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={onCardClick}
+                    className={cardClassName}
+                  >
+                    {cardContent}
+                  </a>
+                ) : (
+                  <Link
+                    key={country.id || `${country.name}-${index}`}
+                    to={destination.href}
+                    onClick={onCardClick}
+                    className={cardClassName}
+                  >
+                    {cardContent}
+                  </Link>
+                );
+              })()
             ))}
           </div>
         </section>
@@ -987,35 +1096,59 @@ export default function Home() {
               Meet All Designers <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
-          {spotlightDesigners.length > 0 ? (
+          {designerSpotlightCards.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-              {spotlightDesigners.map((designer) => (
-                <Link
-                  key={designer.id}
-                  to={`/custom-to-wear?country=${encodeURIComponent(designer.country)}`}
-                  className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
-                >
-                  <div className="h-[250px] overflow-hidden bg-gray-100">
-                    <img
-                      src={designer.image}
-                      alt={`${designer.name} from ${designer.country}`}
-                      onError={handleImageFallback(`designer-${designer.id}`, 900, 1200)}
-                      className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                  <div className="p-5">
-                    <h3 className="text-xl font-bold text-gray-900">{designer.name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {countryFlags[designer.country] || '🌍'} {designer.country}
-                    </p>
-                    <p className="text-sm text-gray-600 mt-3">{designer.bio}</p>
-                  </div>
-                </Link>
-              ))}
+              {designerSpotlightCards.map((designer) => {
+                const destination = resolveCardDestination({
+                  linkType: designer.linkType,
+                  storySlug: designer.story?.slug,
+                  externalUrl: designer.externalUrl,
+                  fallbackTo: `/custom-to-wear?country=${encodeURIComponent(designer.country)}`,
+                });
+                const cardContent = (
+                  <>
+                    <div className="h-[250px] overflow-hidden bg-gray-100">
+                      <img
+                        src={designer.image}
+                        alt={`${designer.name} from ${designer.country}`}
+                        onError={handleImageFallback(`designer-${designer.id}`, 900, 1200)}
+                        className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+                      />
+                    </div>
+                    <div className="p-5">
+                      <h3 className="text-xl font-bold text-gray-900">{designer.name}</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {countryFlags[designer.country] || '🌍'} {designer.country}
+                      </p>
+                      <p className="text-sm text-gray-600 mt-3">{designer.bio}</p>
+                    </div>
+                  </>
+                );
+
+                return destination.external ? (
+                  <a
+                    key={designer.id}
+                    href={destination.href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                  >
+                    {cardContent}
+                  </a>
+                ) : (
+                  <Link
+                    key={designer.id}
+                    to={destination.href}
+                    className="group bg-white overflow-hidden shadow-sm border border-gray-100 hover:shadow-md transition-shadow"
+                  >
+                    {cardContent}
+                  </Link>
+                );
+              })}
             </div>
           ) : (
             <div className="bg-white border border-gray-200 p-6 text-sm text-gray-600">
-              Designer spotlight will appear once featured products are available.
+              Designer spotlight will appear once cards are configured in admin.
             </div>
           )}
         </div>
