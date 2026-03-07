@@ -3,6 +3,7 @@ import { useState, useEffect, useMemo, type FormEvent, type SyntheticEvent } fro
 import { Link, useSearchParams } from 'react-router-dom';
 import { Search, Filter, ChevronDown, Loader2, SlidersHorizontal, Grid3X3, List, X, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { api } from '../services/api';
+import { fashionFallbackImage } from '../utils/fashionPlaceholder';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { useCurrency } from '../components/ui/CurrencyProvider';
@@ -43,7 +44,7 @@ interface Pagination {
 }
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 const handleImageFallback =
   (seed: string, width = 1200, height = 1600) =>

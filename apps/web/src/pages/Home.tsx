@@ -2,11 +2,12 @@ import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEven
 import { Link } from 'react-router-dom';
 import { ArrowRight, ChevronLeft, ChevronRight, Star, Heart, Loader2, Search, Eye, CreditCard, CheckCircle, Truck } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
+import { fashionFallbackImage } from '../utils/fashionPlaceholder';
 import { useQuery } from '@tanstack/react-query';
 import { useCurrency } from '../components/ui/CurrencyProvider';
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 const handleImageFallback =
   (seed: string, width = 1200, height = 1600) =>

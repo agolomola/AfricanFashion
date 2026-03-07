@@ -4,6 +4,7 @@ import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Truck, Check, Loader2, Ch
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import { api, resolveAssetUrl } from '../services/api';
+import { fashionFallbackImage } from '../utils/fashionPlaceholder';
 import { useCurrency } from '../components/ui/CurrencyProvider';
 
 interface ReadyToWearProduct {
@@ -44,7 +45,7 @@ const countryFlags: Record<string, string> = {
 };
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 const handleImageFallback =
   (seed: string, width = 1200, height = 1600) =>

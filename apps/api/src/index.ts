@@ -75,9 +75,17 @@ app.use('/uploads', (req, res, next) => {
   if (!fullPath.startsWith(uploadRoot)) {
     return res.status(400).type('image/svg+xml').send(
       `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
-        <rect width="1200" height="1600" fill="#F3F4F6"/>
-        <text x="50%" y="48%" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" fill="#6B7280">Image unavailable</text>
-        <text x="50%" y="53%" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#9CA3AF">Invalid path</text>
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+            <stop offset="0%" stop-color="#1F2937"/>
+            <stop offset="100%" stop-color="#111827"/>
+          </linearGradient>
+        </defs>
+        <rect width="1200" height="1600" fill="url(#bg)"/>
+        <rect x="90" y="180" width="1020" height="1240" rx="28" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)"/>
+        <text x="50%" y="46%" text-anchor="middle" font-family="Arial, sans-serif" font-size="64" font-weight="700" fill="#F9FAFB">AFRICAN FASHION</text>
+        <text x="50%" y="52%" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" fill="#FDBA74">Image Placeholder</text>
+        <text x="50%" y="57%" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#D1D5DB">Path is invalid or restricted</text>
       </svg>`
     );
   }
@@ -88,10 +96,19 @@ app.use('/uploads', (req, res, next) => {
 
   return res.status(200).type('image/svg+xml').send(
     `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
-      <rect width="1200" height="1600" fill="#F3F4F6"/>
-      <rect x="120" y="180" width="960" height="1240" rx="18" fill="#FFFFFF" stroke="#E5E7EB" stroke-width="6"/>
-      <text x="50%" y="47%" text-anchor="middle" font-family="Arial, sans-serif" font-size="44" fill="#6B7280">Image unavailable</text>
-      <text x="50%" y="52%" text-anchor="middle" font-family="Arial, sans-serif" font-size="28" fill="#9CA3AF">Please re-upload this product image</text>
+      <defs>
+        <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#1F2937"/>
+          <stop offset="100%" stop-color="#111827"/>
+        </linearGradient>
+      </defs>
+      <rect width="1200" height="1600" fill="url(#bg)"/>
+      <circle cx="960" cy="260" r="130" fill="rgba(249,115,22,0.2)" />
+      <circle cx="210" cy="1250" r="170" fill="rgba(249,115,22,0.14)" />
+      <rect x="90" y="180" width="1020" height="1240" rx="28" fill="rgba(255,255,255,0.08)" stroke="rgba(255,255,255,0.2)"/>
+      <text x="50%" y="46%" text-anchor="middle" font-family="Arial, sans-serif" font-size="64" font-weight="700" fill="#F9FAFB">AFRICAN FASHION</text>
+      <text x="50%" y="52%" text-anchor="middle" font-family="Arial, sans-serif" font-size="36" fill="#FDBA74">Product Image Placeholder</text>
+      <text x="50%" y="57%" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" fill="#D1D5DB">Original image not available yet</text>
     </svg>`
   );
 });

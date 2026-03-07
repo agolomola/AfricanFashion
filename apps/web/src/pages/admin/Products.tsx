@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
 import { CheckCircle, Edit2, Filter, Package, Scissors, Search, Star, Upload, XCircle } from 'lucide-react';
 import { api } from '../../services/api';
+import { fashionFallbackImage } from '../../utils/fashionPlaceholder';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 
@@ -76,7 +77,7 @@ const ALLOWED_IMAGE_TYPES = new Set([
 ]);
 
 const fallbackImage = (seed: string, width = 800, height = 600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 const handleImageFallback =
   (seed: string, width = 800, height = 600) =>

@@ -13,6 +13,7 @@ import {
   ChevronRight
 } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
+import { fashionFallbackImage } from '../utils/fashionPlaceholder';
 import { useAuthStore } from '../store/authStore';
 import { useCartStore } from '../store/cartStore';
 import Button from '../components/ui/Button';
@@ -71,7 +72,7 @@ interface RelatedDesignCard {
 }
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 const handleImageFallback =
   (seed: string, width = 1200, height = 1600) =>

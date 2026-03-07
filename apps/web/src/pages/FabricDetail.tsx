@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, ShoppingCart, Heart, Star, MapPin, Ruler, Loader2, ChevronLeft, ChevronRight, Share2 } from 'lucide-react';
 import Button from '../components/ui/Button';
 import { api, resolveAssetUrl } from '../services/api';
+import { fashionFallbackImage } from '../utils/fashionPlaceholder';
 import Badge from '../components/ui/Badge';
 import { useCurrency } from '../components/ui/CurrencyProvider';
 
@@ -42,7 +43,7 @@ const countryFlags: Record<string, string> = {
 };
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 const handleImageFallback =
   (seed: string, width = 1200, height = 1600) =>

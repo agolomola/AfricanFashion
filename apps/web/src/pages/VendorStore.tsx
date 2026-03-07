@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { MapPin, Loader2, Star } from 'lucide-react';
 import { api, resolveAssetUrl } from '../services/api';
+import { fashionFallbackImage } from '../utils/fashionPlaceholder';
 import { useCurrency } from '../components/ui/CurrencyProvider';
 
 const countryFlags: Record<string, string> = {
@@ -17,7 +18,7 @@ const countryFlags: Record<string, string> = {
 };
 
 const fallbackImage = (seed: string, width = 1200, height = 1600) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${width}/${height}`;
+  fashionFallbackImage(seed, { width, height });
 
 export default function VendorStore() {
   const { formatFromUsd } = useCurrency();
