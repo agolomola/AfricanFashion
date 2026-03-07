@@ -353,7 +353,14 @@ export default function AdminProducts() {
             isFeatured: productForm.isFeatured,
           });
           if (featuredResponse?.warning) {
-            featuredWarning = featuredResponse?.message || 'Featured toggle update failed.';
+            if (featuredResponse.warning === 'FEATURED_SCHEMA_UNAVAILABLE') {
+              featuredWarning = featuredResponse?.message || 'Featured toggle update failed.';
+            } else if (featuredResponse.warning === 'FEATURED_PRISMA_BYPASS') {
+              // Fallback write path succeeded; this is informational, not a failure.
+              featuredWarning = '';
+            } else {
+              featuredWarning = featuredResponse?.message || 'Featured toggle update failed.';
+            }
           }
         } catch (error: any) {
           featuredWarning = error?.response?.data?.message || 'Featured toggle update failed.';
