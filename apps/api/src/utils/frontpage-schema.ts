@@ -177,6 +177,14 @@ export async function ensureHomepageSectionsSchema() {
       "updatedAt" TIMESTAMP(3) NOT NULL,
       CONSTRAINT "CountryMarquee_pkey" PRIMARY KEY ("id")
     )`,
+    `CREATE TABLE IF NOT EXISTS "HomepageSectionSetting" (
+      "id" TEXT NOT NULL,
+      "key" TEXT NOT NULL,
+      "value" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL,
+      CONSTRAINT "HomepageSectionSetting_pkey" PRIMARY KEY ("id")
+    )`,
     `DO $$ BEGIN
       IF NOT EXISTS (
         SELECT 1
@@ -277,6 +285,7 @@ export async function ensureHomepageSectionsSchema() {
     )`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "HowItWorksStep_stepNumber_key" ON "HowItWorksStep"("stepNumber")`,
     `CREATE UNIQUE INDEX IF NOT EXISTS "ShopCategory_key_key" ON "ShopCategory"("key")`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS "HomepageSectionSetting_key_key" ON "HomepageSectionSetting"("key")`,
     `CREATE INDEX IF NOT EXISTS "CountryMarquee_isActive_idx" ON "CountryMarquee"("isActive")`,
     `CREATE INDEX IF NOT EXISTS "CountryMarquee_displayOrder_idx" ON "CountryMarquee"("displayOrder")`,
     `CREATE INDEX IF NOT EXISTS "HowItWorksStep_isActive_idx" ON "HowItWorksStep"("isActive")`,

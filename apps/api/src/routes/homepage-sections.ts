@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { randomUUID } from 'crypto';
 import { z } from 'zod';
 import { prisma } from '../db';
 import { authenticate, authorizePermissions } from '../middleware/auth';
@@ -75,8 +76,132 @@ const COUNTRY_IMAGE_PROVIDER = String(process.env.COUNTRY_IMAGE_PROVIDER || '')
   .trim()
   .toUpperCase();
 const OPENAI_API_KEY = String(process.env.OPENAI_API_KEY || '').trim();
+const OPENAI_COUNTRY_IMAGE_ENDPOINT = String(process.env.OPENAI_COUNTRY_IMAGE_ENDPOINT || 'https://api.openai.com/v1/images/generations').trim();
 const OPENAI_COUNTRY_IMAGE_MODEL = String(process.env.OPENAI_COUNTRY_IMAGE_MODEL || 'gpt-image-1').trim();
 const OPENAI_COUNTRY_IMAGE_SIZE = String(process.env.OPENAI_COUNTRY_IMAGE_SIZE || '1536x1024').trim();
+const COUNTRY_IMAGE_SETTINGS_KEY = 'COUNTRY_IMAGE_API';
+
+type CountryImageProvider = 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+
+interface CountryImageApiConfig {
+  provider: CountryImageProvider;
+  endpoint?: string;
+  model?: string;
+  imageSize?: string;
+  apiKey?: string;
+}
+
+const normalizeCountryImageProvider = (value: unknown, fallback: CountryImageProvider = 'POLLINATIONS'): CountryImageProvider => {
+  const normalized = String(value || '')
+    .trim()
+    .toUpperCase();
+  if (normalized === 'OPENAI' || normalized === 'OPENAI_COMPATIBLE' || normalized === 'POLLINATIONS') {
+    return normalized;
+  }
+  return fallback;
+};
+
+const defaultCountryImageConfig: CountryImageApiConfig = {
+  provider: normalizeCountryImageProvider(
+    COUNTRY_IMAGE_PROVIDER,
+    OPENAI_API_KEY ? 'OPENAI' : 'POLLINATIONS'
+  ),
+  endpoint: OPENAI_COUNTRY_IMAGE_ENDPOINT,
+  model: OPENAI_COUNTRY_IMAGE_MODEL,
+  imageSize: OPENAI_COUNTRY_IMAGE_SIZE,
+  apiKey: OPENAI_API_KEY || undefined,
+};
+
+const maskApiKey = (value: string | undefined) => {
+  const key = String(value || '').trim();
+  if (!key) return '';
+  if (key.length <= 8) return `${key.slice(0, 2)}***${key.slice(-1)}`;
+  return `${key.slice(0, 4)}***${key.slice(-4)}`;
+};
+
+const parseCountryImageConfig = (raw: unknown): CountryImageApiConfig => {
+  if (!raw || typeof raw !== 'object') {
+    return { ...defaultCountryImageConfig };
+  }
+  const row = raw as Record<string, any>;
+  const provider = normalizeCountryImageProvider(row.provider, defaultCountryImageConfig.provider);
+  return {
+    provider,
+    endpoint: getNonEmptyString(row.endpoint) || defaultCountryImageConfig.endpoint,
+    model: getNonEmptyString(row.model) || defaultCountryImageConfig.model,
+    imageSize: getNonEmptyString(row.imageSize) || defaultCountryImageConfig.imageSize,
+    apiKey: getNonEmptyString(row.apiKey) || defaultCountryImageConfig.apiKey,
+  };
+};
+
+const readCountryImageApiConfig = async () => {
+  const rows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT "id", "value"
+     FROM "HomepageSectionSetting"
+     WHERE "key" = $1
+     LIMIT 1`,
+    COUNTRY_IMAGE_SETTINGS_KEY
+  );
+  const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  if (!row) {
+    return {
+      rowId: null as string | null,
+      config: { ...defaultCountryImageConfig },
+      source: 'ENV_DEFAULT' as const,
+    };
+  }
+
+  let parsed: CountryImageApiConfig = { ...defaultCountryImageConfig };
+  try {
+    parsed = parseCountryImageConfig(JSON.parse(String(row.value || '{}')));
+  } catch {
+    parsed = { ...defaultCountryImageConfig };
+  }
+  return {
+    rowId: String(row.id),
+    config: parsed,
+    source: 'DATABASE' as const,
+  };
+};
+
+const saveCountryImageApiConfig = async (config: CountryImageApiConfig) => {
+  const normalized = parseCountryImageConfig(config);
+  const existing = await readCountryImageApiConfig();
+  const payload = JSON.stringify(normalized);
+
+  if (existing.rowId) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "HomepageSectionSetting"
+       SET "value" = $1, "updatedAt" = NOW()
+       WHERE "id" = $2`,
+      payload,
+      existing.rowId
+    );
+    return normalized;
+  }
+
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "HomepageSectionSetting" ("id", "key", "value", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, NOW(), NOW())`,
+    randomUUID(),
+    COUNTRY_IMAGE_SETTINGS_KEY,
+    payload
+  );
+  return normalized;
+};
+
+const getCountryImageApiConfigForAdmin = async () => {
+  const { config, source } = await readCountryImageApiConfig();
+  return {
+    provider: config.provider,
+    endpoint: config.endpoint || OPENAI_COUNTRY_IMAGE_ENDPOINT,
+    model: config.model || OPENAI_COUNTRY_IMAGE_MODEL,
+    imageSize: config.imageSize || OPENAI_COUNTRY_IMAGE_SIZE,
+    hasApiKey: Boolean(getNonEmptyString(config.apiKey)),
+    maskedApiKey: maskApiKey(config.apiKey),
+    source,
+  };
+};
 
 const hashString = (value: string): number => {
   let hash = 0;
@@ -147,20 +272,23 @@ const generateCountryImage = async ({
   keywords?: string;
 }) => {
   const prompt = composeCountryImagePrompt({ countryName, countryCode, keywords });
-  const wantsOpenAi = COUNTRY_IMAGE_PROVIDER === 'OPENAI' || (!COUNTRY_IMAGE_PROVIDER && Boolean(OPENAI_API_KEY));
+  const { config } = await readCountryImageApiConfig();
+  const hasApiKey = Boolean(getNonEmptyString(config.apiKey));
+  const prefersApiProvider = config.provider !== 'POLLINATIONS';
+  const shouldTryApiProvider = prefersApiProvider && hasApiKey;
 
-  if (wantsOpenAi && OPENAI_API_KEY) {
+  if (shouldTryApiProvider) {
     try {
-      const response = await fetch('https://api.openai.com/v1/images/generations', {
+      const response = await fetch(config.endpoint || OPENAI_COUNTRY_IMAGE_ENDPOINT, {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${OPENAI_API_KEY}`,
+          Authorization: `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          model: OPENAI_COUNTRY_IMAGE_MODEL,
+          model: config.model || OPENAI_COUNTRY_IMAGE_MODEL,
           prompt,
-          size: OPENAI_COUNTRY_IMAGE_SIZE,
+          size: config.imageSize || OPENAI_COUNTRY_IMAGE_SIZE,
           quality: 'high',
         }),
       });
@@ -171,17 +299,17 @@ const generateCountryImage = async ({
         if (url) {
           return {
             url,
-            provider: 'OPENAI' as const,
+            provider: config.provider,
             prompt,
             fallbackUsed: false,
           };
         }
       } else {
         const errorText = await response.text();
-        console.error('OpenAI image generation failed:', response.status, errorText);
+        console.error('Country image provider request failed:', response.status, errorText);
       }
     } catch (error) {
-      console.error('OpenAI image generation request error:', error);
+      console.error('Country image provider request error:', error);
     }
   }
 
@@ -189,7 +317,7 @@ const generateCountryImage = async ({
     url: buildPollinationsCountryImageUrl({ countryName, countryCode, keywords }),
     provider: 'POLLINATIONS' as const,
     prompt,
-    fallbackUsed: wantsOpenAi,
+    fallbackUsed: prefersApiProvider,
   };
 };
 
@@ -251,6 +379,14 @@ const countryImageGenerateSchema = z
       });
     }
   });
+const countryImageApiConfigUpdateSchema = z.object({
+  provider: z.enum(['OPENAI', 'OPENAI_COMPATIBLE', 'POLLINATIONS']),
+  endpoint: z.string().url().optional(),
+  model: z.string().min(1).optional(),
+  imageSize: z.string().min(3).optional(),
+  apiKey: z.string().optional(),
+  clearApiKey: z.boolean().optional(),
+});
 
 const howItWorksCreateSchema = z.object({
   stepNumber: z.coerce.number().int().positive(),
@@ -743,6 +879,64 @@ router.get('/admin/designers', authenticate, authorizePermissions(Permissions.HO
 
 router.get('/admin/country-options', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
   res.json({ success: true, data: AFRICAN_COUNTRY_OPTIONS });
+});
+
+router.get('/admin/countries/image-api-config', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
+  try {
+    const data = await getCountryImageApiConfigForAdmin();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching country image API config:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch country image API config' });
+  }
+});
+
+router.put('/admin/countries/image-api-config', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const payload = countryImageApiConfigUpdateSchema.parse(req.body);
+    const existing = await readCountryImageApiConfig();
+    const next: CountryImageApiConfig = {
+      provider: payload.provider,
+      endpoint:
+        getNonEmptyString(payload.endpoint) ||
+        existing.config.endpoint ||
+        OPENAI_COUNTRY_IMAGE_ENDPOINT,
+      model:
+        getNonEmptyString(payload.model) ||
+        existing.config.model ||
+        OPENAI_COUNTRY_IMAGE_MODEL,
+      imageSize:
+        getNonEmptyString(payload.imageSize) ||
+        existing.config.imageSize ||
+        OPENAI_COUNTRY_IMAGE_SIZE,
+      apiKey: payload.clearApiKey
+        ? undefined
+        : payload.apiKey !== undefined
+          ? getNonEmptyString(payload.apiKey)
+          : existing.config.apiKey,
+    };
+
+    const saved = await saveCountryImageApiConfig(next);
+    const data = await getCountryImageApiConfigForAdmin();
+
+    res.json({
+      success: true,
+      data,
+      ...(saved.provider !== 'POLLINATIONS' && !saved.apiKey
+        ? {
+            warning: 'MISSING_API_KEY',
+            message:
+              'Configuration saved, but API key is empty. Generation will fallback to Pollinations until a key is added.',
+          }
+        : {}),
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating country image API config:', error);
+    res.status(500).json({ success: false, message: 'Failed to update country image API config' });
+  }
 });
 
 router.post('/admin/countries/generate-image', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {

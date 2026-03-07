@@ -1252,12 +1252,51 @@ const homepageSectionsApi = {
   getAdminCountries: () =>
     apiService.get<{ success: boolean; data: any[] }>('/homepage-sections/admin/countries'),
 
+  getCountryImageApiConfig: () =>
+    apiService.get<{
+      success: boolean;
+      data: {
+        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+        endpoint: string;
+        model: string;
+        imageSize: string;
+        hasApiKey: boolean;
+        maskedApiKey: string;
+        source: 'DATABASE' | 'ENV_DEFAULT';
+      };
+      warning?: string;
+      message?: string;
+    }>('/homepage-sections/admin/countries/image-api-config'),
+
+  updateCountryImageApiConfig: (data: {
+    provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+    endpoint?: string;
+    model?: string;
+    imageSize?: string;
+    apiKey?: string;
+    clearApiKey?: boolean;
+  }) =>
+    apiService.put<{
+      success: boolean;
+      data: {
+        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+        endpoint: string;
+        model: string;
+        imageSize: string;
+        hasApiKey: boolean;
+        maskedApiKey: string;
+        source: 'DATABASE' | 'ENV_DEFAULT';
+      };
+      warning?: string;
+      message?: string;
+    }>('/homepage-sections/admin/countries/image-api-config', data),
+
   generateCountryImage: (data: { countryCode: string; name?: string; keywords: string }) =>
     apiService.post<{
       success: boolean;
       data: {
         url: string;
-        provider: 'OPENAI' | 'POLLINATIONS';
+        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
         prompt: string;
         fallbackUsed: boolean;
         country: { code: string; name: string; flag: string };

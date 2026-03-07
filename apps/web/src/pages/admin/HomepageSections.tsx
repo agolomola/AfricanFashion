@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X, Globe, Sparkles, ShoppingBag, User, BookOpen, MessageSquare, Layout, Loader2 } from 'lucide-react';
+import { Plus, Edit2, Trash2, Eye, EyeOff, Upload, X, Globe, Sparkles, ShoppingBag, User, BookOpen, MessageSquare, Layout, Loader2, Cog, Star } from 'lucide-react';
 import { api } from '../../services/api';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
@@ -23,6 +23,16 @@ interface CountryOption {
   code: string;
   name: string;
   flag: string;
+}
+
+interface CountryImageApiConfig {
+  provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+  endpoint: string;
+  model: string;
+  imageSize: string;
+  hasApiKey: boolean;
+  maskedApiKey: string;
+  source: 'DATABASE' | 'ENV_DEFAULT';
 }
 
 interface HowItWorksStep {
@@ -136,6 +146,9 @@ export default function HomepageSections() {
   const [footerContents, setFooterContents] = useState<FooterContent[]>([]);
   const [designers, setDesigners] = useState<DesignerOption[]>([]);
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
+  const [showCountryImageApiModal, setShowCountryImageApiModal] = useState(false);
+  const [countryImageApiConfig, setCountryImageApiConfig] = useState<CountryImageApiConfig | null>(null);
+  const [countryImageApiLoading, setCountryImageApiLoading] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -162,6 +175,11 @@ export default function HomepageSections() {
 
     loadAdminDependencies();
   }, [toast]);
+
+  useEffect(() => {
+    if (activeTab !== 'countries') return;
+    fetchCountryImageApiConfig();
+  }, [activeTab]);
 
   const fetchData = async () => {
     setLoading(true);
@@ -324,6 +342,26 @@ export default function HomepageSections() {
     closeModal();
   };
 
+  const fetchCountryImageApiConfig = async () => {
+    setCountryImageApiLoading(true);
+    try {
+      const response = await api.homepageSections.getCountryImageApiConfig();
+      if (response.success) {
+        setCountryImageApiConfig(response.data);
+      }
+    } catch (error) {
+      console.error('Error loading country image API config:', error);
+      toast.error('Failed to load country image API configuration.');
+    } finally {
+      setCountryImageApiLoading(false);
+    }
+  };
+
+  const openCountryImageApiModal = async () => {
+    setShowCountryImageApiModal(true);
+    await fetchCountryImageApiConfig();
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -332,10 +370,18 @@ export default function HomepageSections() {
           <h1 className="text-2xl font-bold text-gray-900">Homepage Sections</h1>
           <p className="text-gray-500 mt-1">Manage all dynamic homepage content</p>
         </div>
-        <Button onClick={() => openModal()} className="flex items-center gap-2">
-          <Plus className="w-4 h-4" />
-          Add New
-        </Button>
+        <div className="flex items-center gap-2">
+          {activeTab === 'countries' && (
+            <Button variant="secondary" onClick={openCountryImageApiModal} className="flex items-center gap-2">
+              <Cog className="w-4 h-4" />
+              Country Image API
+            </Button>
+          )}
+          <Button onClick={() => openModal()} className="flex items-center gap-2">
+            <Plus className="w-4 h-4" />
+            Add New
+          </Button>
+        </div>
       </div>
 
       {/* Tabs */}
@@ -440,6 +486,200 @@ export default function HomepageSections() {
           onSave={handleSave}
         />
       )}
+
+      {showCountryImageApiModal && (
+        <CountryImageApiSettingsModal
+          loading={countryImageApiLoading}
+          config={countryImageApiConfig}
+          onClose={() => setShowCountryImageApiModal(false)}
+          onSaved={async () => {
+            await fetchCountryImageApiConfig();
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function CountryImageApiSettingsModal({
+  loading,
+  config,
+  onClose,
+  onSaved,
+}: {
+  loading: boolean;
+  config: CountryImageApiConfig | null;
+  onClose: () => void;
+  onSaved: () => Promise<void> | void;
+}) {
+  const toast = useToast();
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [formData, setFormData] = useState({
+    provider: 'POLLINATIONS' as CountryImageApiConfig['provider'],
+    endpoint: '',
+    model: '',
+    imageSize: '',
+  });
+  const [apiKeyInput, setApiKeyInput] = useState('');
+  const [clearApiKey, setClearApiKey] = useState(false);
+
+  useEffect(() => {
+    if (!config) return;
+    setFormData({
+      provider: config.provider,
+      endpoint: config.endpoint || '',
+      model: config.model || '',
+      imageSize: config.imageSize || '',
+    });
+    setApiKeyInput('');
+    setClearApiKey(false);
+    setFormError('');
+  }, [config]);
+
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setFormError('');
+    try {
+      const payload = {
+        provider: formData.provider,
+        endpoint: formData.endpoint.trim() || undefined,
+        model: formData.model.trim() || undefined,
+        imageSize: formData.imageSize.trim() || undefined,
+        ...(apiKeyInput.trim() ? { apiKey: apiKeyInput.trim() } : {}),
+        ...(clearApiKey ? { clearApiKey: true } : {}),
+      };
+      const response = await api.homepageSections.updateCountryImageApiConfig(payload);
+      if (response.success) {
+        await onSaved();
+        if (response.warning === 'MISSING_API_KEY') {
+          toast.error(response.message || 'Configuration saved, but API key is missing.');
+        } else {
+          toast.success('Country image API settings saved.');
+        }
+        onClose();
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Failed to save image API settings.';
+      setFormError(message);
+      toast.error(message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-xl shadow-xl max-w-xl w-full">
+        <div className="flex items-center justify-between p-6 border-b border-gray-200">
+          <h2 className="text-xl font-semibold text-gray-900">Country Image API Settings</h2>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          {loading ? (
+            <div className="flex items-center justify-center py-10">
+              <Loader2 className="w-7 h-7 animate-spin text-amber-500" />
+            </div>
+          ) : (
+            <>
+              {formError && (
+                <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                  {formError}
+                </div>
+              )}
+              <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
+                Source: <span className="font-semibold">{config?.source === 'DATABASE' ? 'Admin dashboard config' : 'Environment defaults'}</span>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Provider</label>
+                <select
+                  value={formData.provider}
+                  onChange={(e) =>
+                    setFormData((prev) => ({ ...prev, provider: e.target.value as CountryImageApiConfig['provider'] }))
+                  }
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                >
+                  <option value="POLLINATIONS">Pollinations (no API key)</option>
+                  <option value="OPENAI">OpenAI</option>
+                  <option value="OPENAI_COMPATIBLE">OpenAI-Compatible API</option>
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Endpoint URL</label>
+                <input
+                  type="url"
+                  value={formData.endpoint}
+                  onChange={(e) => setFormData((prev) => ({ ...prev, endpoint: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="https://api.openai.com/v1/images/generations"
+                  disabled={formData.provider === 'POLLINATIONS'}
+                />
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Model</label>
+                  <input
+                    type="text"
+                    value={formData.model}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, model: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="gpt-image-1"
+                    disabled={formData.provider === 'POLLINATIONS'}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Image Size</label>
+                  <input
+                    type="text"
+                    value={formData.imageSize}
+                    onChange={(e) => setFormData((prev) => ({ ...prev, imageSize: e.target.value }))}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                    placeholder="1536x1024"
+                    disabled={formData.provider === 'POLLINATIONS'}
+                  />
+                </div>
+              </div>
+              <div className="space-y-2 rounded-lg border border-gray-200 p-3">
+                <div className="text-sm text-gray-700">
+                  Current API key: {config?.hasApiKey ? <span className="font-mono">{config.maskedApiKey}</span> : <span className="text-gray-500">Not set</span>}
+                </div>
+                <input
+                  type="password"
+                  value={apiKeyInput}
+                  onChange={(e) => setApiKeyInput(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
+                  placeholder="Enter new API key to replace current key"
+                  disabled={formData.provider === 'POLLINATIONS'}
+                />
+                <label className="inline-flex items-center gap-2 text-sm text-gray-700">
+                  <input
+                    type="checkbox"
+                    checked={clearApiKey}
+                    onChange={(e) => setClearApiKey(e.target.checked)}
+                    className="w-4 h-4 text-amber-600 border-gray-300 rounded focus:ring-amber-500"
+                    disabled={formData.provider === 'POLLINATIONS'}
+                  />
+                  Clear stored API key
+                </label>
+              </div>
+              <p className="text-xs text-gray-500">
+                These settings are saved in the admin system and used by country image generation immediately.
+              </p>
+            </>
+          )}
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={loading || saving}>
+              {saving ? 'Saving...' : 'Save Settings'}
+            </Button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
