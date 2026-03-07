@@ -91,6 +91,13 @@ interface CountryImageApiConfig {
   apiKey?: string;
 }
 
+interface CountryImageGenerationResult {
+  url: string;
+  provider: CountryImageProvider;
+  prompt: string;
+  fallbackUsed: boolean;
+}
+
 const normalizeCountryImageProvider = (value: unknown, fallback: CountryImageProvider = 'POLLINATIONS'): CountryImageProvider => {
   const normalized = String(value || '')
     .trim()
@@ -266,16 +273,29 @@ const generateCountryImage = async ({
   countryName,
   countryCode,
   keywords,
+  configOverride,
+  allowFallback = true,
 }: {
   countryName: string;
   countryCode: string;
   keywords?: string;
-}) => {
+  configOverride?: CountryImageApiConfig;
+  allowFallback?: boolean;
+}): Promise<CountryImageGenerationResult> => {
   const prompt = composeCountryImagePrompt({ countryName, countryCode, keywords });
-  const { config } = await readCountryImageApiConfig();
+  const { config: storedConfig } = await readCountryImageApiConfig();
+  const config = configOverride ? parseCountryImageConfig(configOverride) : storedConfig;
   const hasApiKey = Boolean(getNonEmptyString(config.apiKey));
   const prefersApiProvider = config.provider !== 'POLLINATIONS';
   const shouldTryApiProvider = prefersApiProvider && hasApiKey;
+  let providerFailureReason = '';
+
+  if (prefersApiProvider && !hasApiKey) {
+    providerFailureReason = 'API key is required for the selected provider.';
+    if (!allowFallback) {
+      throw new Error(providerFailureReason);
+    }
+  }
 
   if (shouldTryApiProvider) {
     try {
@@ -304,13 +324,20 @@ const generateCountryImage = async ({
             fallbackUsed: false,
           };
         }
+        providerFailureReason = 'Provider responded without an image URL.';
       } else {
         const errorText = await response.text();
+        providerFailureReason = `Provider request failed (${response.status}). ${errorText || ''}`.trim();
         console.error('Country image provider request failed:', response.status, errorText);
       }
     } catch (error) {
+      providerFailureReason = error instanceof Error ? error.message : 'Provider request error.';
       console.error('Country image provider request error:', error);
     }
+  }
+
+  if (!allowFallback && prefersApiProvider) {
+    throw new Error(providerFailureReason || 'Provider connection test failed.');
   }
 
   return {
@@ -386,6 +413,12 @@ const countryImageApiConfigUpdateSchema = z.object({
   imageSize: z.string().min(3).optional(),
   apiKey: z.string().optional(),
   clearApiKey: z.boolean().optional(),
+});
+const countryImageApiConfigTestSchema = countryImageApiConfigUpdateSchema.extend({
+  useStoredApiKey: z.boolean().optional(),
+  countryCode: z.string().trim().length(2).optional(),
+  name: z.string().min(1).optional(),
+  keywords: z.string().optional(),
 });
 
 const howItWorksCreateSchema = z.object({
@@ -936,6 +969,69 @@ router.put('/admin/countries/image-api-config', authenticate, authorizePermissio
     }
     console.error('Error updating country image API config:', error);
     res.status(500).json({ success: false, message: 'Failed to update country image API config' });
+  }
+});
+
+router.post('/admin/countries/image-api-config/test', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const payload = countryImageApiConfigTestSchema.parse(req.body);
+    const existing = await readCountryImageApiConfig();
+    const next: CountryImageApiConfig = {
+      provider: payload.provider,
+      endpoint:
+        getNonEmptyString(payload.endpoint) ||
+        existing.config.endpoint ||
+        OPENAI_COUNTRY_IMAGE_ENDPOINT,
+      model:
+        getNonEmptyString(payload.model) ||
+        existing.config.model ||
+        OPENAI_COUNTRY_IMAGE_MODEL,
+      imageSize:
+        getNonEmptyString(payload.imageSize) ||
+        existing.config.imageSize ||
+        OPENAI_COUNTRY_IMAGE_SIZE,
+      apiKey: payload.clearApiKey
+        ? undefined
+        : payload.apiKey !== undefined
+          ? getNonEmptyString(payload.apiKey)
+          : payload.useStoredApiKey === false
+            ? undefined
+            : existing.config.apiKey,
+    };
+
+    const option =
+      resolveAfricanCountryOption(payload) ||
+      AFRICAN_COUNTRY_BY_CODE.get('NG') || {
+        code: 'NG',
+        name: 'Nigeria',
+        flag: '🇳🇬',
+      };
+
+    const generated = await generateCountryImage({
+      countryName: option.name,
+      countryCode: option.code,
+      keywords: payload.keywords || 'editorial, modern, handcrafted textiles',
+      configOverride: next,
+      allowFallback: false,
+    });
+
+    res.json({
+      success: true,
+      message: 'Connection test succeeded.',
+      data: {
+        ...generated,
+        country: option,
+      },
+    });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    const message = error instanceof Error ? error.message : 'Connection test failed.';
+    res.status(400).json({
+      success: false,
+      message: message || 'Connection test failed.',
+    });
   }
 });
 

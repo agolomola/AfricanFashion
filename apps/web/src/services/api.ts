@@ -1291,6 +1291,30 @@ const homepageSectionsApi = {
       message?: string;
     }>('/homepage-sections/admin/countries/image-api-config', data),
 
+  testCountryImageApiConfig: (data: {
+    provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+    endpoint?: string;
+    model?: string;
+    imageSize?: string;
+    apiKey?: string;
+    clearApiKey?: boolean;
+    useStoredApiKey?: boolean;
+    countryCode?: string;
+    name?: string;
+    keywords?: string;
+  }) =>
+    apiService.post<{
+      success: boolean;
+      message?: string;
+      data: {
+        url: string;
+        provider: 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS';
+        prompt: string;
+        fallbackUsed: boolean;
+        country: { code: string; name: string; flag: string };
+      };
+    }>('/homepage-sections/admin/countries/image-api-config/test', data),
+
   generateCountryImage: (data: { countryCode: string; name?: string; keywords: string }) =>
     apiService.post<{
       success: boolean;

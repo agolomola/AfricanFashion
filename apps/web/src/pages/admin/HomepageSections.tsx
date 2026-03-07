@@ -514,7 +514,14 @@ function CountryImageApiSettingsModal({
 }) {
   const toast = useToast();
   const [saving, setSaving] = useState(false);
+  const [testingConnection, setTestingConnection] = useState(false);
   const [formError, setFormError] = useState('');
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    message: string;
+    previewUrl?: string;
+    provider?: string;
+  } | null>(null);
   const [formData, setFormData] = useState({
     provider: 'POLLINATIONS' as CountryImageApiConfig['provider'],
     endpoint: '',
@@ -535,22 +542,56 @@ function CountryImageApiSettingsModal({
     setApiKeyInput('');
     setClearApiKey(false);
     setFormError('');
+    setTestResult(null);
   }, [config]);
+
+  const buildPayload = () => ({
+    provider: formData.provider,
+    endpoint: formData.endpoint.trim() || undefined,
+    model: formData.model.trim() || undefined,
+    imageSize: formData.imageSize.trim() || undefined,
+    ...(apiKeyInput.trim() ? { apiKey: apiKeyInput.trim() } : {}),
+    ...(clearApiKey ? { clearApiKey: true } : {}),
+    ...(!apiKeyInput.trim() && !clearApiKey ? { useStoredApiKey: true } : {}),
+  });
+
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    setFormError('');
+    setTestResult(null);
+    try {
+      const response = await api.homepageSections.testCountryImageApiConfig({
+        ...buildPayload(),
+        countryCode: 'NG',
+        name: 'Nigeria',
+        keywords: 'editorial, modern, handcrafted textiles',
+      });
+      if (response.success) {
+        const message = response.message || 'Connection test succeeded.';
+        setTestResult({
+          success: true,
+          message,
+          previewUrl: response.data.url,
+          provider: response.data.provider,
+        });
+        toast.success(message);
+      }
+    } catch (error: any) {
+      const message = error?.response?.data?.message || 'Connection test failed.';
+      setFormError(message);
+      setTestResult({ success: false, message });
+      toast.error(message);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setSaving(true);
     setFormError('');
     try {
-      const payload = {
-        provider: formData.provider,
-        endpoint: formData.endpoint.trim() || undefined,
-        model: formData.model.trim() || undefined,
-        imageSize: formData.imageSize.trim() || undefined,
-        ...(apiKeyInput.trim() ? { apiKey: apiKeyInput.trim() } : {}),
-        ...(clearApiKey ? { clearApiKey: true } : {}),
-      };
-      const response = await api.homepageSections.updateCountryImageApiConfig(payload);
+      const response = await api.homepageSections.updateCountryImageApiConfig(buildPayload());
       if (response.success) {
         await onSaved();
         if (response.warning === 'MISSING_API_KEY') {
@@ -588,6 +629,27 @@ function CountryImageApiSettingsModal({
               {formError && (
                 <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
                   {formError}
+                </div>
+              )}
+              {testResult && (
+                <div
+                  className={`rounded-lg border px-3 py-3 text-sm ${
+                    testResult.success
+                      ? 'border-green-200 bg-green-50 text-green-700'
+                      : 'border-red-200 bg-red-50 text-red-700'
+                  }`}
+                >
+                  <p className="font-medium">{testResult.message}</p>
+                  {testResult.success && testResult.provider && (
+                    <p className="text-xs mt-1">Provider: {testResult.provider}</p>
+                  )}
+                  {testResult.success && testResult.previewUrl && (
+                    <img
+                      src={testResult.previewUrl}
+                      alt="Connection test preview"
+                      className="mt-2 h-24 w-40 object-cover rounded border border-gray-200"
+                    />
+                  )}
                 </div>
               )}
               <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs text-gray-600">
@@ -674,7 +736,15 @@ function CountryImageApiSettingsModal({
             <Button type="button" variant="secondary" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" disabled={loading || saving}>
+            <Button
+              type="button"
+              variant="secondary"
+              onClick={handleTestConnection}
+              disabled={loading || saving || testingConnection}
+            >
+              {testingConnection ? 'Testing...' : 'Test Connection'}
+            </Button>
+            <Button type="submit" disabled={loading || saving || testingConnection}>
               {saving ? 'Saving...' : 'Save Settings'}
             </Button>
           </div>
