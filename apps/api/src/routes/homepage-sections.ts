@@ -83,6 +83,29 @@ const OPENAI_COUNTRY_IMAGE_ENDPOINT = String(process.env.OPENAI_COUNTRY_IMAGE_EN
 const OPENAI_COUNTRY_IMAGE_MODEL = String(process.env.OPENAI_COUNTRY_IMAGE_MODEL || 'gpt-image-1').trim();
 const OPENAI_COUNTRY_IMAGE_SIZE = String(process.env.OPENAI_COUNTRY_IMAGE_SIZE || '1536x1024').trim();
 const COUNTRY_IMAGE_SETTINGS_KEY = 'COUNTRY_IMAGE_API';
+const HOMEPAGE_VISIBILITY_SETTINGS_KEY = 'HOMEPAGE_SECTION_VISIBILITY';
+const HOMEPAGE_SECTION_VISIBILITY_META = [
+  { key: 'hero', label: 'Hero Banner', description: 'Top hero carousel section.' },
+  { key: 'countries', label: 'Country Strip', description: 'Country marquee cards below hero.' },
+  { key: 'categories', label: 'Shop by Category', description: 'Three featured category cards.' },
+  { key: 'howItWorks', label: 'How It Works', description: 'Six-step process section.' },
+  { key: 'featuredCustomToWear', label: 'Featured Custom To Wear', description: 'Featured custom designs products grid.' },
+  { key: 'bannerOne', label: 'Homepage Banner One', description: 'Managed banner inserted after custom products.' },
+  { key: 'featuredReadyToWear', label: 'Featured Ready To Wear', description: 'Featured ready-to-wear products grid.' },
+  { key: 'bannerTwo', label: 'Homepage Banner Two', description: 'Managed banner inserted after ready-to-wear products.' },
+  { key: 'featuredFabrics', label: 'Featured Fabrics', description: 'Featured fabrics products grid.' },
+  { key: 'promoBanner', label: 'Promo Banner', description: 'Managed promotional banner before spotlight.' },
+  { key: 'designerSpotlight', label: 'Designer Spotlight', description: 'Designer spotlight cards section.' },
+  { key: 'heritage', label: 'Heritage Story', description: 'Culture and heritage story section.' },
+  { key: 'testimonials', label: 'Testimonials', description: 'Customer testimonials section.' },
+  { key: 'cta', label: 'CTA Blocks', description: 'Final call-to-action and newsletter block.' },
+] as const;
+type HomepageVisibilityKey = (typeof HOMEPAGE_SECTION_VISIBILITY_META)[number]['key'];
+type HomepageSectionVisibility = Record<HomepageVisibilityKey, boolean>;
+const HOMEPAGE_SECTION_VISIBILITY_DEFAULTS = HOMEPAGE_SECTION_VISIBILITY_META.reduce(
+  (acc, item) => ({ ...acc, [item.key]: true }),
+  {} as HomepageSectionVisibility
+);
 
 type CountryImageProvider = 'OPENAI' | 'OPENAI_COMPATIBLE' | 'POLLINATIONS' | 'PICSUM';
 type CountryImageConfigProvider = Exclude<CountryImageProvider, 'PICSUM'>;
@@ -214,6 +237,93 @@ const getCountryImageApiConfigForAdmin = async () => {
     hasApiKey: Boolean(getNonEmptyString(config.apiKey)),
     maskedApiKey: maskApiKey(config.apiKey),
     source,
+  };
+};
+
+const normalizeHomepageSectionVisibility = (raw: unknown): HomepageSectionVisibility => {
+  const defaults = { ...HOMEPAGE_SECTION_VISIBILITY_DEFAULTS };
+  if (!raw || typeof raw !== 'object') {
+    return defaults;
+  }
+  const row = raw as Record<string, unknown>;
+  for (const item of HOMEPAGE_SECTION_VISIBILITY_META) {
+    if (typeof row[item.key] === 'boolean') {
+      defaults[item.key] = row[item.key] as boolean;
+    }
+  }
+  return defaults;
+};
+
+const readHomepageSectionVisibility = async () => {
+  const rows = await prisma.$queryRawUnsafe<any[]>(
+    `SELECT "id", "value", "updatedAt"
+     FROM "HomepageSectionSetting"
+     WHERE "key" = $1
+     LIMIT 1`,
+    HOMEPAGE_VISIBILITY_SETTINGS_KEY
+  );
+  const row = Array.isArray(rows) && rows.length > 0 ? rows[0] : null;
+  if (!row) {
+    return {
+      rowId: null as string | null,
+      visibility: { ...HOMEPAGE_SECTION_VISIBILITY_DEFAULTS },
+      source: 'DEFAULT' as const,
+      updatedAt: null as Date | null,
+    };
+  }
+
+  let parsed: HomepageSectionVisibility = { ...HOMEPAGE_SECTION_VISIBILITY_DEFAULTS };
+  try {
+    parsed = normalizeHomepageSectionVisibility(JSON.parse(String(row.value || '{}')));
+  } catch {
+    parsed = { ...HOMEPAGE_SECTION_VISIBILITY_DEFAULTS };
+  }
+  return {
+    rowId: String(row.id),
+    visibility: parsed,
+    source: 'DATABASE' as const,
+    updatedAt: row.updatedAt ? new Date(row.updatedAt) : null,
+  };
+};
+
+const saveHomepageSectionVisibility = async (next: Partial<Record<HomepageVisibilityKey, boolean>>) => {
+  const existing = await readHomepageSectionVisibility();
+  const merged = normalizeHomepageSectionVisibility({
+    ...existing.visibility,
+    ...next,
+  });
+  const payload = JSON.stringify(merged);
+  if (existing.rowId) {
+    await prisma.$executeRawUnsafe(
+      `UPDATE "HomepageSectionSetting"
+       SET "value" = $1, "updatedAt" = NOW()
+       WHERE "id" = $2`,
+      payload,
+      existing.rowId
+    );
+    return merged;
+  }
+  await prisma.$executeRawUnsafe(
+    `INSERT INTO "HomepageSectionSetting" ("id", "key", "value", "createdAt", "updatedAt")
+     VALUES ($1, $2, $3, NOW(), NOW())`,
+    randomUUID(),
+    HOMEPAGE_VISIBILITY_SETTINGS_KEY,
+    payload
+  );
+  return merged;
+};
+
+const getHomepageSectionVisibilityForAdmin = async () => {
+  const { visibility, source, updatedAt } = await readHomepageSectionVisibility();
+  return {
+    source,
+    updatedAt,
+    sections: HOMEPAGE_SECTION_VISIBILITY_META.map((item) => ({
+      key: item.key,
+      label: item.label,
+      description: item.description,
+      enabled: Boolean(visibility[item.key]),
+    })),
   };
 };
 
@@ -544,6 +654,9 @@ const countryImageApiConfigTestSchema = countryImageApiConfigUpdateSchema.extend
   countryCode: z.string().trim().length(2).optional(),
   name: z.string().min(1).optional(),
   keywords: z.string().optional(),
+});
+const homepageVisibilityUpdateSchema = z.object({
+  visibility: z.record(z.boolean()),
 });
 
 const howItWorksCreateSchema = z.object({
@@ -899,6 +1012,16 @@ const buildNormalizedCountryPayload = async (payload: any, fallback?: any) => {
 
 // ==================== PUBLIC ENDPOINTS ====================
 
+router.get('/visibility', async (_req, res) => {
+  try {
+    const { visibility } = await readHomepageSectionVisibility();
+    res.json({ success: true, data: visibility });
+  } catch (error) {
+    console.error('Error fetching homepage visibility:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch homepage visibility settings.' });
+  }
+});
+
 // Get all active countries for marquee
 router.get('/countries', async (req, res) => {
   try {
@@ -1181,6 +1304,37 @@ router.get('/admin/designers', authenticate, authorizePermissions(Permissions.HO
 
 router.get('/admin/country-options', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
   res.json({ success: true, data: AFRICAN_COUNTRY_OPTIONS });
+});
+
+router.get('/admin/visibility', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (_req, res) => {
+  try {
+    const data = await getHomepageSectionVisibilityForAdmin();
+    res.json({ success: true, data });
+  } catch (error) {
+    console.error('Error fetching homepage section visibility:', error);
+    res.status(500).json({ success: false, message: 'Failed to fetch homepage section visibility.' });
+  }
+});
+
+router.put('/admin/visibility', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {
+  try {
+    const payload = homepageVisibilityUpdateSchema.parse(req.body);
+    const allowedKeys = new Set(HOMEPAGE_SECTION_VISIBILITY_META.map((item) => item.key));
+    const next: Partial<Record<HomepageVisibilityKey, boolean>> = {};
+    for (const [key, enabled] of Object.entries(payload.visibility || {})) {
+      if (!allowedKeys.has(key as HomepageVisibilityKey)) continue;
+      next[key as HomepageVisibilityKey] = Boolean(enabled);
+    }
+    await saveHomepageSectionVisibility(next);
+    const data = await getHomepageSectionVisibilityForAdmin();
+    res.json({ success: true, data });
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      return validationError(res, error);
+    }
+    console.error('Error updating homepage section visibility:', error);
+    res.status(500).json({ success: false, message: 'Failed to update homepage section visibility.' });
+  }
 });
 
 router.get('/admin/stories', authenticate, authorizePermissions(Permissions.HOMEPAGE_MANAGE), async (req, res) => {

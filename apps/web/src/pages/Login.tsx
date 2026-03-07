@@ -25,7 +25,13 @@ export default function Login() {
     try {
       const response = await api.auth.login(formData.email, formData.password);
       if (response.success) {
-        login(response.data.user, response.data.token);
+        login(
+          {
+            ...response.data.user,
+            permissions: response.data?.access?.permissions || [],
+          },
+          response.data.token
+        );
         const homeRoute = getHomeRouteForRole(response.data.user?.role) || response.data?.access?.homeRoute || '/';
         navigate(homeRoute, { replace: true });
       }

@@ -46,6 +46,7 @@ const navItems: Record<DashboardType, NavItem[]> = {
   admin: [
     { label: 'Dashboard', href: '/admin', icon: LayoutDashboard },
     { label: 'Users', href: '/admin/users', icon: Users },
+    { label: 'Role Management', href: '/admin/roles', icon: Settings },
     { label: 'Vendor Profiles', href: '/admin/vendor-profiles', icon: BadgeCheck },
     { label: 'Session Audit', href: '/admin/session-audit', icon: Shield },
     { label: 'Products', href: '/admin/products', icon: Package },
@@ -102,6 +103,31 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
   const navigate = useNavigate();
 
   const items = navItems[userType] || [];
+  const userPermissions = Array.isArray((user as any)?.permissions) ? ((user as any).permissions as string[]) : [];
+  const canAccessAdminNav = (href: string) => {
+    if (userType !== 'admin') return true;
+    if (!userPermissions || userPermissions.length === 0 || userPermissions.includes('*')) return true;
+    const permissionByHref: Record<string, string[]> = {
+      '/admin': ['admin:dashboard:read'],
+      '/admin/users': ['users:read'],
+      '/admin/roles': ['admin:roles:manage', 'users:read'],
+      '/admin/vendor-profiles': ['vendor_profiles:read'],
+      '/admin/session-audit': ['session_audit:read'],
+      '/admin/products': ['products:manage'],
+      '/admin/pricing': ['pricing:manage'],
+      '/admin/currency': ['currency:manage'],
+      '/admin/orders': ['orders:manage'],
+      '/admin/traffic': ['traffic:read'],
+      '/admin/banners': ['banners:manage'],
+      '/admin/homepage': ['homepage:manage'],
+      '/admin/homepage-sections': ['homepage:manage'],
+      '/admin/measurement-templates': ['measurement_templates:manage'],
+    };
+    const required = permissionByHref[href] || [];
+    if (required.length === 0) return true;
+    return required.every((permission) => userPermissions.includes(permission));
+  };
+  const visibleItems = items.filter((item) => canAccessAdminNav(item.href));
   const roleLabel = roleLabels[userType] || 'User';
   const displayName = user?.fullName || [user?.firstName, user?.lastName].filter(Boolean).join(' ') || 'User';
   const vendorStoreHref = getVendorStorePathForRole(user?.role, user?.id);
@@ -144,7 +170,7 @@ export default function DashboardLayout({ userType }: DashboardLayoutProps) {
 
           {/* Navigation */}
           <nav className="flex-1 py-6 px-3 space-y-1 overflow-y-auto">
-            {items.map((item) => {
+            {visibleItems.map((item) => {
               const isActive =
                 location.pathname === item.href ||
                 location.pathname.startsWith(`${item.href}/`);

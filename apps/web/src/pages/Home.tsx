@@ -78,6 +78,23 @@ const defaultTestimonials = [
   },
 ];
 
+const DEFAULT_HOMEPAGE_VISIBILITY: Record<string, boolean> = {
+  hero: true,
+  countries: true,
+  categories: true,
+  howItWorks: true,
+  featuredCustomToWear: true,
+  bannerOne: true,
+  featuredReadyToWear: true,
+  bannerTwo: true,
+  featuredFabrics: true,
+  promoBanner: true,
+  designerSpotlight: true,
+  heritage: true,
+  testimonials: true,
+  cta: true,
+};
+
 interface SpotlightDesigner {
   id: string;
   name: string;
@@ -349,6 +366,14 @@ export default function Home() {
     },
   });
 
+  const { data: homepageVisibilityData } = useQuery({
+    queryKey: ['homepageVisibility'],
+    queryFn: async () => {
+      const response = await api.homepageSections.getVisibility();
+      return response.success ? response.data : null;
+    },
+  });
+
   const { data: designerSpotlightsData } = useQuery({
     queryKey: ['homepageDesignerSpotlights'],
     queryFn: async () => {
@@ -409,6 +434,14 @@ export default function Home() {
         text: t.text 
       })) 
     : defaultTestimonials;
+
+  const sectionVisibility = useMemo(
+    () => ({
+      ...DEFAULT_HOMEPAGE_VISIBILITY,
+      ...(homepageVisibilityData || {}),
+    }),
+    [homepageVisibilityData]
+  );
 
   // Hero carousel state
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -695,6 +728,7 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-[#F7F7F4]">
       {/* Hero Carousel */}
+      {sectionVisibility.hero ? (
       <section className="relative h-[560px] md:h-[700px] lg:h-[820px] overflow-hidden">
         {heroSlides.map((slide, index) => (
           <div
@@ -769,10 +803,15 @@ export default function Home() {
           ))}
         </div>
       </section>
+      ) : null}
 
       {/* Countries Marquee */}
-      {countries.length > 0 && (
-        <section className="relative -mt-24 md:-mt-28 lg:-mt-32 z-20 pb-8 bg-transparent overflow-hidden">
+      {sectionVisibility.countries && countries.length > 0 && (
+        <section
+          className={`relative ${
+            sectionVisibility.hero ? '-mt-24 md:-mt-28 lg:-mt-32 z-20' : 'mt-0'
+          } pb-8 bg-transparent overflow-hidden`}
+        >
           <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
             <div
               ref={countryStripRef}
@@ -853,6 +892,7 @@ export default function Home() {
       )}
 
       {/* Shop by Category */}
+      {sectionVisibility.categories ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-7 md:mb-8">
@@ -884,8 +924,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ) : null}
 
       {/* How It Works */}
+      {sectionVisibility.howItWorks ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-8">
@@ -907,8 +949,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ) : null}
 
       {/* Featured Custom To Wear */}
+      {sectionVisibility.featuredCustomToWear ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-6">
@@ -959,12 +1003,14 @@ export default function Home() {
           )}
         </div>
       </section>
+      ) : null}
 
-      {renderManagedBanner({
+      {sectionVisibility.bannerOne ? renderManagedBanner({
         banner: bannerOne,
-      })}
+      }) : null}
 
       {/* Featured Ready To Wear */}
+      {sectionVisibility.featuredReadyToWear ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-6">
@@ -1005,12 +1051,14 @@ export default function Home() {
           )}
         </div>
       </section>
+      ) : null}
 
-      {renderManagedBanner({
+      {sectionVisibility.bannerTwo ? renderManagedBanner({
         banner: bannerTwo,
-      })}
+      }) : null}
 
       {/* Featured Fabrics */}
+      {sectionVisibility.featuredFabrics ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-center justify-between mb-6">
@@ -1051,17 +1099,19 @@ export default function Home() {
           )}
         </div>
       </section>
+      ) : null}
 
-      {renderManagedBanner({
+      {sectionVisibility.promoBanner ? renderManagedBanner({
         banner: promoBanner,
         fallbackImage: fallbackImage('promo-fresh-drops', 1600, 900),
         fallbackTitle: 'Fresh Drops',
         fallbackSubtitle: 'New arrivals from the most talented designers across the continent.',
         fallbackCtaText: 'Shop New Arrivals',
         fallbackCtaLink: '/ready-to-wear',
-      })}
+      }) : null}
 
       {/* Designer Spotlight */}
+      {sectionVisibility.designerSpotlight ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="flex items-end justify-between mb-6">
@@ -1134,8 +1184,10 @@ export default function Home() {
           )}
         </div>
       </section>
+      ) : null}
 
       {/* Heritage Story */}
+      {sectionVisibility.heritage ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 bg-navy-600 overflow-hidden rounded-2xl">
@@ -1165,8 +1217,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ) : null}
 
       {/* Testimonials */}
+      {sectionVisibility.testimonials ? (
       <section className="py-10 md:py-12 bg-navy-600">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="text-center mb-8">
@@ -1196,8 +1250,10 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ) : null}
 
       {/* CTA Section */}
+      {sectionVisibility.cta ? (
       <section className="py-10 md:py-12 bg-[#F7F7F4]">
         <div className="px-4 sm:px-6 lg:px-8 xl:px-12">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -1243,6 +1299,7 @@ export default function Home() {
           </div>
         </div>
       </section>
+      ) : null}
     </div>
   );
 }

@@ -45,6 +45,7 @@ import AdminMeasurementTemplates from './pages/admin/MeasurementTemplates';
 import AdminCurrencyMatrix from './pages/admin/CurrencyMatrix';
 import AdminSessionAudit from './pages/admin/SessionAudit';
 import AdminVendorProfiles from './pages/admin/VendorProfiles';
+import AdminRoleManagement from './pages/admin/RoleManagement';
 
 // Seller Pages
 import SellerDashboard from './pages/seller/Dashboard';
@@ -58,6 +59,7 @@ import QADashboard from './pages/qa/Dashboard';
 
 // Auth
 import ProtectedRoute from './components/ProtectedRoute';
+import AdminPermissionGuard from './components/AdminPermissionGuard';
 import { useAuthStore } from './store/authStore';
 import { getHomeRouteForRole } from './auth/rbac';
 import { ToastProvider } from './components/ui/ToastProvider';
@@ -252,20 +254,126 @@ function App() {
             {/* Admin Routes */}
             <Route element={<ProtectedRoute allowedRoles={['ADMINISTRATOR']} />}>
               <Route element={<DashboardLayout userType="admin" />}>
-                <Route path="/admin" element={<AdminDashboard />} />
-                <Route path="/admin/users" element={<AdminUsers />} />
-                <Route path="/admin/vendor-profiles" element={<AdminVendorProfiles />} />
-                <Route path="/admin/session-audit" element={<AdminSessionAudit />} />
-                <Route path="/admin/products" element={<AdminProducts />} />
-                <Route path="/admin/orders" element={<AdminOrders />} />
-                <Route path="/admin/orders/:id" element={<AdminOrders />} />
-                <Route path="/admin/pricing" element={<AdminPricingRules />} />
-                <Route path="/admin/currency" element={<AdminCurrencyMatrix />} />
-                <Route path="/admin/traffic" element={<AdminTraffic />} />
-                <Route path="/admin/banners" element={<AdminBanners />} />
-                <Route path="/admin/homepage" element={<AdminHomepage />} />
-                <Route path="/admin/homepage-sections" element={<AdminHomepageSections />} />
-                <Route path="/admin/measurement-templates" element={<AdminMeasurementTemplates />} />
+                <Route
+                  path="/admin"
+                  element={
+                    <AdminPermissionGuard required={['admin:dashboard:read']}>
+                      <AdminDashboard />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/users"
+                  element={
+                    <AdminPermissionGuard required={['users:read']}>
+                      <AdminUsers />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/roles"
+                  element={
+                    <AdminPermissionGuard required={['admin:roles:manage', 'users:read']}>
+                      <AdminRoleManagement />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/vendor-profiles"
+                  element={
+                    <AdminPermissionGuard required={['vendor_profiles:read']}>
+                      <AdminVendorProfiles />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/session-audit"
+                  element={
+                    <AdminPermissionGuard required={['session_audit:read']}>
+                      <AdminSessionAudit />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/products"
+                  element={
+                    <AdminPermissionGuard required={['products:manage']}>
+                      <AdminProducts />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/orders"
+                  element={
+                    <AdminPermissionGuard required={['orders:manage']}>
+                      <AdminOrders />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/orders/:id"
+                  element={
+                    <AdminPermissionGuard required={['orders:manage']}>
+                      <AdminOrders />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/pricing"
+                  element={
+                    <AdminPermissionGuard required={['pricing:manage']}>
+                      <AdminPricingRules />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/currency"
+                  element={
+                    <AdminPermissionGuard required={['currency:manage']}>
+                      <AdminCurrencyMatrix />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/traffic"
+                  element={
+                    <AdminPermissionGuard required={['traffic:read']}>
+                      <AdminTraffic />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/banners"
+                  element={
+                    <AdminPermissionGuard required={['banners:manage']}>
+                      <AdminBanners />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/homepage"
+                  element={
+                    <AdminPermissionGuard required={['homepage:manage']}>
+                      <AdminHomepage />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/homepage-sections"
+                  element={
+                    <AdminPermissionGuard required={['homepage:manage']}>
+                      <AdminHomepageSections />
+                    </AdminPermissionGuard>
+                  }
+                />
+                <Route
+                  path="/admin/measurement-templates"
+                  element={
+                    <AdminPermissionGuard required={['measurement_templates:manage']}>
+                      <AdminMeasurementTemplates />
+                    </AdminPermissionGuard>
+                  }
+                />
               </Route>
             </Route>
 

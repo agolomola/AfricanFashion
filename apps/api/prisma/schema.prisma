@@ -203,9 +203,26 @@ model AdminProfile {
   
   // Admin can have specific permissions
   permissions Json? // Store array of permission strings
+  adminRoleId String?
+  adminRole   AdminRole? @relation(fields: [adminRoleId], references: [id], onDelete: SetNull)
   
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  @@index([adminRoleId])
+}
+
+model AdminRole {
+  id          String @id @default(uuid())
+  name        String @unique
+  description String?
+  permissions Json
+  isSystem    Boolean @default(false)
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  adminProfiles AdminProfile[]
 }
 
 model Address {

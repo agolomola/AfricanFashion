@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { z } from 'zod';
 import { prisma, UserRole, UserStatus } from '../db';
 import { generateToken, authenticate } from '../middleware/auth';
-import { getRolePermissions, ROLE_HOME_ROUTE } from '../rbac';
+import { getRolePermissions, ROLE_HOME_ROUTE, sanitizePermissionGrants } from '../rbac';
 import { isBrandNameTaken } from '../utils/vendor-profile';
 
 const router = Router();
@@ -96,6 +96,18 @@ const loginSchema = z.object({
   email: z.string().email('Invalid email address').transform((value) => value.toLowerCase().trim()),
   password: z.string().min(1, 'Password is required'),
 });
+
+const resolveAccessPermissions = (user: any) => {
+  const rolePermissions = getRolePermissions(user.role as UserRole) as string[];
+  if (user.role !== UserRole.ADMINISTRATOR) {
+    return rolePermissions;
+  }
+  const adminRolePermissions = sanitizePermissionGrants(user?.adminProfile?.adminRole?.permissions);
+  const adminUserPermissions = sanitizePermissionGrants(user?.adminProfile?.permissions);
+  if (adminUserPermissions.length > 0) return adminUserPermissions;
+  if (adminRolePermissions.length > 0) return adminRolePermissions;
+  return rolePermissions;
+};
 
 // Register
 router.post('/register', async (req, res, next) => {
@@ -262,6 +274,19 @@ router.post('/login', async (req, res, next) => {
       where: {
         email: { equals: data.email, mode: 'insensitive' },
       },
+      include: {
+        adminProfile: {
+          select: {
+            permissions: true,
+            adminRoleId: true,
+            adminRole: {
+              select: {
+                permissions: true,
+              },
+            },
+          },
+        },
+      },
     });
 
     if (!user) {
@@ -350,7 +375,7 @@ router.post('/login', async (req, res, next) => {
         token,
         access: {
           homeRoute: ROLE_HOME_ROUTE[user.role],
-          permissions: getRolePermissions(user.role),
+          permissions: resolveAccessPermissions(user),
         },
       },
     });
@@ -373,7 +398,17 @@ router.get('/me', authenticate, async (req, res, next) => {
         fabricSellerProfile: true,
         designerProfile: true,
         qaProfile: true,
-        adminProfile: true,
+        adminProfile: {
+          include: {
+            adminRole: {
+              select: {
+                id: true,
+                name: true,
+                permissions: true,
+              },
+            },
+          },
+        },
       },
     });
 
@@ -398,7 +433,7 @@ router.get('/me', authenticate, async (req, res, next) => {
         profile: user.customerProfile || user.fabricSellerProfile || user.designerProfile || user.qaProfile || user.adminProfile,
         access: {
           homeRoute: ROLE_HOME_ROUTE[user.role],
-          permissions: getRolePermissions(user.role),
+          permissions: resolveAccessPermissions(user),
         },
       },
     });

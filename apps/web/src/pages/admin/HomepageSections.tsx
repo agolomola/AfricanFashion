@@ -6,6 +6,7 @@ import Badge from '../../components/ui/Badge';
 import { useToast } from '../../components/ui/ToastProvider';
 
 type SectionType =
+  | 'visibility'
   | 'countries'
   | 'countryBlogs'
   | 'howItWorks'
@@ -157,6 +158,7 @@ const ALLOWED_UPLOAD_TYPES = new Set([
 ]);
 
 const TABS = [
+  { id: 'visibility' as SectionType, label: 'Visibility', icon: Eye },
   { id: 'countries' as SectionType, label: 'Countries', icon: Globe },
   { id: 'countryBlogs' as SectionType, label: 'Country Blogs', icon: BookOpen },
   { id: 'howItWorks' as SectionType, label: 'How It Works', icon: Sparkles },
@@ -187,6 +189,10 @@ export default function HomepageSections() {
   const [footerContents, setFooterContents] = useState<FooterContent[]>([]);
   const [designers, setDesigners] = useState<DesignerOption[]>([]);
   const [countryOptions, setCountryOptions] = useState<CountryOption[]>([]);
+  const [visibilitySections, setVisibilitySections] = useState<
+    Array<{ key: string; label: string; description: string; enabled: boolean }>
+  >([]);
+  const [visibilitySource, setVisibilitySource] = useState<'DATABASE' | 'DEFAULT'>('DEFAULT');
   const [showCountryImageApiModal, setShowCountryImageApiModal] = useState(false);
   const [countryImageApiConfig, setCountryImageApiConfig] = useState<CountryImageApiConfig | null>(null);
   const [countryImageApiLoading, setCountryImageApiLoading] = useState(false);
@@ -236,6 +242,13 @@ export default function HomepageSections() {
     setLoading(true);
     try {
       switch (activeTab) {
+        case 'visibility':
+          const visibilityRes = await api.homepageSections.getAdminVisibility();
+          if (visibilityRes.success) {
+            setVisibilitySections(visibilityRes.data.sections || []);
+            setVisibilitySource(visibilityRes.data.source || 'DEFAULT');
+          }
+          break;
         case 'countries':
           const countriesRes = await api.homepageSections.getAdminCountries();
           if (countriesRes.success) setCountries(countriesRes.data);
@@ -285,6 +298,19 @@ export default function HomepageSections() {
     try {
       let response;
       switch (activeTab) {
+        case 'visibility':
+          response = await api.homepageSections.updateAdminVisibility(
+            visibilitySections.reduce<Record<string, boolean>>((acc, section) => {
+              acc[section.key] = section.key === id ? !currentStatus : section.enabled;
+              return acc;
+            }, {})
+          );
+          if (response.success) {
+            setVisibilitySections(response.data.sections || []);
+            setVisibilitySource(response.data.source || 'DEFAULT');
+            toast.success(currentStatus ? 'Section hidden on homepage.' : 'Section shown on homepage.');
+          }
+          break;
         case 'countries':
           const country = countries.find(c => c.id === id);
           if (country) {
@@ -462,10 +488,12 @@ export default function HomepageSections() {
               Country Image API
             </Button>
           )}
-          <Button onClick={() => openModal()} className="flex items-center gap-2">
-            <Plus className="w-4 h-4" />
-            Add New
-          </Button>
+          {activeTab !== 'visibility' && (
+            <Button onClick={() => openModal()} className="flex items-center gap-2">
+              <Plus className="w-4 h-4" />
+              Add New
+            </Button>
+          )}
         </div>
       </div>
 
@@ -500,6 +528,13 @@ export default function HomepageSections() {
           </div>
         ) : (
           <>
+            {activeTab === 'visibility' && (
+              <VisibilityTable
+                source={visibilitySource}
+                data={visibilitySections}
+                onToggle={handleToggleActive}
+              />
+            )}
             {activeTab === 'countries' && (
               <CountriesTable
                 data={countries}
@@ -860,6 +895,68 @@ function CountryImageApiSettingsModal({
 }
 
 // Table Components
+function VisibilityTable({
+  source,
+  data,
+  onToggle,
+}: {
+  source: 'DATABASE' | 'DEFAULT';
+  data: Array<{ key: string; label: string; description: string; enabled: boolean }>;
+  onToggle: (id: string, currentStatus: boolean) => void | Promise<void>;
+}) {
+  return (
+    <div className="p-6 space-y-4">
+      <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-700">
+        Source:{' '}
+        <span className="font-semibold">
+          {source === 'DATABASE' ? 'Saved admin visibility config' : 'Default all-sections-visible config'}
+        </span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="min-w-full divide-y divide-gray-200">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Section</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
+              <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+              <th className="px-4 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Toggle</th>
+            </tr>
+          </thead>
+          <tbody className="bg-white divide-y divide-gray-200">
+            {data.map((section) => (
+              <tr key={section.key} className="hover:bg-gray-50">
+                <td className="px-4 py-3 text-sm font-medium text-gray-900">{section.label}</td>
+                <td className="px-4 py-3 text-sm text-gray-600">{section.description}</td>
+                <td className="px-4 py-3">
+                  <Badge variant={section.enabled ? 'green' : 'gray'}>
+                    {section.enabled ? 'Visible' : 'Hidden'}
+                  </Badge>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button
+                    onClick={() => onToggle(section.key, section.enabled)}
+                    className="inline-flex items-center gap-2 rounded-lg px-3 py-2 text-sm border border-gray-200 hover:bg-gray-100"
+                  >
+                    {section.enabled ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    {section.enabled ? 'Hide' : 'Show'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {data.length === 0 && (
+              <tr>
+                <td colSpan={4} className="px-4 py-8 text-sm text-center text-gray-500">
+                  No homepage sections found.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 function CountriesTable({ data, onEdit, onToggle, onDelete }: any) {
   return (
     <table className="min-w-full divide-y divide-gray-200">

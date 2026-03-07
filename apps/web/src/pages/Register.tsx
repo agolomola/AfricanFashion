@@ -92,7 +92,13 @@ export default function Register() {
 
       if (response.success) {
         if (response.data.user?.status === 'ACTIVE' && response.data.token) {
-          login(response.data.user, response.data.token);
+          login(
+            {
+              ...response.data.user,
+              permissions: response.data?.access?.permissions || [],
+            },
+            response.data.token
+          );
           navigate(getHomeRouteForRole(response.data.user?.role) || '/');
         } else {
           setNotice('Account created successfully. Your account is pending admin approval before login.');
