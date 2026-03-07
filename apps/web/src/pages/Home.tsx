@@ -1285,7 +1285,7 @@ export default function Home() {
                 });
                 const cardContent = (
                   <>
-                    <div className="relative h-[360px] overflow-hidden bg-gray-100">
+                    <div className="relative h-[440px] md:h-[500px] overflow-hidden bg-gray-100">
                       <img
                         src={designer.image}
                         alt={`${designer.name} from ${designer.country}`}
