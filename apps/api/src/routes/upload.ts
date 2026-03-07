@@ -3,6 +3,7 @@ import multer from 'multer';
 import path from 'path';
 import fs from 'fs';
 import { v4 as uuidv4 } from 'uuid';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { authenticate, authorizePermissions } from '../middleware/auth';
 import { Permissions } from '../rbac';
 
@@ -10,6 +11,16 @@ const router = Router();
 const MAX_IMAGE_SIZE_MB = 10;
 const MAX_IMAGE_SIZE_BYTES = MAX_IMAGE_SIZE_MB * 1024 * 1024;
 const UPLOAD_DIR = process.env.UPLOAD_DIR || path.resolve(process.cwd(), 'uploads');
+const S3_BUCKET = String(process.env.AWS_S3_BUCKET || '').trim();
+const S3_REGION = String(process.env.AWS_REGION || '').trim();
+const S3_KEY_PREFIX = String(process.env.AWS_S3_KEY_PREFIX || 'uploads')
+  .trim()
+  .replace(/^\/+|\/+$/g, '');
+const S3_PUBLIC_BASE_URL = String(process.env.AWS_S3_PUBLIC_BASE_URL || '')
+  .trim()
+  .replace(/\/+$/g, '');
+const SHOULD_USE_S3 = Boolean(S3_BUCKET && S3_REGION);
+const s3Client = SHOULD_USE_S3 ? new S3Client({ region: S3_REGION }) : null;
 const allowedMimeTypes: Record<string, string> = {
   'image/jpeg': '.jpg',
   'image/jpg': '.jpg',
@@ -20,17 +31,19 @@ const allowedMimeTypes: Record<string, string> = {
   'image/heif': '.heif',
 };
 
-// Configure multer storage
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, UPLOAD_DIR);
-  },
-  filename: (req, file, cb) => {
-    const extension = allowedMimeTypes[file.mimetype];
-    const uniqueName = `${uuidv4()}${extension || path.extname(file.originalname) || '.bin'}`;
-    cb(null, uniqueName);
-  },
-});
+// Configure multer storage (S3 uses memory, local fallback uses disk)
+const storage = SHOULD_USE_S3
+  ? multer.memoryStorage()
+  : multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, UPLOAD_DIR);
+      },
+      filename: (req, file, cb) => {
+        const extension = allowedMimeTypes[file.mimetype];
+        const uniqueName = `${uuidv4()}${extension || path.extname(file.originalname) || '.bin'}`;
+        cb(null, uniqueName);
+      },
+    });
 
 // File filter
 const fileFilter = (req: any, file: any, cb: any) => {
@@ -76,6 +89,7 @@ const runMultiUpload = (req: any, res: any): Promise<void> =>
   });
 
 function mapUploadError(error: any) {
+  const message = String(error?.message || '').toLowerCase();
   if (error instanceof multer.MulterError) {
     if (error.code === 'LIMIT_FILE_SIZE') {
       return {
@@ -95,6 +109,21 @@ function mapUploadError(error: any) {
       status: 500,
       code: 'UPLOAD_STORAGE_UNAVAILABLE',
       message: 'Upload storage is not available on server. Please contact support.',
+    };
+  }
+  if (
+    error?.name === 'CredentialsProviderError' ||
+    error?.name === 'InvalidAccessKeyId' ||
+    error?.name === 'SignatureDoesNotMatch' ||
+    message.includes('credential') ||
+    message.includes('access denied') ||
+    message.includes('s3')
+  ) {
+    return {
+      status: 500,
+      code: 'UPLOAD_STORAGE_UNAVAILABLE',
+      message:
+        'S3 upload failed. Check AWS credentials, bucket policy, and region configuration in server environment.',
     };
   }
   return {
@@ -123,10 +152,68 @@ function extractSingleUploadedFile(req: any): Express.Multer.File | null {
   return null;
 }
 
+function buildS3ObjectKey(file: Express.Multer.File) {
+  const extension = allowedMimeTypes[file.mimetype] || path.extname(file.originalname) || '.bin';
+  const uniqueName = `${uuidv4()}${extension}`;
+  return S3_KEY_PREFIX ? `${S3_KEY_PREFIX}/${uniqueName}` : uniqueName;
+}
+
+function buildS3PublicUrl(key: string) {
+  if (S3_PUBLIC_BASE_URL) {
+    return `${S3_PUBLIC_BASE_URL}/${key}`;
+  }
+  const encodedKey = key
+    .split('/')
+    .map((part) => encodeURIComponent(part))
+    .join('/');
+  if (S3_REGION === 'us-east-1') {
+    return `https://${S3_BUCKET}.s3.amazonaws.com/${encodedKey}`;
+  }
+  return `https://${S3_BUCKET}.s3.${S3_REGION}.amazonaws.com/${encodedKey}`;
+}
+
+async function persistUploadedFile(file: Express.Multer.File) {
+  if (!SHOULD_USE_S3) {
+    return {
+      url: `/uploads/${file.filename}`,
+      filename: file.filename,
+      size: file.size,
+      storage: 'LOCAL' as const,
+    };
+  }
+
+  if (!s3Client || !S3_BUCKET) {
+    throw new Error('S3 client is not configured.');
+  }
+  if (!file.buffer || file.buffer.length === 0) {
+    throw new Error('Uploaded file buffer is empty.');
+  }
+
+  const key = buildS3ObjectKey(file);
+  await s3Client.send(
+    new PutObjectCommand({
+      Bucket: S3_BUCKET,
+      Key: key,
+      Body: file.buffer,
+      ContentType: file.mimetype,
+      CacheControl: 'public, max-age=31536000, immutable',
+    })
+  );
+
+  return {
+    url: buildS3PublicUrl(key),
+    filename: key,
+    size: file.size,
+    storage: 'S3' as const,
+  };
+}
+
 // Upload single image
 router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
-    ensureUploadDirectory();
+    if (!SHOULD_USE_S3) {
+      ensureUploadDirectory();
+    }
     await runSingleUpload(req, res);
     const uploadedFile = extractSingleUploadedFile(req);
 
@@ -137,15 +224,16 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
       });
     }
 
-    const imageUrl = `/uploads/${uploadedFile.filename}`;
+    const stored = await persistUploadedFile(uploadedFile);
 
     res.json({
       success: true,
       message: 'Image uploaded successfully.',
       data: {
-        url: imageUrl,
-        filename: uploadedFile.filename,
-        size: uploadedFile.size,
+        url: stored.url,
+        filename: stored.filename,
+        size: stored.size,
+        storage: stored.storage,
       },
     });
   } catch (error) {
@@ -157,6 +245,7 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
       constraints: {
         maxFileSizeMb: MAX_IMAGE_SIZE_MB,
         allowedMimeTypes: Object.keys(allowedMimeTypes),
+        storageProvider: SHOULD_USE_S3 ? 'S3' : 'LOCAL',
       },
     });
   }
@@ -165,7 +254,9 @@ router.post('/image', authenticate, authorizePermissions(Permissions.UPLOADS_CRE
 // Upload multiple images
 router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CREATE), async (req, res) => {
   try {
-    ensureUploadDirectory();
+    if (!SHOULD_USE_S3) {
+      ensureUploadDirectory();
+    }
     await runMultiUpload(req, res);
 
     if (!req.files || (req.files as any[]).length === 0) {
@@ -176,11 +267,7 @@ router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CR
     }
 
     const files = req.files as Express.Multer.File[];
-    const uploadedImages = files.map((file) => ({
-      url: `/uploads/${file.filename}`,
-      filename: file.filename,
-      size: file.size,
-    }));
+    const uploadedImages = await Promise.all(files.map((file) => persistUploadedFile(file)));
 
     res.json({
       success: true,
@@ -196,6 +283,7 @@ router.post('/images', authenticate, authorizePermissions(Permissions.UPLOADS_CR
       constraints: {
         maxFileSizeMb: MAX_IMAGE_SIZE_MB,
         allowedMimeTypes: Object.keys(allowedMimeTypes),
+        storageProvider: SHOULD_USE_S3 ? 'S3' : 'LOCAL',
       },
     });
   }
