@@ -248,6 +248,92 @@ function isFeaturedUnavailableError(error: any) {
   return false;
 }
 
+function normalizeFeaturedProductType(value: unknown): ProductType | null {
+  const normalized = String(value || '').toUpperCase();
+  if (normalized === ProductType.FABRIC) return ProductType.FABRIC;
+  if (normalized === ProductType.DESIGN) return ProductType.DESIGN;
+  if (normalized === ProductType.READY_TO_WEAR) return ProductType.READY_TO_WEAR;
+  return null;
+}
+
+const featuredSectionValues = new Set(Object.values(FeaturedSection).map((value) => String(value).toUpperCase()));
+
+function normalizeFeaturedSection(value: unknown, productType: ProductType): FeaturedSection {
+  const normalized = String(value || '').toUpperCase();
+  if (featuredSectionValues.has(normalized)) {
+    return normalized as FeaturedSection;
+  }
+  return getDefaultFeaturedSectionForType(productType);
+}
+
+type FeaturedRef = { productId: string; productType: ProductType };
+type FeaturedRow = { productId: string; productType: ProductType; section: FeaturedSection };
+
+async function getFeaturedRowsForRefs(refs: FeaturedRef[]): Promise<FeaturedRow[]> {
+  if (refs.length === 0) return [];
+  try {
+    const rows = await prisma.featuredProduct.findMany({
+      where: {
+        isActive: true,
+        OR: refs,
+      },
+      select: {
+        productId: true,
+        productType: true,
+        section: true,
+      },
+    });
+    return rows.map((row) => ({
+      productId: row.productId,
+      productType: row.productType,
+      section: row.section,
+    }));
+  } catch (error) {
+    if (!isFeaturedUnavailableError(error)) {
+      throw error;
+    }
+  }
+
+  const productIds = Array.from(new Set(refs.map((item) => item.productId).filter(Boolean)));
+  if (productIds.length === 0) return [];
+  const refKeySet = new Set(refs.map((item) => `${item.productType}:${item.productId}`));
+  let rawRows: any[] = [];
+  try {
+    rawRows = await prisma.$queryRawUnsafe<any[]>(
+      `SELECT "productId", "productType", "section"
+       FROM "FeaturedProduct"
+       WHERE "isActive" = true
+         AND "productId" = ANY($1::text[])`,
+      productIds
+    );
+  } catch (error) {
+    if (isFeaturedUnavailableError(error)) {
+      return [];
+    }
+    throw error;
+  }
+
+  const dedupe = new Set<string>();
+  const normalizedRows: FeaturedRow[] = [];
+  for (const row of rawRows || []) {
+    const productType = normalizeFeaturedProductType(row?.productType);
+    const productId = String(row?.productId || '');
+    if (!productType || !productId) continue;
+    const refKey = `${productType}:${productId}`;
+    if (!refKeySet.has(refKey)) continue;
+    const section = normalizeFeaturedSection(row?.section, productType);
+    const rowKey = `${refKey}:${section}`;
+    if (dedupe.has(rowKey)) continue;
+    dedupe.add(rowKey);
+    normalizedRows.push({
+      productId,
+      productType,
+      section,
+    });
+  }
+  return normalizedRows;
+}
+
 function getPrismaValidationErrorMessage(error: any) {
   const code = typeof error?.code === 'string' ? error.code : '';
   const field = error?.meta?.field_name || error?.meta?.target;
@@ -1717,26 +1803,7 @@ router.get('/products', async (req, res, next) => {
       ...readyToWear.map((item) => ({ productId: item.id, productType: ProductType.READY_TO_WEAR })),
     ];
 
-    let featuredRows: Array<{ productId: string; productType: ProductType; section: FeaturedSection }> = [];
-    if (productRefs.length > 0) {
-      try {
-        featuredRows = await prisma.featuredProduct.findMany({
-          where: {
-            isActive: true,
-            OR: productRefs,
-          },
-          select: {
-            productId: true,
-            productType: true,
-            section: true,
-          },
-        });
-      } catch (error) {
-        if (!isFeaturedUnavailableError(error)) {
-          throw error;
-        }
-      }
-    }
+    const featuredRows = await getFeaturedRowsForRefs(productRefs);
 
     const featuredMap = new Map<string, FeaturedSection[]>();
     for (const row of featuredRows) {
@@ -1888,17 +1955,7 @@ router.get('/products/:productType/:id', async (req, res, next) => {
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found.' });
       }
-      let featuredRows: Array<{ section: FeaturedSection }> = [];
-      try {
-        featuredRows = await prisma.featuredProduct.findMany({
-          where: { productId: id, productType, isActive: true },
-          select: { section: true },
-        });
-      } catch (error) {
-        if (!isFeaturedUnavailableError(error)) {
-          throw error;
-        }
-      }
+      const featuredRows = await getFeaturedRowsForRefs([{ productId: id, productType }]);
       return res.json({
         success: true,
         data: {
@@ -1945,17 +2002,7 @@ router.get('/products/:productType/:id', async (req, res, next) => {
       if (!product) {
         return res.status(404).json({ success: false, message: 'Product not found.' });
       }
-      let featuredRows: Array<{ section: FeaturedSection }> = [];
-      try {
-        featuredRows = await prisma.featuredProduct.findMany({
-          where: { productId: id, productType, isActive: true },
-          select: { section: true },
-        });
-      } catch (error) {
-        if (!isFeaturedUnavailableError(error)) {
-          throw error;
-        }
-      }
+      const featuredRows = await getFeaturedRowsForRefs([{ productId: id, productType }]);
       return res.json({
         success: true,
         data: {
@@ -1999,17 +2046,7 @@ router.get('/products/:productType/:id', async (req, res, next) => {
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found.' });
     }
-    let featuredRows: Array<{ section: FeaturedSection }> = [];
-    try {
-      featuredRows = await prisma.featuredProduct.findMany({
-        where: { productId: id, productType, isActive: true },
-        select: { section: true },
-      });
-    } catch (error) {
-      if (!isFeaturedUnavailableError(error)) {
-        throw error;
-      }
-    }
+    const featuredRows = await getFeaturedRowsForRefs([{ productId: id, productType }]);
     res.json({
       success: true,
       data: {

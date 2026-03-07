@@ -349,9 +349,12 @@ export default function AdminProducts() {
       let featuredWarning = '';
       if (productId) {
         try {
-          await api.admin.setProductFeatured(productForm.type, productId, {
+          const featuredResponse: any = await api.admin.setProductFeatured(productForm.type, productId, {
             isFeatured: productForm.isFeatured,
           });
+          if (featuredResponse?.warning) {
+            featuredWarning = featuredResponse?.message || 'Featured toggle update failed.';
+          }
         } catch (error: any) {
           featuredWarning = error?.response?.data?.message || 'Featured toggle update failed.';
         }
